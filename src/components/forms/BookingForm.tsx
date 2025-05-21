@@ -1,0 +1,165 @@
+
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useProcedures } from "@/contexts/ProceduresContext";
+import { useToast } from "@/hooks/use-toast";
+import type { Appointment } from "@/lib/types";
+import { format } from 'date-fns';
+
+const bookingFormSchema = z.object({
+  procedureId: z.string().min(1, "Selecione um procedimento."),
+  customerName: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
+  customerEmail: z.string().email("Email inválido."),
+  customerPhone: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+type BookingFormValues = z.infer<typeof bookingFormSchema>;
+
+interface BookingFormProps {
+  selectedDate: Date;
+  selectedTime: string;
+  onBookingConfirmed: (appointment: Appointment) => void;
+}
+
+export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: BookingFormProps) {
+  const { procedures } = useProcedures();
+  const { toast } = useToast();
+
+  const form = useForm<BookingFormValues>({
+    resolver: zodResolver(bookingFormSchema),
+    defaultValues: {
+      procedureId: "",
+      customerName: "",
+      customerEmail: "",
+      customerPhone: "",
+      notes: "",
+    },
+  });
+
+  function onSubmit(data: BookingFormValues) {
+    const selectedProcedure = procedures.find(p => p.id === data.procedureId);
+    if (!selectedProcedure) {
+      toast({ title: "Erro", description: "Procedimento selecionado não encontrado.", variant: "destructive" });
+      return;
+    }
+
+    const newAppointment: Appointment = {
+      id: Date.now().toString(),
+      procedureId: data.procedureId,
+      procedureName: selectedProcedure.name,
+      customerName: data.customerName,
+      customerEmail: data.customerEmail,
+      customerPhone: data.customerPhone,
+      date: format(selectedDate, 'yyyy-MM-dd'),
+      time: selectedTime,
+      notes: data.notes,
+    };
+
+    onBookingConfirmed(newAppointment);
+    toast({
+      title: "Agendamento Confirmado!",
+      description: `${selectedProcedure.name} para ${data.customerName} em ${format(selectedDate, 'dd/MM/yyyy')} às ${selectedTime}.`,
+    });
+    form.reset();
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="procedureId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Procedimento</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o procedimento" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {procedures.map(proc => (
+                    <SelectItem key={proc.id} value={proc.id}>
+                      {proc.name} (R$ {proc.price.toFixed(2)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="customerName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nome Completo</FormLabel>
+              <FormControl>
+                <Input placeholder="Seu nome" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="customerEmail"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input type="email" placeholder="seu@email.com" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="customerPhone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Telefone (Opcional)</FormLabel>
+              <FormControl>
+                <Input type="tel" placeholder="(XX) XXXXX-XXXX" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Observações (Opcional)</FormLabel>
+              <FormControl>
+                <Textarea placeholder="Alguma observação para o profissional?" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit" className="w-full">Confirmar Agendamento</Button>
+      </form>
+    </Form>
+  );
+}
