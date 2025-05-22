@@ -45,28 +45,28 @@ export function ProcedureList({ onEditProcedure }: ProcedureListProps) {
       <Table>
         <TableHeader className="sticky top-0 bg-muted/50 backdrop-blur-sm">
           <TableRow>
-            <TableHead>Nome</TableHead>
-            <TableHead className="text-right whitespace-nowrap">Duração (min)</TableHead>
-            <TableHead className="text-right whitespace-nowrap">Preço (R$)</TableHead>
-            <TableHead className="text-center">Ações</TableHead>
+            <TableHead className="px-2 sm:px-4 py-3">Nome</TableHead>
+            <TableHead className="text-right whitespace-nowrap px-2 sm:px-4 py-3">Duração (min)</TableHead>
+            <TableHead className="text-right whitespace-nowrap px-2 sm:px-4 py-3">Preço (R$)</TableHead>
+            <TableHead className="text-center px-2 sm:px-4 py-3">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {procedures.map((procedure) => (
             <TableRow key={procedure.id}>
-              <TableCell className="font-medium">{procedure.name}</TableCell>
-              <TableCell className="text-right">{procedure.duration}</TableCell>
-              <TableCell className="text-right">{procedure.price.toFixed(2)}</TableCell>
-              <TableCell className="text-center">
-                <div className="flex items-center justify-center space-x-1 sm:space-x-2">
-                  <Button variant="outline" size="icon" onClick={() => onEditProcedure(procedure)} className="h-8 w-8">
-                    <Edit className="h-4 w-4" />
+              <TableCell className="font-medium px-2 sm:px-4 py-3">{procedure.name}</TableCell>
+              <TableCell className="text-right px-2 sm:px-4 py-3">{procedure.duration}</TableCell>
+              <TableCell className="text-right px-2 sm:px-4 py-3">{procedure.price.toFixed(2)}</TableCell>
+              <TableCell className="text-center px-2 sm:px-4 py-3">
+                <div className="flex items-center justify-center space-x-1">
+                  <Button variant="outline" size="icon" onClick={() => onEditProcedure(procedure)} className="h-7 w-7 sm:h-8 sm:w-8">
+                    <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span className="sr-only">Editar</span>
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="icon" className="h-8 w-8">
-                        <Trash2 className="h-4 w-4" />
+                      <Button variant="destructive" size="icon" className="h-7 w-7 sm:h-8 sm:w-8">
+                        <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         <span className="sr-only">Remover</span>
                       </Button>
                     </AlertDialogTrigger>
