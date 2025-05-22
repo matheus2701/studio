@@ -46,9 +46,9 @@ export function ProcedureList({ onEditProcedure }: ProcedureListProps) {
         <TableHeader className="sticky top-0 bg-muted/50 backdrop-blur-sm">
           <TableRow>
             <TableHead>Nome</TableHead>
-            <TableHead className="w-[100px] text-right">Duração (min)</TableHead>
-            <TableHead className="w-[100px] text-right">Preço (R$)</TableHead>
-            <TableHead className="w-[120px] text-center">Ações</TableHead>
+            <TableHead className="text-right whitespace-nowrap">Duração (min)</TableHead>
+            <TableHead className="text-right whitespace-nowrap">Preço (R$)</TableHead>
+            <TableHead className="text-center">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -57,33 +57,35 @@ export function ProcedureList({ onEditProcedure }: ProcedureListProps) {
               <TableCell className="font-medium">{procedure.name}</TableCell>
               <TableCell className="text-right">{procedure.duration}</TableCell>
               <TableCell className="text-right">{procedure.price.toFixed(2)}</TableCell>
-              <TableCell className="text-center space-x-2">
-                <Button variant="outline" size="icon" onClick={() => onEditProcedure(procedure)} className="h-8 w-8">
-                  <Edit className="h-4 w-4" />
-                  <span className="sr-only">Editar</span>
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="icon" className="h-8 w-8">
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">Remover</span>
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Confirmar Remoção</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Tem certeza que deseja remover o procedimento "{procedure.name}"? Esta ação não pode ser desfeita.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDelete(procedure.id, procedure.name)}>
-                        Remover
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+              <TableCell className="text-center">
+                <div className="flex items-center justify-center space-x-1 sm:space-x-2">
+                  <Button variant="outline" size="icon" onClick={() => onEditProcedure(procedure)} className="h-8 w-8">
+                    <Edit className="h-4 w-4" />
+                    <span className="sr-only">Editar</span>
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="icon" className="h-8 w-8">
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Remover</span>
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Confirmar Remoção</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja remover o procedimento "{procedure.name}"? Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(procedure.id, procedure.name)}>
+                          Remover
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </TableCell>
             </TableRow>
           ))}

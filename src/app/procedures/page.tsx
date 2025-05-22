@@ -32,7 +32,7 @@ export default function ProceduresPage() {
   return (
     <div className="space-y-8">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Settings2 className="h-6 w-6 text-primary" />
@@ -42,7 +42,7 @@ export default function ProceduresPage() {
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={handleAddProcedure}>
+              <Button onClick={handleAddProcedure} className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Procedimento
               </Button>
             </DialogTrigger>
