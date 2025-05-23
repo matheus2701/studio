@@ -12,7 +12,7 @@ import { createCalendarEventObject, addEventToGoogleCalendar } from '@/lib/googl
 export async function syncToGoogleCalendar(appointment: Appointment, procedureDuration: number) {
   console.log('Attempting to sync appointment to Google Calendar:', appointment);
 
-  const eventObject = createCalendarEventObject(appointment, procedureDuration);
+  const eventObject = await createCalendarEventObject(appointment, procedureDuration);
   console.log('Generated Google Calendar Event Object:', eventObject);
 
   // TODO: Implement OAuth 2.0 to get an authenticated OAuth2Client.

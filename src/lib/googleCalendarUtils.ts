@@ -2,7 +2,7 @@
 'use server';
 import type { calendar_v3 } from 'googleapis';
 import type { Appointment } from '@/lib/types';
-import { addMinutes, parseISO } from 'date-fns';
+import { addMinutes } from 'date-fns';
 
 /**
  * Creates a Google Calendar event object from appointment details.
@@ -10,10 +10,10 @@ import { addMinutes, parseISO } from 'date-fns';
  * @param procedureDuration The duration of the procedure in minutes.
  * @returns A Google Calendar event object.
  */
-export function createCalendarEventObject(
+export async function createCalendarEventObject(
   appointment: Appointment,
   procedureDuration: number
-): calendar_v3.Schema$Event {
+): Promise<calendar_v3.Schema$Event> {
   const startDateTime = new Date(`${appointment.date}T${appointment.time}`);
   const endDateTime = addMinutes(startDateTime, procedureDuration);
 
