@@ -20,7 +20,7 @@ import { useProcedures } from "@/contexts/ProceduresContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Appointment } from "@/lib/types";
 import { format } from 'date-fns';
-import { syncToGoogleCalendar } from "@/app/actions/scheduleActions"; // Import the server action
+import { syncToGoogleCalendar } from "@/app/actions/scheduleActions";
 
 const bookingFormSchema = z.object({
   procedureId: z.string().min(1, "Selecione um procedimento."),
@@ -34,7 +34,7 @@ type BookingFormValues = z.infer<typeof bookingFormSchema>;
 interface BookingFormProps {
   selectedDate: Date;
   selectedTime: string;
-  onBookingConfirmed: (appointment: Appointment) => void;
+  onBookingConfirmed: (appointmentData: Omit<Appointment, 'id' | 'status'>) => void;
 }
 
 export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: BookingFormProps) {
@@ -58,8 +58,7 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
       return;
     }
 
-    const newAppointment: Appointment = {
-      id: Date.now().toString(),
+    const appointmentDataForConfirmation: Omit<Appointment, 'id' | 'status'> = {
       procedureId: data.procedureId,
       procedureName: selectedProcedure.name,
       customerName: data.customerName,
@@ -69,28 +68,35 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
       notes: data.notes,
     };
 
-    onBookingConfirmed(newAppointment);
+    onBookingConfirmed(appointmentDataForConfirmation);
     toast({
       title: "Agendamento Confirmado!",
       description: `${selectedProcedure.name} para ${data.customerName} em ${format(selectedDate, 'dd/MM/yyyy')} às ${selectedTime}.`,
     });
-    form.reset();
+    
 
     // Attempt to sync with Google Calendar
+    // We need the full appointment object here, including a temporary ID for the sync function if it expects one.
+    // For now, the sync function might not need the final ID or status.
+    const tempAppointmentForSync: Appointment = {
+        ...appointmentDataForConfirmation,
+        id: 'temp-sync-id', // Temporary ID for sync, not the final persisted ID
+        status: 'CONFIRMED' 
+    };
+
     try {
-      const syncResult = await syncToGoogleCalendar(newAppointment, selectedProcedure.duration);
+      const syncResult = await syncToGoogleCalendar(tempAppointmentForSync, selectedProcedure.duration);
       if (syncResult.success) {
         toast({
           title: "Sincronizado!",
           description: syncResult.message,
         });
       } else {
-         // Only show a toast if it's not the "pending" message, or show a more subtle one.
         if (syncResult.message !== 'Sincronização com Google Agenda pendente (requer configuração OAuth).') {
             toast({
             title: "Google Agenda",
             description: syncResult.message,
-            variant: "default", // or "destructive" if it's a hard error
+            variant: "default",
             });
         }
         console.warn("Google Calendar Sync:", syncResult.message);
@@ -103,6 +109,7 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
         variant: "destructive",
       });
     }
+    form.reset();
   }
 
   return (

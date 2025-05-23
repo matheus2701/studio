@@ -1,4 +1,6 @@
 
+export type AppointmentStatus = 'CONFIRMED' | 'ATTENDED' | 'CANCELLED';
+
 export interface Procedure {
   id: string;
   name: string;
@@ -16,6 +18,7 @@ export interface Appointment {
   date: string; // YYYY-MM-DD
   time: string; // HH:MM
   notes?: string;
+  status: AppointmentStatus; // Novo campo de status
 }
 
 export interface NotificationPreferences {
