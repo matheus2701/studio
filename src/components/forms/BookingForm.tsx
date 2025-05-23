@@ -20,6 +20,7 @@ import { useProcedures } from "@/contexts/ProceduresContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Appointment } from "@/lib/types";
 import { format } from 'date-fns';
+import { syncToGoogleCalendar } from "@/app/actions/scheduleActions"; // Import the server action
 
 const bookingFormSchema = z.object({
   procedureId: z.string().min(1, "Selecione um procedimento."),
@@ -50,7 +51,7 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
     },
   });
 
-  function onSubmit(data: BookingFormValues) {
+  async function onSubmit(data: BookingFormValues) {
     const selectedProcedure = procedures.find(p => p.id === data.procedureId);
     if (!selectedProcedure) {
       toast({ title: "Erro", description: "Procedimento selecionado não encontrado.", variant: "destructive" });
@@ -74,6 +75,34 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
       description: `${selectedProcedure.name} para ${data.customerName} em ${format(selectedDate, 'dd/MM/yyyy')} às ${selectedTime}.`,
     });
     form.reset();
+
+    // Attempt to sync with Google Calendar
+    try {
+      const syncResult = await syncToGoogleCalendar(newAppointment, selectedProcedure.duration);
+      if (syncResult.success) {
+        toast({
+          title: "Sincronizado!",
+          description: syncResult.message,
+        });
+      } else {
+         // Only show a toast if it's not the "pending" message, or show a more subtle one.
+        if (syncResult.message !== 'Sincronização com Google Agenda pendente (requer configuração OAuth).') {
+            toast({
+            title: "Google Agenda",
+            description: syncResult.message,
+            variant: "default", // or "destructive" if it's a hard error
+            });
+        }
+        console.warn("Google Calendar Sync:", syncResult.message);
+      }
+    } catch (error) {
+      console.error("Error syncing to Google Calendar:", error);
+      toast({
+        title: "Erro de Sincronização",
+        description: "Não foi possível conectar ao Google Agenda.",
+        variant: "destructive",
+      });
+    }
   }
 
   return (

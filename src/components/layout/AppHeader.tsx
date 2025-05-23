@@ -7,14 +7,15 @@ import { Logo } from '@/components/icons/Logo';
 import { NavLink } from './NavLink';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Home, ListChecks, Bell, Brain, Settings2 } from 'lucide-react'; // Added Settings2
+import { Menu, Home, Settings2, Bell, Brain, LinkIcon } from 'lucide-react'; // Added LinkIcon for integrations
 import { useState } from 'react';
 
 const navItems = [
   { href: '/', label: 'Agendar', icon: Home },
-  { href: '/procedures', label: 'Procedimentos', icon: Settings2 }, // Changed icon
+  { href: '/procedures', label: 'Procedimentos', icon: Settings2 },
   { href: '/notifications', label: 'Notificações', icon: Bell },
   { href: '/ai-scheduler', label: 'Assistente AI', icon: Brain },
+  { href: '/settings/integrations', label: 'Integrações', icon: LinkIcon }, // New integrations link
 ];
 
 export function AppHeader() {
@@ -30,7 +31,7 @@ export function AppHeader() {
         
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
           {navItems.map((item) => (
-            <NavLink key={item.href} href={item.href} active={pathname === item.href}>
+            <NavLink key={item.href} href={item.href} active={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}>
               <item.icon className="mr-2 h-4 w-4" />
               {item.label}
             </NavLink>
@@ -56,7 +57,7 @@ export function AppHeader() {
                   <NavLink 
                     key={item.href} 
                     href={item.href} 
-                    active={pathname === item.href}
+                    active={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
                     className="flex items-center px-3 py-2 text-base rounded-md hover:bg-accent hover:text-accent-foreground"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
