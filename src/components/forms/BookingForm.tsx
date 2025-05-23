@@ -24,7 +24,6 @@ import { format } from 'date-fns';
 const bookingFormSchema = z.object({
   procedureId: z.string().min(1, "Selecione um procedimento."),
   customerName: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
-  customerEmail: z.string().email("Email inválido."),
   customerPhone: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -46,7 +45,6 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
     defaultValues: {
       procedureId: "",
       customerName: "",
-      customerEmail: "",
       customerPhone: "",
       notes: "",
     },
@@ -64,7 +62,6 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
       procedureId: data.procedureId,
       procedureName: selectedProcedure.name,
       customerName: data.customerName,
-      customerEmail: data.customerEmail,
       customerPhone: data.customerPhone,
       date: format(selectedDate, 'yyyy-MM-dd'),
       time: selectedTime,
@@ -121,23 +118,10 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
         />
         <FormField
           control={form.control}
-          name="customerEmail"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input type="email" placeholder="seu@email.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
           name="customerPhone"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Telefone (Opcional)</FormLabel>
+              <FormLabel>Telefone/Whatsapp (Opcional)</FormLabel>
               <FormControl>
                 <Input type="tel" placeholder="(XX) XXXXX-XXXX" {...field} />
               </FormControl>

@@ -12,7 +12,6 @@ export interface Appointment {
   procedureId: string;
   procedureName: string; // denormalized for easy display
   customerName: string;
-  customerEmail: string;
   customerPhone?: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:MM

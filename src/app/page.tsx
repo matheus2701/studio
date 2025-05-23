@@ -113,7 +113,7 @@ export default function BookingPage() {
                         <p className="flex items-center gap-1.5"><UserCircle className="h-4 w-4" /> {app.customerName}</p>
                         <p className="flex items-center gap-1.5"><CalendarCheck2 className="h-4 w-4" /> {format(new Date(app.date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })}</p>
                         <p className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {app.time}</p>
-                        {app.customerPhone && <p className="flex items-center gap-1.5"><Phone className="h-4 w-4" /> {app.customerPhone}</p>}
+                        {app.customerPhone && <p className="flex items-center gap-1.5"><Phone className="h-4 w-4" /> Whatsapp: {app.customerPhone}</p>}
                       </div>
                     </li>
                   ))}
