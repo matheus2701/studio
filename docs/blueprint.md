@@ -1,4 +1,4 @@
-# **App Name**: Agende Beleza
+# **App Name**: Agenda Valery Studio
 
 ## Core Features:
 

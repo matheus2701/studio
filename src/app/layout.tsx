@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Agende Valery Studio',
+  title: 'Agenda Valery Studio',
   description: 'Agendamento de procedimentos estéticos.',
 };
 
