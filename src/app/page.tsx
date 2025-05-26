@@ -30,7 +30,7 @@ const statusColors: Record<AppointmentStatus, string> = {
   CANCELLED: "text-rose-600",
 };
 
-const WORK_DAY_START_HOUR = 9;
+const WORK_DAY_START_HOUR = 6; // Alterado de 9 para 6
 const WORK_DAY_END_HOUR = 20;
 const SLOT_INTERVAL_MINUTES = 30;
 
@@ -341,3 +341,5 @@ export default function BookingPage() {
     </div>
   );
 }
+
+    
