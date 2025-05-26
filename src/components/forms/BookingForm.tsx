@@ -14,16 +14,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useProcedures } from "@/contexts/ProceduresContext";
 import { useToast } from "@/hooks/use-toast";
-import type { Appointment } from "@/lib/types";
+import type { Appointment, Procedure } from "@/lib/types";
 import { format } from 'date-fns';
 import { syncToGoogleCalendar } from "@/app/actions/scheduleActions";
 
 const bookingFormSchema = z.object({
-  procedureId: z.string().min(1, "Selecione um procedimento."),
+  // procedureId is no longer needed here as it's selected before this form
   customerName: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
   customerPhone: z.string().optional(),
   notes: z.string().optional(),
@@ -34,17 +32,16 @@ type BookingFormValues = z.infer<typeof bookingFormSchema>;
 interface BookingFormProps {
   selectedDate: Date;
   selectedTime: string;
+  selectedProcedure: Procedure; // Receive the full procedure object
   onBookingConfirmed: (appointmentData: Omit<Appointment, 'id' | 'status'>) => void;
 }
 
-export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: BookingFormProps) {
-  const { procedures } = useProcedures();
+export function BookingForm({ selectedDate, selectedTime, selectedProcedure, onBookingConfirmed }: BookingFormProps) {
   const { toast } = useToast();
 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingFormSchema),
     defaultValues: {
-      procedureId: "",
       customerName: "",
       customerPhone: "",
       notes: "",
@@ -52,16 +49,10 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
   });
 
   async function onSubmit(data: BookingFormValues) {
-    const selectedProcedure = procedures.find(p => p.id === data.procedureId);
-    if (!selectedProcedure) {
-      toast({ title: "Erro", description: "Procedimento selecionado não encontrado.", variant: "destructive" });
-      return;
-    }
-
     const appointmentDataForConfirmation: Omit<Appointment, 'id' | 'status'> = {
-      procedureId: data.procedureId,
+      procedureId: selectedProcedure.id,
       procedureName: selectedProcedure.name,
-      procedurePrice: selectedProcedure.price, // Store the price
+      procedurePrice: selectedProcedure.price,
       customerName: data.customerName,
       customerPhone: data.customerPhone,
       date: format(selectedDate, 'yyyy-MM-dd'),
@@ -75,14 +66,14 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
       description: `${selectedProcedure.name} para ${data.customerName} em ${format(selectedDate, 'dd/MM/yyyy')} às ${selectedTime}.`,
     });
     
-
     const tempAppointmentForSync: Appointment = {
         ...appointmentDataForConfirmation,
-        id: 'temp-sync-id', 
+        id: 'temp-sync-id-' + Date.now(), // Ensure unique temporary ID for multiple quick bookings
         status: 'CONFIRMED' 
     };
 
     try {
+      // Pass procedure duration to syncToGoogleCalendar
       const syncResult = await syncToGoogleCalendar(tempAppointmentForSync, selectedProcedure.duration);
       if (syncResult.success) {
         toast({
@@ -90,20 +81,18 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
           description: syncResult.message,
         });
       } else {
-        if (syncResult.message !== 'Sincronização com Google Agenda pendente (requer configuração OAuth).') {
-            toast({
+         toast({
             title: "Google Agenda",
             description: syncResult.message,
-            variant: "default",
-            });
-        }
+            variant: syncResult.message?.toLowerCase().includes('erro') || syncResult.message?.toLowerCase().includes('falha') ? "destructive" : "default",
+         });
         console.warn("Google Calendar Sync:", syncResult.message);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error syncing to Google Calendar:", error);
       toast({
-        title: "Erro de Sincronização",
-        description: "Não foi possível conectar ao Google Agenda.",
+        title: "Erro de Sincronização com Google Agenda",
+        description: error.message || "Não foi possível conectar ao Google Agenda.",
         variant: "destructive",
       });
     }
@@ -113,38 +102,21 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="procedureId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Procedimento</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o procedimento" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {procedures.map(proc => (
-                    <SelectItem key={proc.id} value={proc.id}>
-                      {proc.name} (R$ {proc.price.toFixed(2)})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* Procedure is pre-selected, display its info if needed or remove this part */}
+        <div className="p-3 border rounded-md bg-muted/30">
+            <p className="text-sm font-medium text-primary">{selectedProcedure.name}</p>
+            <p className="text-xs text-muted-foreground">Duração: {selectedProcedure.duration} min</p>
+            <p className="text-xs text-muted-foreground">Preço: R$ {selectedProcedure.price.toFixed(2)}</p>
+        </div>
+
         <FormField
           control={form.control}
           name="customerName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nome Completo</FormLabel>
+              <FormLabel>Nome Completo do Cliente</FormLabel>
               <FormControl>
-                <Input placeholder="Seu nome" {...field} />
+                <Input placeholder="Nome do cliente" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -181,3 +153,5 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
     </Form>
   );
 }
+
+    

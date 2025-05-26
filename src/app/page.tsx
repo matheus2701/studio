@@ -1,18 +1,20 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { BookingCalendar } from '@/components/BookingCalendar';
 import { BookingForm } from '@/components/forms/BookingForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import type { Appointment, AppointmentStatus } from '@/lib/types';
-import { format } from 'date-fns';
+import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
+import { format, addMinutes, parse, set } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign } from 'lucide-react';
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, Sparkles, ListFilter } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { useAppointments } from '@/contexts/AppointmentsContext'; // Import context hook
+import { useAppointments } from '@/contexts/AppointmentsContext';
+import { useProcedures } from '@/contexts/ProceduresContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const statusTranslations: Record<AppointmentStatus, string> = {
   CONFIRMED: "Confirmado",
@@ -26,29 +28,88 @@ const statusColors: Record<AppointmentStatus, string> = {
   CANCELLED: "text-rose-600",
 };
 
+// Configurações do dia de trabalho e intervalo de slots
+const WORK_DAY_START_HOUR = 9;
+const WORK_DAY_END_HOUR = 18;
+const SLOT_INTERVAL_MINUTES = 30;
+
+
 export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedProcedureId, setSelectedProcedureId] = useState<string | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
-  const { appointments, addAppointment, updateAppointmentStatus } = useAppointments(); // Use context
+  
+  const { appointments, addAppointment, updateAppointmentStatus } = useAppointments();
+  const { procedures } = useProcedures();
   const { toast } = useToast();
 
+  const selectedProcedure = useMemo(() => {
+    return procedures.find(p => p.id === selectedProcedureId);
+  }, [selectedProcedureId, procedures]);
+
   const handleBookingConfirmed = (newAppointmentData: Omit<Appointment, 'id' | 'status'>) => {
-    addAppointment(newAppointmentData); // Use context function
-    setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00')); // Ensure correct date parsing
+    addAppointment(newAppointmentData);
+    setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00'));
+    setSelectedProcedureId(undefined); // Reset procedure selection
     setSelectedTime(undefined);
   };
 
   const handleChangeStatus = (appointmentId: string, newStatus: AppointmentStatus) => {
-    updateAppointmentStatus(appointmentId, newStatus); // Use context function
+    updateAppointmentStatus(appointmentId, newStatus);
     toast({
       title: "Status Atualizado!",
       description: `O agendamento foi marcado como ${statusTranslations[newStatus].toLowerCase()}.`,
     });
   };
 
-  const timeSlots = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+  const getProcedureDuration = (procedureId: string): number => {
+    const procedure = procedures.find(p => p.id === procedureId);
+    return procedure?.duration || 60; // Default to 60 min if not found
+  };
 
-  const confirmedAppointments = appointments.filter(app => app.status !== 'CANCELLED');
+  const availableTimeSlots = useMemo(() => {
+    if (!selectedDate || !selectedProcedure) {
+      return [];
+    }
+
+    const slots: string[] = [];
+    const procedureDuration = selectedProcedure.duration;
+
+    const dayStart = set(selectedDate, { hours: WORK_DAY_START_HOUR, minutes: 0, seconds: 0, milliseconds: 0 });
+    const dayEnd = set(selectedDate, { hours: WORK_DAY_END_HOUR, minutes: 0, seconds: 0, milliseconds: 0 });
+
+    const existingAppointmentsOnDate = appointments.filter(
+      app => app.date === format(selectedDate, 'yyyy-MM-dd') && (app.status === 'CONFIRMED' || app.status === 'ATTENDED')
+    ).map(app => {
+      const appStart = parse(`${app.date} ${app.time}`, 'yyyy-MM-dd HH:mm', new Date());
+      const appDuration = getProcedureDuration(app.procedureId);
+      const appEnd = addMinutes(appStart, appDuration);
+      return { start: appStart, end: appEnd };
+    });
+
+    let currentTime = new Date(dayStart);
+
+    while (addMinutes(currentTime, procedureDuration) <= dayEnd) {
+      const potentialSlotStart = new Date(currentTime);
+      const potentialSlotEnd = addMinutes(potentialSlotStart, procedureDuration);
+
+      let isOverlapping = false;
+      for (const existingApp of existingAppointmentsOnDate) {
+        // Check for overlap: (StartA < EndB) and (EndA > StartB)
+        if (potentialSlotStart < existingApp.end && potentialSlotEnd > existingApp.start) {
+          isOverlapping = true;
+          break;
+        }
+      }
+
+      if (!isOverlapping) {
+        slots.push(format(potentialSlotStart, 'HH:mm'));
+      }
+      currentTime = addMinutes(currentTime, SLOT_INTERVAL_MINUTES);
+    }
+    return slots;
+  }, [selectedDate, selectedProcedure, appointments, procedures]);
+
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -57,60 +118,96 @@ export default function BookingPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CalendarCheck2 className="h-6 w-6 text-primary" />
-              Selecione Data e Horário
+              Selecione Data e Procedimento
             </CardTitle>
-            <CardDescription>Escolha uma data e um horário disponível para o seu procedimento.</CardDescription>
+            <CardDescription>Escolha uma data e o procedimento desejado para ver os horários.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col md:flex-row gap-6">
-            <BookingCalendar
-              selectedDate={selectedDate}
-              onDateChange={(date) => {
-                setSelectedDate(date);
-                setSelectedTime(undefined);
-              }}
-            />
-            {selectedDate && (
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold mb-3 text-foreground">
-                  Horários para {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}:
-                </h3>
-                <ScrollArea className="h-[200px] md:h-[300px] pr-3">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {timeSlots.map(slot => (
-                      <button
-                        key={slot}
-                        onClick={() => setSelectedTime(slot)}
-                        disabled={appointments.some(app => app.date === format(selectedDate, 'yyyy-MM-dd') && app.time === slot && app.status !== 'CANCELLED')}
-                        className={`p-3 rounded-md text-sm font-medium transition-colors border
-                          ${selectedTime === slot 
-                            ? 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2' 
-                            : appointments.some(app => app.date === format(selectedDate, 'yyyy-MM-dd') && app.time === slot && app.status !== 'CANCELLED')
-                              ? 'bg-muted text-muted-foreground cursor-not-allowed line-through'
-                              : 'bg-background hover:bg-accent hover:text-accent-foreground border-input'
-                          }`}
-                      >
-                        {slot}
-                      </button>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-            )}
+            <div className="flex-shrink-0">
+              <BookingCalendar
+                selectedDate={selectedDate}
+                onDateChange={(date) => {
+                  setSelectedDate(date);
+                  setSelectedTime(undefined); 
+                  // Don't reset selectedProcedureId here, allow changing date for same procedure
+                }}
+              />
+            </div>
+            
+            <div className="flex-1 space-y-4">
+              {selectedDate && (
+                <div>
+                  <label htmlFor="procedure-select" className="block text-sm font-medium text-foreground mb-1">
+                    Procedimento:
+                  </label>
+                  <Select
+                    value={selectedProcedureId}
+                    onValueChange={(value) => {
+                      setSelectedProcedureId(value);
+                      setSelectedTime(undefined); // Reset time when procedure changes
+                    }}
+                  >
+                    <SelectTrigger id="procedure-select">
+                      <SelectValue placeholder="Escolha um procedimento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {procedures.map(proc => (
+                        <SelectItem key={proc.id} value={proc.id}>
+                          {proc.name} ({proc.duration} min)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {selectedDate && selectedProcedure && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 text-foreground">
+                    Horários para {selectedProcedure.name} em {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}:
+                  </h3>
+                  {availableTimeSlots.length > 0 ? (
+                    <ScrollArea className="h-[200px] md:h-[240px] pr-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {availableTimeSlots.map(slot => (
+                          <button
+                            key={slot}
+                            onClick={() => setSelectedTime(slot)}
+                            className={`p-3 rounded-md text-sm font-medium transition-colors border
+                              ${selectedTime === slot 
+                                ? 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2' 
+                                : 'bg-background hover:bg-accent hover:text-accent-foreground border-input'
+                              }`}
+                          >
+                            {slot}
+                          </button>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                     <p className="text-muted-foreground text-sm p-3 border rounded-md bg-muted/50">
+                      Nenhum horário disponível para este procedimento e data com base na sua duração. Tente outra data ou procedimento.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
-        {selectedDate && selectedTime && (
+        {selectedDate && selectedProcedure && selectedTime && (
           <Card>
             <CardHeader>
               <CardTitle>Detalhes do Agendamento</CardTitle>
               <CardDescription>
-                Preencha seus dados para confirmar o agendamento para {format(selectedDate, "dd/MM/yyyy")} às {selectedTime}.
+                Confirme os dados para {selectedProcedure.name} em {format(selectedDate, "dd/MM/yyyy")} às {selectedTime}.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <BookingForm
                 selectedDate={selectedDate}
                 selectedTime={selectedTime}
+                selectedProcedure={selectedProcedure}
                 onBookingConfirmed={handleBookingConfirmed}
               />
             </CardContent>
@@ -169,3 +266,5 @@ export default function BookingPage() {
     </div>
   );
 }
+
+    
