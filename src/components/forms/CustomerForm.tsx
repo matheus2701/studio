@@ -51,7 +51,8 @@ const parseTagsString = (tagsString: string | undefined): Tag[] => {
 };
 
 // Helper para converter array de objetos Tag em string
-const formatTagsArray = (tags: Tag[]): string => {
+const formatTagsArray = (tags: Tag[] | undefined): string => {
+  if (!tags) return "";
   return tags.map(tag => tag.name).join(', ');
 };
 
@@ -83,7 +84,7 @@ export function CustomerForm({ customerToEdit, onFormSubmit }: CustomerFormProps
         notes: customerToEdit.notes || "",
         tagsString: formatTagsArray(customerToEdit.tags),
       });
-      setCurrentTags(customerToEdit.tags);
+      setCurrentTags(customerToEdit.tags || []);
     } else {
       form.reset({ name: "", phone: "", notes: "", tagsString: "" });
       setCurrentTags([]);
@@ -111,10 +112,14 @@ export function CustomerForm({ customerToEdit, onFormSubmit }: CustomerFormProps
       addCustomer(customerData);
       toast({ title: "Cliente Adicionado!", description: `"${data.name}" foi adicionado com sucesso.` });
     }
-    onFormSubmit();
-    form.reset();
-    setCurrentTags([]);
+    onFormSubmit(); // Chama para fechar o diálogo
+    // form.reset() e setCurrentTags([]) são chamados pelo useEffect quando customerToEdit muda para null
   }
+
+  const handleCancel = () => {
+    onFormSubmit(); // Chama para fechar o diálogo
+    // O reset do formulário e das tags será tratado pelo useEffect quando o diálogo fechar e customerToEdit se tornar null
+  };
 
   return (
     <Form {...form}>
@@ -188,7 +193,7 @@ export function CustomerForm({ customerToEdit, onFormSubmit }: CustomerFormProps
           )}
         />
         <DialogFooter>
-           <Button type="button" variant="outline" onClick={() => { onFormSubmit(); form.reset(); setCurrentTags([]); }}>Cancelar</Button>
+           <Button type="button" variant="outline" onClick={handleCancel}>Cancelar</Button>
            <Button type="submit">{customerToEdit ? "Salvar Alterações" : "Adicionar Cliente"}</Button>
         </DialogFooter>
       </form>
