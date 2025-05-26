@@ -16,11 +16,42 @@ const ProceduresContext = createContext<ProceduresContextType | undefined>(undef
 const LOCAL_STORAGE_KEY_PROCEDURES = 'valeryStudioProcedures';
 
 const initialProcedures: Procedure[] = [
-  { id: '1', name: 'Maquiagem Completa', duration: 60, price: 90.00, description: 'Maquiagem profissional para eventos, festas e ocasiões especiais. Inclui preparação da pele, contorno, iluminação e aplicação de cílios postiços.', isPromo: false, promoPrice: undefined },
-  { id: '2', name: 'Design de Sobrancelhas com Henna', duration: 60, price: 35.00, description: 'Modelagem das sobrancelhas de acordo com o formato do rosto, seguida pela aplicação de henna para preenchimento e definição.', isPromo: false, promoPrice: undefined },
-  { id: '3', name: 'Limpeza de Pele Profunda', duration: 75, price: 180.00, description: 'Tratamento facial que remove cravos, impurezas e células mortas, promovendo a renovação celular e uma pele mais saudável e luminosa.', isPromo: false, promoPrice: undefined },
-  { id: '4', name: 'Micropigmentação', duration: 90, price: 200.00, description: 'Técnica de implantação de pigmento na pele para corrigir falhas, realçar ou reconstruir sobrancelhas, lábios ou contorno dos olhos.', isPromo: false, promoPrice: undefined },
-  { id: '5', name: 'Design de Sobrancelhas sem Henna', duration: 30, price: 25.00, description: 'Modelagem das sobrancelhas de acordo com o formato do rosto, utilizando pinça ou cera, sem aplicação de henna.', isPromo: false, promoPrice: undefined },
+  { 
+    id: '1', 
+    name: 'Design de Sobrancelhas sem Henna', 
+    duration: 30, 
+    price: 25.00, 
+    description: 'Modelagem das sobrancelhas de acordo com o formato do rosto, utilizando pinça ou cera, sem aplicação de henna.', 
+    isPromo: false, 
+    promoPrice: undefined 
+  },
+  { 
+    id: '2', 
+    name: 'Maquiagem Social', 
+    duration: 60, 
+    price: 90.00, 
+    description: 'Maquiagem profissional para eventos, festas e ocasiões especiais. Inclui preparação da pele, contorno, iluminação e aplicação de cílios postiços.', 
+    isPromo: false, 
+    promoPrice: undefined 
+  },
+  { 
+    id: '3', 
+    name: 'Epilação de Buço', 
+    duration: 10, 
+    price: 10.00, 
+    description: 'Remoção de pelos da região do buço utilizando técnica de preferência (cera ou linha).', 
+    isPromo: false, 
+    promoPrice: undefined 
+  },
+  { 
+    id: '4', 
+    name: 'Micropigmentação', 
+    duration: 90, 
+    price: 200.00, 
+    description: 'Técnica de implantação de pigmento na pele para corrigir falhas, realçar ou reconstruir sobrancelhas, lábios ou contorno dos olhos.', 
+    isPromo: false, 
+    promoPrice: undefined 
+  },
 ];
 
 
@@ -30,6 +61,7 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      let loadedSuccessfully = false;
       try {
         const storedProcedures = localStorage.getItem(LOCAL_STORAGE_KEY_PROCEDURES);
         if (storedProcedures) {
@@ -39,25 +71,23 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
             promoPrice: typeof p.promoPrice === 'number' ? p.promoPrice : undefined 
           }));
           setProcedures(parsedProcedures);
-        } else {
-          // Initialize with default procedures and save them
-          const proceduresWithDefaults = initialProcedures.map(p => ({
-            ...p, 
-            isPromo: p.isPromo || false, 
-            promoPrice: p.promoPrice
-          }));
-          setProcedures(proceduresWithDefaults);
-          localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(proceduresWithDefaults));
+          loadedSuccessfully = true;
         }
       } catch (error) {
         console.error("Failed to parse procedures from localStorage, initializing with defaults.", error);
+        // localStorage.removeItem(LOCAL_STORAGE_KEY_PROCEDURES); // Option: clear corrupted data
+      }
+      
+      if (!loadedSuccessfully) {
+        // Initialize with default procedures if nothing was loaded or parsing failed
         const proceduresWithDefaults = initialProcedures.map(p => ({
           ...p, 
           isPromo: p.isPromo || false, 
           promoPrice: p.promoPrice
         }));
         setProcedures(proceduresWithDefaults);
-        localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(proceduresWithDefaults));
+        // Optionally, save initial procedures to localStorage immediately
+        // localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(proceduresWithDefaults));
       }
       setIsLoaded(true);
     }
@@ -97,7 +127,7 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
     setProcedures(prev => prev.filter(p => p.id !== procedureId));
   }, []);
 
-  if (!isLoaded && typeof window !== 'undefined') {
+  if (!isLoaded && typeof window !== 'undefined') { // Ensure it doesn't return null indefinitely if localStorage is slow or window is not ready.
     return null; 
   }
 
