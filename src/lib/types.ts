@@ -20,6 +20,7 @@ export interface Appointment {
   time: string; // HH:MM
   notes?: string;
   status: AppointmentStatus;
+  sinalPago: boolean; // Novo campo para rastrear o pagamento do sinal
 }
 
 export interface NotificationPreferences {
@@ -41,3 +42,4 @@ export interface Customer {
   notes?: string;
   tags: Tag[]; // Armazena as tags diretamente no cliente por simplicidade inicial
 }
+

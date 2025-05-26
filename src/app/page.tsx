@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
 import { format, addMinutes, parse, set } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, Sparkles, ListFilter } from 'lucide-react';
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, Sparkles, ListFilter, CreditCard } from 'lucide-react'; // Adicionado CreditCard
 import { useToast } from "@/hooks/use-toast";
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useProcedures } from '@/contexts/ProceduresContext';
@@ -30,7 +30,7 @@ const statusColors: Record<AppointmentStatus, string> = {
 
 // Configurações do dia de trabalho e intervalo de slots
 const WORK_DAY_START_HOUR = 9;
-const WORK_DAY_END_HOUR = 20; // Alterado de 18 para 20
+const WORK_DAY_END_HOUR = 20; 
 const SLOT_INTERVAL_MINUTES = 30;
 
 
@@ -95,7 +95,6 @@ export default function BookingPage() {
 
       let isOverlapping = false;
       for (const existingApp of existingAppointmentsOnDate) {
-        // Check for overlap: (StartA < EndB) and (EndA > StartB)
         if (potentialSlotStart < existingApp.end && potentialSlotEnd > existingApp.start) {
           isOverlapping = true;
           break;
@@ -129,7 +128,6 @@ export default function BookingPage() {
                 onDateChange={(date) => {
                   setSelectedDate(date);
                   setSelectedTime(undefined); 
-                  // Don't reset selectedProcedureId here, allow changing date for same procedure
                 }}
               />
             </div>
@@ -144,7 +142,7 @@ export default function BookingPage() {
                     value={selectedProcedureId}
                     onValueChange={(value) => {
                       setSelectedProcedureId(value);
-                      setSelectedTime(undefined); // Reset time when procedure changes
+                      setSelectedTime(undefined); 
                     }}
                   >
                     <SelectTrigger id="procedure-select">
@@ -243,6 +241,10 @@ export default function BookingPage() {
                             <ShieldCheck className={`h-4 w-4 ${statusColors[app.status]}`} /> 
                             Status: <span className={`font-medium ${statusColors[app.status]}`}>{statusTranslations[app.status]}</span>
                           </p>
+                          <p className="flex items-center gap-1.5">
+                            <CreditCard className={`h-4 w-4 ${app.sinalPago ? 'text-emerald-600' : 'text-amber-500'}`} /> 
+                            Sinal: {app.sinalPago ? <span className="font-medium text-emerald-600">Pago</span> : <span className="font-medium text-amber-500">Pendente</span>}
+                          </p>
                         </div>
                       </div>
                       {app.status === 'CONFIRMED' && (
@@ -266,7 +268,3 @@ export default function BookingPage() {
     </div>
   );
 }
-
-    
-
-    

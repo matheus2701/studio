@@ -15,16 +15,17 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox"; // Importar Checkbox
 import { useToast } from "@/hooks/use-toast";
 import type { Appointment, Procedure } from "@/lib/types";
 import { format } from 'date-fns';
 import { syncToGoogleCalendar } from "@/app/actions/scheduleActions";
 
 const bookingFormSchema = z.object({
-  // procedureId is no longer needed here as it's selected before this form
   customerName: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
   customerPhone: z.string().optional(),
   notes: z.string().optional(),
+  sinalPago: z.boolean().default(false).optional(), // Novo campo para sinal
 });
 
 type BookingFormValues = z.infer<typeof bookingFormSchema>;
@@ -32,7 +33,7 @@ type BookingFormValues = z.infer<typeof bookingFormSchema>;
 interface BookingFormProps {
   selectedDate: Date;
   selectedTime: string;
-  selectedProcedure: Procedure; // Receive the full procedure object
+  selectedProcedure: Procedure;
   onBookingConfirmed: (appointmentData: Omit<Appointment, 'id' | 'status'>) => void;
 }
 
@@ -45,6 +46,7 @@ export function BookingForm({ selectedDate, selectedTime, selectedProcedure, onB
       customerName: "",
       customerPhone: "",
       notes: "",
+      sinalPago: false, // Valor padrão
     },
   });
 
@@ -58,6 +60,7 @@ export function BookingForm({ selectedDate, selectedTime, selectedProcedure, onB
       date: format(selectedDate, 'yyyy-MM-dd'),
       time: selectedTime,
       notes: data.notes,
+      sinalPago: data.sinalPago || false, // Incluir sinalPago
     };
 
     onBookingConfirmed(appointmentDataForConfirmation);
@@ -68,12 +71,11 @@ export function BookingForm({ selectedDate, selectedTime, selectedProcedure, onB
     
     const tempAppointmentForSync: Appointment = {
         ...appointmentDataForConfirmation,
-        id: 'temp-sync-id-' + Date.now(), // Ensure unique temporary ID for multiple quick bookings
+        id: 'temp-sync-id-' + Date.now(),
         status: 'CONFIRMED' 
     };
 
     try {
-      // Pass procedure duration to syncToGoogleCalendar
       const syncResult = await syncToGoogleCalendar(tempAppointmentForSync, selectedProcedure.duration);
       if (syncResult.success) {
         toast({
@@ -102,7 +104,6 @@ export function BookingForm({ selectedDate, selectedTime, selectedProcedure, onB
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Procedure is pre-selected, display its info if needed or remove this part */}
         <div className="p-3 border rounded-md bg-muted/30">
             <p className="text-sm font-medium text-primary">{selectedProcedure.name}</p>
             <p className="text-xs text-muted-foreground">Duração: {selectedProcedure.duration} min</p>
@@ -148,10 +149,27 @@ export function BookingForm({ selectedDate, selectedTime, selectedProcedure, onB
             </FormItem>
           )}
         />
+        <FormField
+          control={form.control}
+          name="sinalPago"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <div className="space-y-1 leading-none">
+                <FormLabel>
+                  Sinal de 10% Pago?
+                </FormLabel>
+              </div>
+            </FormItem>
+          )}
+        />
         <Button type="submit" className="w-full">Confirmar Agendamento</Button>
       </form>
     </Form>
   );
 }
-
-    
