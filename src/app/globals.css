@@ -14,8 +14,8 @@
     --popover: 267 27% 98%;
     --popover-foreground: 267 10% 25%;
 
-    --primary: 267 22% 62%; /* Deep lavender #947CB0 */
-    --primary-foreground: 267 30% 97%; /* Light text for primary */
+    --primary: 358 90% 79%; /* New: Coral Pink #fa999d */
+    --primary-foreground: 0 0% 15%; /* New: Dark gray for good contrast on light primary */
 
     --secondary: 254 18% 70%; /* Lighter soft violet */
     --secondary-foreground: 254 20% 25%;
@@ -31,11 +31,11 @@
 
     --border: 267 20% 88%; /* Lavender-tinged border */
     --input: 267 20% 92%; /* Lighter lavender for input background */
-    --ring: 254 18% 54%; /* Accent color for rings */
+    --ring: 358 90% 79%; /* New: Coral Pink #fa999d for rings */
 
     --radius: 0.5rem;
 
-    --chart-1: 267 22% 62%;
+    --chart-1: 358 90% 79%; /* New: Coral Pink #fa999d */
     --chart-2: 254 18% 54%;
     --chart-3: 267 25% 70%;
     --chart-4: 254 20% 60%;
@@ -51,4 +51,3 @@
     @apply bg-background text-foreground;
   }
 }
-
