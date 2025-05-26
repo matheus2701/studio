@@ -26,14 +26,19 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
         const storedCustomers = localStorage.getItem(LOCAL_STORAGE_KEY_CUSTOMERS);
         if (storedCustomers) {
           setCustomers(JSON.parse(storedCustomers));
+          console.log("Customers loaded successfully from localStorage.");
+        } else {
+          console.log("No customers found in localStorage. Initializing with an empty list.");
+          // customers state is already [], so no need to setCustomers([]) here.
         }
       } catch (error) {
-        console.error("Failed to parse customers from localStorage", error);
-        localStorage.removeItem(LOCAL_STORAGE_KEY_CUSTOMERS);
+        console.error("Failed to parse customers from localStorage. Data might be corrupted. Initializing with an empty list.", error);
+        localStorage.removeItem(LOCAL_STORAGE_KEY_CUSTOMERS); // Remove corrupted data
+        setCustomers([]); // Explicitly set to empty list in case of parsing error
       }
       setIsLoaded(true);
     }
-  }, []);
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   useEffect(() => {
     if (isLoaded && typeof window !== 'undefined') {
@@ -68,11 +73,15 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
     if (!isLoaded) return [];
     const allTagsMap = new Map<string, Tag>();
     customers.forEach(customer => {
-      customer.tags.forEach(tag => {
-        if (!allTagsMap.has(tag.id)) {
-          allTagsMap.set(tag.id, tag);
-        }
-      });
+      if (customer.tags && Array.isArray(customer.tags)) { // Add defensive check for customer.tags
+        customer.tags.forEach(tag => {
+          if (tag && tag.id && tag.name) { // Add defensive check for tag properties
+             if (!allTagsMap.has(tag.id)) {
+                allTagsMap.set(tag.id, tag);
+             }
+          }
+        });
+      }
     });
     return Array.from(allTagsMap.values()).sort((a,b) => a.name.localeCompare(b.name));
   }, [customers, isLoaded]);
@@ -96,3 +105,4 @@ export const useCustomers = () => {
   }
   return context;
 };
+
