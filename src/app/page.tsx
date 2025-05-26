@@ -30,7 +30,7 @@ const statusColors: Record<AppointmentStatus, string> = {
 
 // Configurações do dia de trabalho e intervalo de slots
 const WORK_DAY_START_HOUR = 9;
-const WORK_DAY_END_HOUR = 18;
+const WORK_DAY_END_HOUR = 20; // Alterado de 18 para 20
 const SLOT_INTERVAL_MINUTES = 30;
 
 
@@ -266,5 +266,7 @@ export default function BookingPage() {
     </div>
   );
 }
+
+    
 
     
