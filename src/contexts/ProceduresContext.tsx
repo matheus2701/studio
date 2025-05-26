@@ -2,17 +2,18 @@
 "use client";
 
 import type { Procedure } from '@/lib/types';
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 
 interface ProceduresContextType {
   procedures: Procedure[];
-  setProcedures: React.Dispatch<React.SetStateAction<Procedure[]>>;
   addProcedure: (procedure: Omit<Procedure, 'id'>) => void;
   updateProcedure: (updatedProcedure: Procedure) => void;
   deleteProcedure: (procedureId: string) => void;
 }
 
 const ProceduresContext = createContext<ProceduresContextType | undefined>(undefined);
+
+const LOCAL_STORAGE_KEY_PROCEDURES = 'valeryStudioProcedures';
 
 const initialProcedures: Procedure[] = [
   { id: '1', name: 'Maquiagem Completa', duration: 60, price: 150.00, description: 'Maquiagem profissional para eventos, festas e ocasiões especiais. Inclui preparação da pele, contorno, iluminação e aplicação de cílios postiços.' },
@@ -22,23 +23,60 @@ const initialProcedures: Procedure[] = [
 
 
 export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
-  const [procedures, setProcedures] = useState<Procedure[]>(initialProcedures);
+  const [procedures, setProcedures] = useState<Procedure[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  const addProcedure = (procedureData: Omit<Procedure, 'id'>) => {
-    const newProcedure: Procedure = { ...procedureData, id: Date.now().toString() };
-    setProcedures(prev => [...prev, newProcedure]);
-  };
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const storedProcedures = localStorage.getItem(LOCAL_STORAGE_KEY_PROCEDURES);
+        if (storedProcedures) {
+          setProcedures(JSON.parse(storedProcedures));
+        } else {
+          // If nothing in localStorage, use initial and save them
+          setProcedures(initialProcedures);
+          localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(initialProcedures));
+        }
+      } catch (error) {
+        console.error("Failed to parse procedures from localStorage", error);
+        // Fallback to initial procedures and save them if parsing fails
+        setProcedures(initialProcedures);
+        localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(initialProcedures));
+      }
+      setIsLoaded(true);
+    }
+  }, []);
 
-  const updateProcedure = (updatedProcedure: Procedure) => {
-    setProcedures(prev => prev.map(p => p.id === updatedProcedure.id ? updatedProcedure : p));
-  };
+  useEffect(() => {
+    if (isLoaded && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(procedures));
+      } catch (error) {
+        console.error("Failed to save procedures to localStorage", error);
+      }
+    }
+  }, [procedures, isLoaded]);
 
-  const deleteProcedure = (procedureId: string) => {
+
+  const addProcedure = useCallback((procedureData: Omit<Procedure, 'id'>) => {
+    const newProcedure: Procedure = { ...procedureData, id: Date.now().toString() }; // Use UUID in production
+    setProcedures(prev => [...prev, newProcedure].sort((a,b) => a.name.localeCompare(b.name)));
+  }, []);
+
+  const updateProcedure = useCallback((updatedProcedure: Procedure) => {
+    setProcedures(prev => prev.map(p => p.id === updatedProcedure.id ? updatedProcedure : p).sort((a,b) => a.name.localeCompare(b.name)));
+  }, []);
+
+  const deleteProcedure = useCallback((procedureId: string) => {
     setProcedures(prev => prev.filter(p => p.id !== procedureId));
-  };
+  }, []);
+
+  if (!isLoaded) {
+    return null; // Or a loading spinner component
+  }
 
   return (
-    <ProceduresContext.Provider value={{ procedures, setProcedures, addProcedure, updateProcedure, deleteProcedure }}>
+    <ProceduresContext.Provider value={{ procedures, addProcedure, updateProcedure, deleteProcedure }}>
       {children}
     </ProceduresContext.Provider>
   );
@@ -51,4 +89,3 @@ export const useProcedures = () => {
   }
   return context;
 };
-
