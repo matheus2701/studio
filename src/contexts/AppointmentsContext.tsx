@@ -26,22 +26,32 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
       try {
         const storedAppointments = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (storedAppointments) {
-          const parsedAppointments = JSON.parse(storedAppointments).map((app: any) => ({
-            ...app,
-            selectedProcedures: app.selectedProcedures || (app.procedureId ? [{id: app.procedureId, name: app.procedureName, price: app.procedurePrice, duration: app.totalDuration || 60, description: ''}] : []),
-            totalPrice: typeof app.totalPrice === 'number' ? app.totalPrice : (app.procedurePrice || 0),
-            totalDuration: typeof app.totalDuration === 'number' ? app.totalDuration : 60,
-            sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false,
-            procedureId: undefined, 
-            procedureName: undefined,
-            procedurePrice: undefined,
-          }));
+          const parsedAppointments = JSON.parse(storedAppointments).map((app: any) => {
+            // Robust handling for selectedProcedures
+            const selectedProcedures = Array.isArray(app.selectedProcedures) ? app.selectedProcedures :
+              (app.procedureId ? [{id: app.procedureId, name: app.procedureName, price: app.procedurePrice, duration: app.totalDuration || 60, description: ''}] : []);
+            
+            const totalPrice = typeof app.totalPrice === 'number' ? app.totalPrice : (app.procedurePrice || 0);
+            const totalDuration = typeof app.totalDuration === 'number' ? app.totalDuration : 60;
+            const sinalPago = typeof app.sinalPago === 'boolean' ? app.sinalPago : false;
+
+            // Remove old flat procedure fields if they exist after migration
+            const { procedureId, procedureName, procedurePrice, ...restOfApp } = app;
+
+            return {
+              ...restOfApp,
+              selectedProcedures,
+              totalPrice,
+              totalDuration,
+              sinalPago,
+            };
+          });
           setAppointments(parsedAppointments);
           loadedSuccessfully = true;
         }
       } catch (error) {
         console.error("Failed to parse appointments from localStorage", error);
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
+        localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear corrupted data
       }
       setIsLoaded(true);
     }
@@ -50,6 +60,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (isLoaded && typeof window !== 'undefined') {
       try {
+        // Ensure no old flat procedure fields are saved
         const appointmentsToSave = appointments.map(app => {
           const { procedureId, procedureName, procedurePrice, ...rest } = app as any;
           return rest;
@@ -94,7 +105,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [appointments, isLoaded]);
 
-  if (!isLoaded) {
+  if (!isLoaded && typeof window !== 'undefined') { // Ensure it doesn't return null indefinitely if localStorage is slow or window is not ready.
     return null; 
   }
 

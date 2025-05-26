@@ -35,17 +35,27 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
         if (storedProcedures) {
           const parsedProcedures = JSON.parse(storedProcedures).map((p: any) => ({
             ...p,
-            isPromo: p.isPromo || false, // Garante que isPromo exista
-            promoPrice: p.promoPrice // Mantém promoPrice ou undefined
+            isPromo: typeof p.isPromo === 'boolean' ? p.isPromo : false, 
+            promoPrice: typeof p.promoPrice === 'number' ? p.promoPrice : undefined 
           }));
           setProcedures(parsedProcedures);
         } else {
-          setProcedures(initialProcedures.map(p => ({...p, isPromo: p.isPromo || false, promoPrice: p.promoPrice})));
-          localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(initialProcedures));
+          // Initialize with default procedures and save them
+          const proceduresWithDefaults = initialProcedures.map(p => ({
+            ...p, 
+            isPromo: p.isPromo || false, 
+            promoPrice: p.promoPrice
+          }));
+          setProcedures(proceduresWithDefaults);
+          localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(proceduresWithDefaults));
         }
       } catch (error) {
-        console.error("Failed to parse procedures from localStorage", error);
-        const proceduresWithDefaults = initialProcedures.map(p => ({...p, isPromo: p.isPromo || false, promoPrice: p.promoPrice}));
+        console.error("Failed to parse procedures from localStorage, initializing with defaults.", error);
+        const proceduresWithDefaults = initialProcedures.map(p => ({
+          ...p, 
+          isPromo: p.isPromo || false, 
+          promoPrice: p.promoPrice
+        }));
         setProcedures(proceduresWithDefaults);
         localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(proceduresWithDefaults));
       }
@@ -87,7 +97,7 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
     setProcedures(prev => prev.filter(p => p.id !== procedureId));
   }, []);
 
-  if (!isLoaded) {
+  if (!isLoaded && typeof window !== 'undefined') {
     return null; 
   }
 
