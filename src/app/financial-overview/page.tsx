@@ -10,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { format, getYear, getMonth, setYear, setMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, CalendarDays, Info } from 'lucide-react';
+import { DollarSign, CalendarDays, Info, Package } from 'lucide-react'; // Adicionado Package
 import type { Appointment } from '@/lib/types';
 
 const currentYear = getYear(new Date());
@@ -34,7 +34,7 @@ export default function FinancialOverviewPage() {
   }, [appointments, selectedYear, selectedMonth]);
 
   const monthlyTotal = useMemo(() => {
-    return attendedAppointments.reduce((sum, app) => sum + app.procedurePrice, 0);
+    return attendedAppointments.reduce((sum, app) => sum + app.totalPrice, 0); // Use totalPrice
   }, [attendedAppointments]);
 
   return (
@@ -112,8 +112,8 @@ export default function FinancialOverviewPage() {
                     <TableRow>
                       <TableHead>Data</TableHead>
                       <TableHead>Cliente</TableHead>
-                      <TableHead>Procedimento</TableHead>
-                      <TableHead className="text-right">Valor (R$)</TableHead>
+                      <TableHead className="flex items-center gap-1"><Package className="h-4 w-4" />Procedimentos</TableHead>
+                      <TableHead className="text-right">Valor Total (R$)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -121,8 +121,10 @@ export default function FinancialOverviewPage() {
                       <TableRow key={app.id}>
                         <TableCell>{format(new Date(app.date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
                         <TableCell>{app.customerName}</TableCell>
-                        <TableCell>{app.procedureName}</TableCell>
-                        <TableCell className="text-right">{app.procedurePrice.toFixed(2)}</TableCell>
+                        <TableCell>
+                          {app.selectedProcedures.map(p => p.name).join(' + ')}
+                        </TableCell>
+                        <TableCell className="text-right">{app.totalPrice.toFixed(2)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

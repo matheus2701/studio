@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Appointment, AppointmentStatus } from '@/lib/types';
+import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 
 interface AppointmentsContextType {
@@ -25,10 +25,16 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
       try {
         const storedAppointments = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (storedAppointments) {
-          // Verifique se cada agendamento tem o campo sinalPago, adicione se não tiver
           const parsedAppointments = JSON.parse(storedAppointments).map((app: any) => ({
             ...app,
-            sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false, // Garante que o campo existe
+            selectedProcedures: app.selectedProcedures || (app.procedureId ? [{id: app.procedureId, name: app.procedureName, price: app.procedurePrice, duration: app.totalDuration || 60, description: ''}] : []), // Adaptação para dados antigos
+            totalPrice: app.totalPrice || app.procedurePrice || 0, // Adaptação
+            totalDuration: app.totalDuration || 60, // Adaptação
+            sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false,
+            // Remover campos antigos se existirem após a migração
+            procedureId: undefined, 
+            procedureName: undefined,
+            procedurePrice: undefined,
           }));
           setAppointments(parsedAppointments);
           loadedSuccessfully = true;
@@ -44,7 +50,12 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (isLoaded && typeof window !== 'undefined') {
       try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(appointments));
+        // Certifique-se de que os campos legados não sejam salvos
+        const appointmentsToSave = appointments.map(app => {
+          const { procedureId, procedureName, procedurePrice, ...rest } = app as any; // Remove campos legados
+          return rest;
+        });
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(appointmentsToSave));
       } catch (error) {
         console.error("Failed to save appointments to localStorage", error);
       }
@@ -56,7 +67,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
       ...appointmentData,
       id: Date.now().toString(), 
       status: 'CONFIRMED',
-      sinalPago: appointmentData.sinalPago || false, // Garante que sinalPago é definido
+      sinalPago: appointmentData.sinalPago || false,
     };
     setAppointments(prev => [...prev, newAppointment].sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()));
   }, []);

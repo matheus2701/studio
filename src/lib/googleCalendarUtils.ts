@@ -1,28 +1,33 @@
 
 'use server';
 import type { calendar_v3 } from 'googleapis';
-import type { OAuth2Client } from 'google-auth-library'; // Import OAuth2Client type
-import type { Appointment } from '@/lib/types';
+import type { OAuth2Client } from 'google-auth-library';
+import type { Appointment, Procedure } from '@/lib/types'; // Adicionado Procedure
 import { addMinutes } from 'date-fns';
 
 /**
  * Creates a Google Calendar event object from appointment details.
  * @param appointment The appointment details.
- * @param procedureDuration The duration of the procedure in minutes.
+ * @param totalDuration The total duration of all selected procedures in minutes.
+ * @param selectedProcedures The list of selected procedures.
  * @returns A Google Calendar event object.
  */
 export async function createCalendarEventObject(
   appointment: Appointment,
-  procedureDuration: number
-): Promise<calendar_v3.Schema$Event> { // Marked as async
+  totalDuration: number, // Agora é a duração total
+  selectedProcedures: Procedure[] // Lista de procedimentos
+): Promise<calendar_v3.Schema$Event> {
   const startDateTime = new Date(`${appointment.date}T${appointment.time}`);
-  const endDateTime = addMinutes(startDateTime, procedureDuration);
+  const endDateTime = addMinutes(startDateTime, totalDuration);
+
+  const procedureNames = selectedProcedures.map(p => p.name).join(' + ');
+  const totalPrice = selectedProcedures.reduce((sum, p) => sum + p.price, 0);
 
   const event: calendar_v3.Schema$Event = {
-    summary: `${appointment.procedureName} - ${appointment.customerName}`,
+    summary: `${procedureNames} - ${appointment.customerName}`,
     description: `Cliente: ${appointment.customerName}\nTelefone/Whatsapp: ${
       appointment.customerPhone || 'Não informado'
-    }\nProcedimento: ${appointment.procedureName}\nValor: R$ ${appointment.procedurePrice.toFixed(2)}\n\nObservações: ${appointment.notes || 'Nenhuma'}`,
+    }\nProcedimentos: ${procedureNames}\nDuração Total: ${totalDuration} min\nValor Total: R$ ${totalPrice.toFixed(2)}\n\nObservações: ${appointment.notes || 'Nenhuma'}`,
     start: {
       dateTime: startDateTime.toISOString(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, 
@@ -34,8 +39,8 @@ export async function createCalendarEventObject(
     reminders: { 
       useDefault: false,
       overrides: [
-        { method: 'popup', minutes: 60 }, // Lembrete 1 hora antes
-        { method: 'popup', minutes: 24 * 60 }, // Lembrete 1 dia antes
+        { method: 'popup', minutes: 60 },
+        { method: 'popup', minutes: 24 * 60 },
       ],
     },
   };
@@ -52,10 +57,10 @@ export async function createCalendarEventObject(
 export async function addEventToGoogleCalendar(
   event: calendar_v3.Schema$Event,
   calendarId: string,
-  auth: OAuth2Client // Use o tipo OAuth2Client importado
+  auth: OAuth2Client
 ): Promise<calendar_v3.Schema$Event | null> {
   
-  const { google } = await import('googleapis'); // Importar aqui para garantir que está no escopo correto
+  const { google } = await import('googleapis');
   const calendar = google.calendar({ version: 'v3', auth });
 
   try {
@@ -67,8 +72,6 @@ export async function addEventToGoogleCalendar(
     return response.data;
   } catch (error: any) {
     console.error('Error creating Google Calendar event:', error.message);
-    // Re-throw the error so it can be caught by the calling Server Action
-    // and potentially handled (e.g., inform user about re-authentication)
     throw error;
   }
 }

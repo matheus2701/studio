@@ -11,16 +11,17 @@ export interface Procedure {
 
 export interface Appointment {
   id: string;
-  procedureId: string;
-  procedureName: string; // denormalized for easy display
-  procedurePrice: number; // denormalized for financial tracking
+  // Campos removidos: procedureId, procedureName, procedurePrice
+  selectedProcedures: Procedure[]; // Lista de procedimentos selecionados
+  totalPrice: number; // Preço total dos procedimentos selecionados
+  totalDuration: number; // Duração total dos procedimentos selecionados
   customerName: string;
   customerPhone?: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:MM
   notes?: string;
   status: AppointmentStatus;
-  sinalPago: boolean; // Novo campo para rastrear o pagamento do sinal
+  sinalPago: boolean;
 }
 
 export interface NotificationPreferences {
@@ -29,7 +30,6 @@ export interface NotificationPreferences {
   inApp: boolean;
 }
 
-// Tipos para Clientes e Tags
 export interface Tag {
   id: string;
   name: string;
@@ -40,6 +40,5 @@ export interface Customer {
   name: string;
   phone?: string;
   notes?: string;
-  tags: Tag[]; // Armazena as tags diretamente no cliente por simplicidade inicial
+  tags: Tag[];
 }
-

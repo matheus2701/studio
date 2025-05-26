@@ -15,17 +15,18 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox"; // Importar Checkbox
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import type { Appointment, Procedure } from "@/lib/types";
 import { format } from 'date-fns';
 import { syncToGoogleCalendar } from "@/app/actions/scheduleActions";
+import { ScrollArea } from "../ui/scroll-area";
 
 const bookingFormSchema = z.object({
   customerName: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
   customerPhone: z.string().optional(),
   notes: z.string().optional(),
-  sinalPago: z.boolean().default(false).optional(), // Novo campo para sinal
+  sinalPago: z.boolean().default(false).optional(),
 });
 
 type BookingFormValues = z.infer<typeof bookingFormSchema>;
@@ -33,11 +34,11 @@ type BookingFormValues = z.infer<typeof bookingFormSchema>;
 interface BookingFormProps {
   selectedDate: Date;
   selectedTime: string;
-  selectedProcedure: Procedure;
+  selectedProcedures: Procedure[]; // Agora espera uma lista de procedimentos
   onBookingConfirmed: (appointmentData: Omit<Appointment, 'id' | 'status'>) => void;
 }
 
-export function BookingForm({ selectedDate, selectedTime, selectedProcedure, onBookingConfirmed }: BookingFormProps) {
+export function BookingForm({ selectedDate, selectedTime, selectedProcedures, onBookingConfirmed }: BookingFormProps) {
   const { toast } = useToast();
 
   const form = useForm<BookingFormValues>({
@@ -46,27 +47,31 @@ export function BookingForm({ selectedDate, selectedTime, selectedProcedure, onB
       customerName: "",
       customerPhone: "",
       notes: "",
-      sinalPago: false, // Valor padrão
+      sinalPago: false,
     },
   });
 
+  const totalPrice = selectedProcedures.reduce((sum, proc) => sum + proc.price, 0);
+  const totalDuration = selectedProcedures.reduce((sum, proc) => sum + proc.duration, 0);
+  const procedureNames = selectedProcedures.map(p => p.name).join(', ');
+
   async function onSubmit(data: BookingFormValues) {
     const appointmentDataForConfirmation: Omit<Appointment, 'id' | 'status'> = {
-      procedureId: selectedProcedure.id,
-      procedureName: selectedProcedure.name,
-      procedurePrice: selectedProcedure.price,
+      selectedProcedures: selectedProcedures,
+      totalPrice: totalPrice,
+      totalDuration: totalDuration,
       customerName: data.customerName,
       customerPhone: data.customerPhone,
       date: format(selectedDate, 'yyyy-MM-dd'),
       time: selectedTime,
       notes: data.notes,
-      sinalPago: data.sinalPago || false, // Incluir sinalPago
+      sinalPago: data.sinalPago || false,
     };
 
     onBookingConfirmed(appointmentDataForConfirmation);
     toast({
       title: "Agendamento Confirmado!",
-      description: `${selectedProcedure.name} para ${data.customerName} em ${format(selectedDate, 'dd/MM/yyyy')} às ${selectedTime}.`,
+      description: `${procedureNames} para ${data.customerName} em ${format(selectedDate, 'dd/MM/yyyy')} às ${selectedTime}.`,
     });
     
     const tempAppointmentForSync: Appointment = {
@@ -76,7 +81,8 @@ export function BookingForm({ selectedDate, selectedTime, selectedProcedure, onB
     };
 
     try {
-      const syncResult = await syncToGoogleCalendar(tempAppointmentForSync, selectedProcedure.duration);
+      // Passar selectedProcedures em vez de uma única duração
+      const syncResult = await syncToGoogleCalendar(tempAppointmentForSync, tempAppointmentForSync.selectedProcedures);
       if (syncResult.success) {
         toast({
           title: "Sincronizado!",
@@ -104,11 +110,20 @@ export function BookingForm({ selectedDate, selectedTime, selectedProcedure, onB
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="p-3 border rounded-md bg-muted/30">
-            <p className="text-sm font-medium text-primary">{selectedProcedure.name}</p>
-            <p className="text-xs text-muted-foreground">Duração: {selectedProcedure.duration} min</p>
-            <p className="text-xs text-muted-foreground">Preço: R$ {selectedProcedure.price.toFixed(2)}</p>
-        </div>
+        <Card className="p-4 border rounded-md bg-muted/30">
+          <CardTitle className="text-md mb-2 text-primary">Procedimentos Selecionados:</CardTitle>
+          <ScrollArea className="h-[100px] mb-2 pr-3">
+            <ul className="list-disc list-inside text-sm space-y-1">
+              {selectedProcedures.map(proc => (
+                <li key={proc.id}>{proc.name} ({proc.duration} min) - R$ {proc.price.toFixed(2)}</li>
+              ))}
+            </ul>
+          </ScrollArea>
+          <div className="text-sm font-semibold space-y-1 border-t pt-2">
+            <p>Duração Total: <span className="text-primary">{totalDuration} min</span></p>
+            <p>Preço Total: <span className="text-primary">R$ {totalPrice.toFixed(2)}</span></p>
+          </div>
+        </Card>
 
         <FormField
           control={form.control}
@@ -168,7 +183,7 @@ export function BookingForm({ selectedDate, selectedTime, selectedProcedure, onB
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">Confirmar Agendamento</Button>
+        <Button type="submit" className="w-full" disabled={selectedProcedures.length === 0}>Confirmar Agendamento</Button>
       </form>
     </Form>
   );

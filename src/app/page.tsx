@@ -10,11 +10,13 @@ import { Button } from '@/components/ui/button';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
 import { format, addMinutes, parse, set } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, Sparkles, ListFilter, CreditCard } from 'lucide-react'; // Adicionado CreditCard
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, Sparkles, ListFilter, CreditCard, Tag } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useProcedures } from '@/contexts/ProceduresContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 const statusTranslations: Record<AppointmentStatus, string> = {
   CONFIRMED: "Confirmado",
@@ -28,29 +30,29 @@ const statusColors: Record<AppointmentStatus, string> = {
   CANCELLED: "text-rose-600",
 };
 
-// Configurações do dia de trabalho e intervalo de slots
 const WORK_DAY_START_HOUR = 9;
-const WORK_DAY_END_HOUR = 20; 
+const WORK_DAY_END_HOUR = 20;
 const SLOT_INTERVAL_MINUTES = 30;
-
 
 export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [selectedProcedureId, setSelectedProcedureId] = useState<string | undefined>(undefined);
+  // selectedProcedureId agora é selectedProcedureIds para seleção múltipla
+  const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
   
   const { appointments, addAppointment, updateAppointmentStatus } = useAppointments();
   const { procedures } = useProcedures();
   const { toast } = useToast();
 
-  const selectedProcedure = useMemo(() => {
-    return procedures.find(p => p.id === selectedProcedureId);
-  }, [selectedProcedureId, procedures]);
+  // selectedProceduresDetail agora é uma lista dos objetos de procedimento selecionados
+  const selectedProceduresDetail = useMemo(() => {
+    return procedures.filter(p => selectedProcedureIds.includes(p.id));
+  }, [selectedProcedureIds, procedures]);
 
   const handleBookingConfirmed = (newAppointmentData: Omit<Appointment, 'id' | 'status'>) => {
     addAppointment(newAppointmentData);
     setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00'));
-    setSelectedProcedureId(undefined); // Reset procedure selection
+    setSelectedProcedureIds([]); // Reset procedure selection
     setSelectedTime(undefined);
   };
 
@@ -62,18 +64,25 @@ export default function BookingPage() {
     });
   };
 
-  const getProcedureDuration = (procedureId: string): number => {
+  // Função para obter a duração de um único procedimento (usada no cálculo de horários)
+  const getProcedureDurationById = (procedureId: string): number => {
     const procedure = procedures.find(p => p.id === procedureId);
-    return procedure?.duration || 60; // Default to 60 min if not found
+    return procedure?.duration || 0;
   };
+  
+  // Função para obter a duração total dos procedimentos selecionados
+  const totalSelectedProceduresDuration = useMemo(() => {
+    return selectedProceduresDetail.reduce((sum, proc) => sum + proc.duration, 0);
+  }, [selectedProceduresDetail]);
+
 
   const availableTimeSlots = useMemo(() => {
-    if (!selectedDate || !selectedProcedure) {
+    if (!selectedDate || selectedProceduresDetail.length === 0) {
       return [];
     }
 
     const slots: string[] = [];
-    const procedureDuration = selectedProcedure.duration;
+    const currentTotalDuration = totalSelectedProceduresDuration;
 
     const dayStart = set(selectedDate, { hours: WORK_DAY_START_HOUR, minutes: 0, seconds: 0, milliseconds: 0 });
     const dayEnd = set(selectedDate, { hours: WORK_DAY_END_HOUR, minutes: 0, seconds: 0, milliseconds: 0 });
@@ -82,16 +91,17 @@ export default function BookingPage() {
       app => app.date === format(selectedDate, 'yyyy-MM-dd') && (app.status === 'CONFIRMED' || app.status === 'ATTENDED')
     ).map(app => {
       const appStart = parse(`${app.date} ${app.time}`, 'yyyy-MM-dd HH:mm', new Date());
-      const appDuration = getProcedureDuration(app.procedureId);
+      // Use app.totalDuration para agendamentos existentes
+      const appDuration = app.totalDuration;
       const appEnd = addMinutes(appStart, appDuration);
       return { start: appStart, end: appEnd };
     });
 
     let currentTime = new Date(dayStart);
 
-    while (addMinutes(currentTime, procedureDuration) <= dayEnd) {
+    while (addMinutes(currentTime, currentTotalDuration) <= dayEnd) {
       const potentialSlotStart = new Date(currentTime);
-      const potentialSlotEnd = addMinutes(potentialSlotStart, procedureDuration);
+      const potentialSlotEnd = addMinutes(potentialSlotStart, currentTotalDuration);
 
       let isOverlapping = false;
       for (const existingApp of existingAppointmentsOnDate) {
@@ -107,8 +117,18 @@ export default function BookingPage() {
       currentTime = addMinutes(currentTime, SLOT_INTERVAL_MINUTES);
     }
     return slots;
-  }, [selectedDate, selectedProcedure, appointments, procedures]);
+  }, [selectedDate, selectedProceduresDetail, appointments, totalSelectedProceduresDuration]);
 
+  const handleProcedureSelectionChange = (procedureId: string, checked: boolean) => {
+    setSelectedProcedureIds(prevIds => {
+      if (checked) {
+        return [...prevIds, procedureId];
+      } else {
+        return prevIds.filter(id => id !== procedureId);
+      }
+    });
+    setSelectedTime(undefined); // Reset time when procedures change
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -117,9 +137,9 @@ export default function BookingPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CalendarCheck2 className="h-6 w-6 text-primary" />
-              Selecione Data e Procedimento
+              Selecione Data e Procedimentos
             </CardTitle>
-            <CardDescription>Escolha uma data e o procedimento desejado para ver os horários.</CardDescription>
+            <CardDescription>Escolha uma data e os procedimentos desejados para ver os horários.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col md:flex-row gap-6">
             <div className="flex-shrink-0">
@@ -135,34 +155,32 @@ export default function BookingPage() {
             <div className="flex-1 space-y-4">
               {selectedDate && (
                 <div>
-                  <label htmlFor="procedure-select" className="block text-sm font-medium text-foreground mb-1">
-                    Procedimento:
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Procedimentos:
                   </label>
-                  <Select
-                    value={selectedProcedureId}
-                    onValueChange={(value) => {
-                      setSelectedProcedureId(value);
-                      setSelectedTime(undefined); 
-                    }}
-                  >
-                    <SelectTrigger id="procedure-select">
-                      <SelectValue placeholder="Escolha um procedimento" />
-                    </SelectTrigger>
-                    <SelectContent>
+                  <ScrollArea className="h-[150px] border rounded-md p-3 bg-muted/20">
+                    <div className="space-y-2">
                       {procedures.map(proc => (
-                        <SelectItem key={proc.id} value={proc.id}>
-                          {proc.name} ({proc.duration} min)
-                        </SelectItem>
+                        <div key={proc.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`proc-${proc.id}`}
+                            checked={selectedProcedureIds.includes(proc.id)}
+                            onCheckedChange={(checked) => handleProcedureSelectionChange(proc.id, !!checked)}
+                          />
+                          <Label htmlFor={`proc-${proc.id}`} className="text-sm font-normal cursor-pointer">
+                            {proc.name} ({proc.duration} min) - R$ {proc.price.toFixed(2)}
+                          </Label>
+                        </div>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </div>
+                  </ScrollArea>
                 </div>
               )}
 
-              {selectedDate && selectedProcedure && (
+              {selectedDate && selectedProceduresDetail.length > 0 && (
                 <div>
                   <h3 className="text-lg font-semibold mb-3 text-foreground">
-                    Horários para {selectedProcedure.name} em {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}:
+                    Horários para {selectedProceduresDetail.map(p=>p.name).join(' + ')} em {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}:
                   </h3>
                   {availableTimeSlots.length > 0 ? (
                     <ScrollArea className="h-[200px] md:h-[240px] pr-3">
@@ -184,7 +202,7 @@ export default function BookingPage() {
                     </ScrollArea>
                   ) : (
                      <p className="text-muted-foreground text-sm p-3 border rounded-md bg-muted/50">
-                      Nenhum horário disponível para este procedimento e data com base na sua duração. Tente outra data ou procedimento.
+                      Nenhum horário disponível para os procedimentos e data selecionados com base na duração total. Tente outra data ou combinação de procedimentos.
                     </p>
                   )}
                 </div>
@@ -193,19 +211,19 @@ export default function BookingPage() {
           </CardContent>
         </Card>
 
-        {selectedDate && selectedProcedure && selectedTime && (
+        {selectedDate && selectedProceduresDetail.length > 0 && selectedTime && (
           <Card>
             <CardHeader>
               <CardTitle>Detalhes do Agendamento</CardTitle>
               <CardDescription>
-                Confirme os dados para {selectedProcedure.name} em {format(selectedDate, "dd/MM/yyyy")} às {selectedTime}.
+                Confirme os dados para {selectedProceduresDetail.map(p => p.name).join(' + ')} em {format(selectedDate, "dd/MM/yyyy")} às {selectedTime}.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <BookingForm
                 selectedDate={selectedDate}
                 selectedTime={selectedTime}
-                selectedProcedure={selectedProcedure}
+                selectedProcedures={selectedProceduresDetail}
                 onBookingConfirmed={handleBookingConfirmed}
               />
             </CardContent>
@@ -225,18 +243,20 @@ export default function BookingPage() {
             {appointments.length === 0 ? (
               <p className="text-muted-foreground text-sm">Nenhum agendamento ainda.</p>
             ) : (
-              <ScrollArea className="h-[400px] pr-3">
+              <ScrollArea className="h-[500px] pr-3"> {/* Increased height */}
                 <ul className="space-y-4">
                   {appointments.sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()).map(app => (
                     <li key={app.id} className="p-4 border rounded-lg bg-card shadow-sm space-y-3">
                       <div>
-                        <h4 className="font-semibold text-primary">{app.procedureName}</h4>
+                        <h4 className="font-semibold text-primary">
+                          {app.selectedProcedures.map(p => p.name).join(' + ')}
+                        </h4>
                         <div className="text-sm text-muted-foreground space-y-1 mt-1">
                           <p className="flex items-center gap-1.5"><UserCircle className="h-4 w-4" /> {app.customerName}</p>
                           <p className="flex items-center gap-1.5"><CalendarCheck2 className="h-4 w-4" /> {format(new Date(app.date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })}</p>
-                          <p className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {app.time}</p>
+                          <p className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {app.time} (Duração: {app.totalDuration} min)</p>
                           {app.customerPhone && <p className="flex items-center gap-1.5"><Phone className="h-4 w-4" /> Whatsapp: {app.customerPhone}</p>}
-                          <p className="flex items-center gap-1.5"><DollarSign className="h-4 w-4" /> R$ {app.procedurePrice.toFixed(2)}</p>
+                          <p className="flex items-center gap-1.5"><DollarSign className="h-4 w-4" /> R$ {app.totalPrice.toFixed(2)}</p>
                            <p className="flex items-center gap-1.5">
                             <ShieldCheck className={`h-4 w-4 ${statusColors[app.status]}`} /> 
                             Status: <span className={`font-medium ${statusColors[app.status]}`}>{statusTranslations[app.status]}</span>
