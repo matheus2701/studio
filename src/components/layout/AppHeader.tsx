@@ -7,13 +7,14 @@ import { Logo } from '@/components/icons/Logo';
 import { NavLink } from './NavLink';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Home, Settings2, Bell, Brain, LinkIcon, LogOut } from 'lucide-react';
+import { Menu, Home, Settings2, Bell, Brain, LinkIcon, LogOut, DollarSign } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
   { href: '/', label: 'Agendar', icon: Home },
   { href: '/procedures', label: 'Procedimentos', icon: Settings2 },
+  { href: '/financial-overview', label: 'Financeiro', icon: DollarSign },
   { href: '/notifications', label: 'Notificações', icon: Bell },
   { href: '/ai-scheduler', label: 'Assistente AI', icon: Brain },
   { href: '/settings/integrations', label: 'Integrações', icon: LinkIcon },
@@ -25,7 +26,7 @@ export function AppHeader() {
   const { user, logout } = useAuth();
 
   if (!user) {
-    return null; // Não renderiza o header se não estiver logado
+    return null; 
   }
 
   return (

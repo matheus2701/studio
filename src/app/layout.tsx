@@ -4,7 +4,8 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { ProceduresProvider } from '@/contexts/ProceduresContext';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { ProtectedLayout } from '@/components/layout/ProtectedLayout'; // Import ProtectedLayout
+import { AppointmentsProvider } from '@/contexts/AppointmentsContext'; // Import AppointmentsProvider
+import { ProtectedLayout } from '@/components/layout/ProtectedLayout';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -31,9 +32,11 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
         <AuthProvider>
           <ProceduresProvider>
-            <ProtectedLayout>
-              {children}
-            </ProtectedLayout>
+            <AppointmentsProvider> {/* Add AppointmentsProvider here */}
+              <ProtectedLayout>
+                {children}
+              </ProtectedLayout>
+            </AppointmentsProvider>
           </ProceduresProvider>
         </AuthProvider>
       </body>

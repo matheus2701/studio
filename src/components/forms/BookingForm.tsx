@@ -61,6 +61,7 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
     const appointmentDataForConfirmation: Omit<Appointment, 'id' | 'status'> = {
       procedureId: data.procedureId,
       procedureName: selectedProcedure.name,
+      procedurePrice: selectedProcedure.price, // Store the price
       customerName: data.customerName,
       customerPhone: data.customerPhone,
       date: format(selectedDate, 'yyyy-MM-dd'),
@@ -75,12 +76,9 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
     });
     
 
-    // Attempt to sync with Google Calendar
-    // We need the full appointment object here, including a temporary ID for the sync function if it expects one.
-    // For now, the sync function might not need the final ID or status.
     const tempAppointmentForSync: Appointment = {
         ...appointmentDataForConfirmation,
-        id: 'temp-sync-id', // Temporary ID for sync, not the final persisted ID
+        id: 'temp-sync-id', 
         status: 'CONFIRMED' 
     };
 
@@ -172,7 +170,7 @@ export function BookingForm({ selectedDate, selectedTime, onBookingConfirmed }: 
             <FormItem>
               <FormLabel>Observações (Opcional)</FormLabel>
               <FormControl>
-                <Textarea placeholder="Alguma observação para o profissional?" {...field} />
+                <Textarea placeholder="Alguma observação para o profissional?" {...field} rows={3}/>
               </FormControl>
               <FormMessage />
             </FormItem>

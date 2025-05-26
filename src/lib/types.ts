@@ -13,12 +13,13 @@ export interface Appointment {
   id: string;
   procedureId: string;
   procedureName: string; // denormalized for easy display
+  procedurePrice: number; // denormalized for financial tracking
   customerName: string;
   customerPhone?: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:MM
   notes?: string;
-  status: AppointmentStatus; // Novo campo de status
+  status: AppointmentStatus;
 }
 
 export interface NotificationPreferences {

@@ -10,8 +10,9 @@ import { Button } from '@/components/ui/button';
 import type { Appointment, AppointmentStatus } from '@/lib/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle } from 'lucide-react';
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { useAppointments } from '@/contexts/AppointmentsContext'; // Import context hook
 
 const statusTranslations: Record<AppointmentStatus, string> = {
   CONFIRMED: "Confirmado",
@@ -28,26 +29,17 @@ const statusColors: Record<AppointmentStatus, string> = {
 export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const { appointments, addAppointment, updateAppointmentStatus } = useAppointments(); // Use context
   const { toast } = useToast();
 
   const handleBookingConfirmed = (newAppointmentData: Omit<Appointment, 'id' | 'status'>) => {
-    const newAppointment: Appointment = {
-      ...newAppointmentData,
-      id: Date.now().toString(),
-      status: 'CONFIRMED', // Status inicial
-    };
-    setAppointments(prev => [...prev, newAppointment].sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()));
-    setSelectedDate(new Date(newAppointment.date + 'T00:00:00'));
+    addAppointment(newAppointmentData); // Use context function
+    setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00')); // Ensure correct date parsing
     setSelectedTime(undefined);
   };
 
   const handleChangeStatus = (appointmentId: string, newStatus: AppointmentStatus) => {
-    setAppointments(prevAppointments =>
-      prevAppointments.map(app =>
-        app.id === appointmentId ? { ...app, status: newStatus } : app
-      )
-    );
+    updateAppointmentStatus(appointmentId, newStatus); // Use context function
     toast({
       title: "Status Atualizado!",
       description: `O agendamento foi marcado como ${statusTranslations[newStatus].toLowerCase()}.`,
@@ -55,6 +47,8 @@ export default function BookingPage() {
   };
 
   const timeSlots = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+
+  const confirmedAppointments = appointments.filter(app => app.status !== 'CANCELLED');
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -129,16 +123,16 @@ export default function BookingPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-6 w-6 text-primary" />
-              Agendamentos Confirmados
+              Agendamentos
             </CardTitle>
           </CardHeader>
           <CardContent>
             {appointments.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhum agendamento confirmado ainda.</p>
+              <p className="text-muted-foreground text-sm">Nenhum agendamento ainda.</p>
             ) : (
               <ScrollArea className="h-[400px] pr-3">
                 <ul className="space-y-4">
-                  {appointments.map(app => (
+                  {appointments.sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()).map(app => (
                     <li key={app.id} className="p-4 border rounded-lg bg-card shadow-sm space-y-3">
                       <div>
                         <h4 className="font-semibold text-primary">{app.procedureName}</h4>
@@ -147,6 +141,7 @@ export default function BookingPage() {
                           <p className="flex items-center gap-1.5"><CalendarCheck2 className="h-4 w-4" /> {format(new Date(app.date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })}</p>
                           <p className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {app.time}</p>
                           {app.customerPhone && <p className="flex items-center gap-1.5"><Phone className="h-4 w-4" /> Whatsapp: {app.customerPhone}</p>}
+                          <p className="flex items-center gap-1.5"><DollarSign className="h-4 w-4" /> R$ {app.procedurePrice.toFixed(2)}</p>
                            <p className="flex items-center gap-1.5">
                             <ShieldCheck className={`h-4 w-4 ${statusColors[app.status]}`} /> 
                             Status: <span className={`font-medium ${statusColors[app.status]}`}>{statusTranslations[app.status]}</span>
