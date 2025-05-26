@@ -19,6 +19,8 @@ const initialProcedures: Procedure[] = [
   { id: '1', name: 'Maquiagem Completa', duration: 60, price: 90.00, description: 'Maquiagem profissional para eventos, festas e ocasiões especiais. Inclui preparação da pele, contorno, iluminação e aplicação de cílios postiços.' },
   { id: '2', name: 'Design de Sobrancelhas com Henna', duration: 60, price: 35.00, description: 'Modelagem das sobrancelhas de acordo com o formato do rosto, seguida pela aplicação de henna para preenchimento e definição.' },
   { id: '3', name: 'Limpeza de Pele Profunda', duration: 75, price: 180.00, description: 'Tratamento facial que remove cravos, impurezas e células mortas, promovendo a renovação celular e uma pele mais saudável e luminosa.' },
+  { id: '4', name: 'Micropigmentação', duration: 90, price: 200.00, description: 'Técnica de implantação de pigmento na pele para corrigir falhas, realçar ou reconstruir sobrancelhas, lábios ou contorno dos olhos.' },
+  { id: '5', name: 'Design de Sobrancelhas sem Henna', duration: 30, price: 25.00, description: 'Modelagem das sobrancelhas de acordo com o formato do rosto, utilizando pinça ou cera, sem aplicação de henna.' },
 ];
 
 
