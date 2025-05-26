@@ -5,7 +5,7 @@
 
 @layer base {
   :root {
-    --background: 267 27% 96%; /* Very light lavender #F5F3F7 */
+    --background: 8 90% 95%; /* Light pink #FEECE9 */
     --foreground: 267 10% 25%; /* Darker shade for text */
 
     --card: 267 27% 98%; /* Slightly off-background for cards */
@@ -51,3 +51,4 @@
     @apply bg-background text-foreground;
   }
 }
+
