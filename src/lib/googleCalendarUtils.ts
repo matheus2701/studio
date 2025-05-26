@@ -1,6 +1,7 @@
 
 'use server';
 import type { calendar_v3 } from 'googleapis';
+import type { OAuth2Client } from 'google-auth-library'; // Import OAuth2Client type
 import type { Appointment } from '@/lib/types';
 import { addMinutes } from 'date-fns';
 
@@ -13,7 +14,7 @@ import { addMinutes } from 'date-fns';
 export async function createCalendarEventObject(
   appointment: Appointment,
   procedureDuration: number
-): Promise<calendar_v3.Schema$Event> {
+): Promise<calendar_v3.Schema$Event> { // Marked as async
   const startDateTime = new Date(`${appointment.date}T${appointment.time}`);
   const endDateTime = addMinutes(startDateTime, procedureDuration);
 
@@ -21,34 +22,28 @@ export async function createCalendarEventObject(
     summary: `${appointment.procedureName} - ${appointment.customerName}`,
     description: `Cliente: ${appointment.customerName}\nTelefone/Whatsapp: ${
       appointment.customerPhone || 'Não informado'
-    }\nProcedimento: ${appointment.procedureName}\n\nObservações: ${appointment.notes || 'Nenhuma'}`,
+    }\nProcedimento: ${appointment.procedureName}\nValor: R$ ${appointment.procedurePrice.toFixed(2)}\n\nObservações: ${appointment.notes || 'Nenhuma'}`,
     start: {
       dateTime: startDateTime.toISOString(),
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, // Use local timezone
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, 
     },
     end: {
       dateTime: endDateTime.toISOString(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     },
-    // reminders: { // Optional: Add reminders
-    //   useDefault: false,
-    //   overrides: [
-    //     { method: 'email', minutes: 24 * 60 },
-    //     { method: 'popup', minutes: 30 },
-    //   ],
-    // },
-    // attendees: [ // Optional: If you want to invite the customer via email
-    //   // { email: customerEmail }
-    // ],
+    reminders: { 
+      useDefault: false,
+      overrides: [
+        { method: 'popup', minutes: 60 }, // Lembrete 1 hora antes
+        { method: 'popup', minutes: 24 * 60 }, // Lembrete 1 dia antes
+      ],
+    },
   };
   return event;
 }
 
 /**
  * Adds an event to Google Calendar.
- * NOTE: This function requires an authenticated OAuth2Client.
- * The actual implementation of getting and using the OAuth2Client is not done here.
- *
  * @param event The event object to add.
  * @param calendarId The ID of the calendar to add the event to (e.g., 'primary').
  * @param auth The authenticated google.auth.OAuth2 client.
@@ -57,10 +52,10 @@ export async function createCalendarEventObject(
 export async function addEventToGoogleCalendar(
   event: calendar_v3.Schema$Event,
   calendarId: string,
-  auth: any // This should be an authenticated google.auth.OAuth2 instance
+  auth: OAuth2Client // Use o tipo OAuth2Client importado
 ): Promise<calendar_v3.Schema$Event | null> {
-  // Dynamically import googleapis only when needed, as it's server-side
-  const { google } = await import('googleapis');
+  
+  const { google } = await import('googleapis'); // Importar aqui para garantir que está no escopo correto
   const calendar = google.calendar({ version: 'v3', auth });
 
   try {
@@ -70,10 +65,10 @@ export async function addEventToGoogleCalendar(
     });
     console.log('Event created: %s', response.data.htmlLink);
     return response.data;
-  } catch (error) {
-    console.error('Error creating Google Calendar event:', error);
-    // It's good practice to check the type of error and handle specifically
-    // For example, if (error.code === 401) handle re-authentication
-    return null;
+  } catch (error: any) {
+    console.error('Error creating Google Calendar event:', error.message);
+    // Re-throw the error so it can be caught by the calling Server Action
+    // and potentially handled (e.g., inform user about re-authentication)
+    throw error;
   }
 }
