@@ -27,3 +27,17 @@ export interface NotificationPreferences {
   email: boolean;
   inApp: boolean;
 }
+
+// Tipos para Clientes e Tags
+export interface Tag {
+  id: string;
+  name: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone?: string;
+  notes?: string;
+  tags: Tag[]; // Armazena as tags diretamente no cliente por simplicidade inicial
+}

@@ -7,13 +7,14 @@ import { Logo } from '@/components/icons/Logo';
 import { NavLink } from './NavLink';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Home, Settings2, Bell, Brain, LinkIcon, LogOut, DollarSign } from 'lucide-react';
+import { Menu, Home, Settings2, Bell, Brain, LinkIcon, LogOut, DollarSign, Users } from 'lucide-react'; // Adicionado Users
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
   { href: '/', label: 'Agendar', icon: Home },
   { href: '/procedures', label: 'Procedimentos', icon: Settings2 },
+  { href: '/customers', label: 'Clientes', icon: Users }, // Novo item Clientes
   { href: '/financial-overview', label: 'Financeiro', icon: DollarSign },
   { href: '/notifications', label: 'Notificações', icon: Bell },
   { href: '/ai-scheduler', label: 'Assistente AI', icon: Brain },
@@ -26,7 +27,7 @@ export function AppHeader() {
   const { user, logout } = useAuth();
 
   if (!user) {
-    return null; 
+    return null;
   }
 
   return (
@@ -35,12 +36,12 @@ export function AppHeader() {
         <Link href="/" className="flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
           <Logo />
         </Link>
-        
+
         <nav className="hidden md:flex items-center space-x-4 text-sm font-medium">
           {navItems.map((item) => (
-            <NavLink 
-              key={item.href} 
-              href={item.href} 
+            <NavLink
+              key={item.href}
+              href={item.href}
               active={pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/')}
             >
               <item.icon className="mr-2 h-4 w-4" />
@@ -73,9 +74,9 @@ export function AppHeader() {
               </div>
               <nav className="flex flex-col space-y-1 px-4">
                 {navItems.map((item) => (
-                  <NavLink 
-                    key={item.href} 
-                    href={item.href} 
+                  <NavLink
+                    key={item.href}
+                    href={item.href}
                     active={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
                     className="flex items-center px-3 py-2 text-base rounded-md hover:bg-accent hover:text-accent-foreground"
                     onClick={() => setIsMobileMenuOpen(false)}
