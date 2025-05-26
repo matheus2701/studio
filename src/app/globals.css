@@ -8,38 +8,38 @@
     --background: 8 90% 95%; /* Light pink #FEECE9 */
     --foreground: 267 10% 25%; /* Darker shade for text */
 
-    --card: 267 27% 98%; /* Slightly off-background for cards */
+    --card: 8 50% 98%; /* Very light pink, almost white */
     --card-foreground: 267 10% 25%;
 
-    --popover: 267 27% 98%;
+    --popover: 8 50% 98%; /* Very light pink, almost white */
     --popover-foreground: 267 10% 25%;
 
-    --primary: 358 90% 79%; /* New: Coral Pink #fa999d */
-    --primary-foreground: 0 0% 15%; /* New: Dark gray for good contrast on light primary */
+    --primary: 358 90% 79%; /* Coral Pink #fa999d */
+    --primary-foreground: 0 0% 15%; /* Dark gray for good contrast on light primary */
 
-    --secondary: 254 18% 70%; /* Lighter soft violet */
-    --secondary-foreground: 254 20% 25%;
+    --secondary: 358 70% 90%; /* Lighter, softer pink than primary */
+    --secondary-foreground: 358 30% 30%; /* Dark plum for contrast */
 
-    --muted: 267 25% 90%; /* Lighter lavender for muted elements */
-    --muted-foreground: 267 15% 45%; /* Muted text */
+    --muted: 358 50% 96%; /* Even lighter pink, almost off-white */
+    --muted-foreground: 0 0% 45%; /* Medium gray for muted text */
 
-    --accent: 254 18% 54%; /* Soft violet #8072A3 */
-    --accent-foreground: 254 30% 97%; /* Light text for accent */
+    --accent: 358 80% 70%; /* A richer, slightly darker pink for strong accents */
+    --accent-foreground: 0 0% 98%; /* White or very light for accent text */
 
     --destructive: 0 70% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 267 20% 88%; /* Lavender-tinged border */
-    --input: 267 20% 92%; /* Lighter lavender for input background */
-    --ring: 358 90% 79%; /* New: Coral Pink #fa999d for rings */
+    --border: 358 60% 92%; /* Very light pink border */
+    --input: 358 50% 97%; /* Very light pink input background */
+    --ring: 358 90% 79%; /* Coral Pink #fa999d for rings */
 
     --radius: 0.5rem;
 
-    --chart-1: 358 90% 79%; /* New: Coral Pink #fa999d */
-    --chart-2: 254 18% 54%;
-    --chart-3: 267 25% 70%;
-    --chart-4: 254 20% 60%;
-    --chart-5: 267 30% 75%;
+    --chart-1: 358 90% 79%; /* Primary Coral Pink */
+    --chart-2: 358 80% 70%; /* Accent Pink */
+    --chart-3: 358 70% 85%; /* Lighter Pink */
+    --chart-4: 358 60% 90%; /* Very Light Pink */
+    --chart-5: 358 50% 95%; /* Palest Pink */
   }
 }
 
