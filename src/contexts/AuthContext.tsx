@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { ReactNode } from 'react';
@@ -18,9 +17,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Credenciais fixas (NÃO FAÇA ISSO EM PRODUÇÃO)
-const ADMIN_USERNAME = "matheus2701";
-const ADMIN_PASSWORD = "valeria2504";
+// Lê as credenciais das variáveis de ambiente
+const ADMIN_USERNAME_ENV = process.env.NEXT_PUBLIC_ADMIN_USERNAME;
+const ADMIN_PASSWORD_ENV = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -29,6 +28,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
 
   useEffect(() => {
+    if (!ADMIN_USERNAME_ENV || !ADMIN_PASSWORD_ENV) {
+      console.error("Variáveis de ambiente ADMIN_USERNAME ou ADMIN_PASSWORD não configuradas!");
+    }
     try {
       const storedUser = localStorage.getItem('agendeUser');
       if (storedUser) {
@@ -45,7 +47,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     // Simula uma chamada de API
     await new Promise(resolve => setTimeout(resolve, 500));
-    if (usernameInput === ADMIN_USERNAME && passwordInput === ADMIN_PASSWORD) {
+
+    if (!ADMIN_USERNAME_ENV || !ADMIN_PASSWORD_ENV) {
+      console.error("Login attempt failed: Admin credentials not set in environment variables.");
+      setIsLoading(false);
+      return false;
+    }
+
+    if (usernameInput === ADMIN_USERNAME_ENV && passwordInput === ADMIN_PASSWORD_ENV) {
       const userData = { username: usernameInput };
       setUser(userData);
       localStorage.setItem('agendeUser', JSON.stringify(userData));
