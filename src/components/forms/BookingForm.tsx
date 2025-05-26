@@ -20,7 +20,8 @@ import { useToast } from "@/hooks/use-toast";
 import type { Appointment, Procedure } from "@/lib/types";
 import { format } from 'date-fns';
 import { syncToGoogleCalendar } from "@/app/actions/scheduleActions";
-import { ScrollArea } from "../ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area"; // Caminho corrigido
+import { Card, CardTitle } from "@/components/ui/card"; // Importações adicionadas
 
 const bookingFormSchema = z.object({
   customerName: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
@@ -81,7 +82,6 @@ export function BookingForm({ selectedDate, selectedTime, selectedProcedures, on
     };
 
     try {
-      // Passar selectedProcedures em vez de uma única duração
       const syncResult = await syncToGoogleCalendar(tempAppointmentForSync, tempAppointmentForSync.selectedProcedures);
       if (syncResult.success) {
         toast({
