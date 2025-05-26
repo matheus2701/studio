@@ -36,7 +36,6 @@ const SLOT_INTERVAL_MINUTES = 30;
 
 export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  // selectedProcedureId agora é selectedProcedureIds para seleção múltipla
   const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
   
@@ -44,15 +43,15 @@ export default function BookingPage() {
   const { procedures } = useProcedures();
   const { toast } = useToast();
 
-  // selectedProceduresDetail agora é uma lista dos objetos de procedimento selecionados
   const selectedProceduresDetail = useMemo(() => {
+    if (!procedures || procedures.length === 0) return []; // Adicionada verificação
     return procedures.filter(p => selectedProcedureIds.includes(p.id));
   }, [selectedProcedureIds, procedures]);
 
   const handleBookingConfirmed = (newAppointmentData: Omit<Appointment, 'id' | 'status'>) => {
     addAppointment(newAppointmentData);
     setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00'));
-    setSelectedProcedureIds([]); // Reset procedure selection
+    setSelectedProcedureIds([]); 
     setSelectedTime(undefined);
   };
 
@@ -63,14 +62,7 @@ export default function BookingPage() {
       description: `O agendamento foi marcado como ${statusTranslations[newStatus].toLowerCase()}.`,
     });
   };
-
-  // Função para obter a duração de um único procedimento (usada no cálculo de horários)
-  const getProcedureDurationById = (procedureId: string): number => {
-    const procedure = procedures.find(p => p.id === procedureId);
-    return procedure?.duration || 0;
-  };
   
-  // Função para obter a duração total dos procedimentos selecionados
   const totalSelectedProceduresDuration = useMemo(() => {
     return selectedProceduresDetail.reduce((sum, proc) => sum + proc.duration, 0);
   }, [selectedProceduresDetail]);
@@ -91,7 +83,6 @@ export default function BookingPage() {
       app => app.date === format(selectedDate, 'yyyy-MM-dd') && (app.status === 'CONFIRMED' || app.status === 'ATTENDED')
     ).map(app => {
       const appStart = parse(`${app.date} ${app.time}`, 'yyyy-MM-dd HH:mm', new Date());
-      // Use app.totalDuration para agendamentos existentes
       const appDuration = app.totalDuration;
       const appEnd = addMinutes(appStart, appDuration);
       return { start: appStart, end: appEnd };
@@ -127,7 +118,7 @@ export default function BookingPage() {
         return prevIds.filter(id => id !== procedureId);
       }
     });
-    setSelectedTime(undefined); // Reset time when procedures change
+    setSelectedTime(undefined); 
   };
 
   return (
