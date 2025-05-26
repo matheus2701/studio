@@ -62,6 +62,12 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       let loadedSuccessfully = false;
+      let proceduresToSet = initialProcedures.map(p => ({
+        ...p,
+        isPromo: p.isPromo || false,
+        promoPrice: p.promoPrice
+      }));
+
       try {
         const storedProcedures = localStorage.getItem(LOCAL_STORAGE_KEY_PROCEDURES);
         if (storedProcedures) {
@@ -70,25 +76,22 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
             isPromo: typeof p.isPromo === 'boolean' ? p.isPromo : false, 
             promoPrice: typeof p.promoPrice === 'number' ? p.promoPrice : undefined 
           }));
-          setProcedures(parsedProcedures);
+          proceduresToSet = parsedProcedures;
           loadedSuccessfully = true;
+          console.log("Procedures loaded successfully from localStorage.");
+        } else {
+          console.log("No procedures found in localStorage. Initializing with default procedures and saving them.");
+          // Se não há nada, usamos os iniciais E salvamos eles imediatamente
+          localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(proceduresToSet));
         }
       } catch (error) {
-        console.error("Failed to parse procedures from localStorage, initializing with defaults.", error);
-        // localStorage.removeItem(LOCAL_STORAGE_KEY_PROCEDURES); // Option: clear corrupted data
+        console.error("Failed to parse procedures from localStorage. Initializing with default procedures and saving them.", error);
+        localStorage.removeItem(LOCAL_STORAGE_KEY_PROCEDURES); // Limpa dados corrompidos
+        // Usamos os iniciais E salvamos eles imediatamente
+        localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(proceduresToSet));
       }
       
-      if (!loadedSuccessfully) {
-        // Initialize with default procedures if nothing was loaded or parsing failed
-        const proceduresWithDefaults = initialProcedures.map(p => ({
-          ...p, 
-          isPromo: p.isPromo || false, 
-          promoPrice: p.promoPrice
-        }));
-        setProcedures(proceduresWithDefaults);
-        // Optionally, save initial procedures to localStorage immediately
-        // localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(proceduresWithDefaults));
-      }
+      setProcedures(proceduresToSet);
       setIsLoaded(true);
     }
   }, []);
@@ -127,7 +130,7 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
     setProcedures(prev => prev.filter(p => p.id !== procedureId));
   }, []);
 
-  if (!isLoaded && typeof window !== 'undefined') { // Ensure it doesn't return null indefinitely if localStorage is slow or window is not ready.
+  if (!isLoaded && typeof window !== 'undefined') { 
     return null; 
   }
 
