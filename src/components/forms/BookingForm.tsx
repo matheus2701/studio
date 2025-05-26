@@ -21,7 +21,7 @@ import type { Appointment, Procedure } from "@/lib/types";
 import { format } from 'date-fns';
 import { syncToGoogleCalendar } from "@/app/actions/scheduleActions";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card"; // Corrected import
 import { useEffect } from "react";
 
 const bookingFormSchema = z.object({
@@ -98,6 +98,8 @@ export function BookingForm({
     onFormSubmit(appointmentDataPayload); // Let parent handle add/update and toast
     
     // Sync logic (consider if sync needs to update existing events)
+    // Temporarily disabling Google Calendar sync
+    /*
     if (!appointmentToEdit) { // Only sync as new for new appointments for now
         const tempAppointmentForSync: Appointment = {
             ...appointmentDataPayload,
@@ -128,6 +130,7 @@ export function BookingForm({
           });
         }
     }
+    */
     // Form reset is handled by parent by clearing appointmentToEdit or changing key
   }
 
@@ -214,3 +217,4 @@ export function BookingForm({
     </Form>
   );
 }
+
