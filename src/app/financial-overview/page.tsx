@@ -1,16 +1,15 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
 import { format, getYear, getMonth, setYear, setMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, CalendarDays, Info, Package } from 'lucide-react';
+import { DollarSign, CalendarDays, Info, Package, Loader2 } from 'lucide-react';
 import type { Appointment } from '@/lib/types';
 
 const currentYear = getYear(new Date());
@@ -18,24 +17,35 @@ const years = Array.from({ length: 5 }, (_, i) => currentYear - i); // Last 5 ye
 const months = Array.from({ length: 12 }, (_, i) => i); // 0 (Jan) to 11 (Dec)
 
 export default function FinancialOverviewPage() {
-  const { appointments } = useAppointments();
+  const { getAppointmentsByMonth, isLoading: isLoadingContext } = useAppointments(); // Usar getAppointmentsByMonth
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
-  const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date())); // current month
+  const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()));
+  const [monthlyAppointments, setMonthlyAppointments] = useState<Appointment[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
+  const fetchMonthlyData = useCallback(async () => {
+    setIsLoadingData(true);
+    const data = await getAppointmentsByMonth(selectedYear, selectedMonth);
+    setMonthlyAppointments(data);
+    setIsLoadingData(false);
+  }, [getAppointmentsByMonth, selectedYear, selectedMonth]);
+
+  useEffect(() => {
+    if (!isLoadingContext) { // Só busca quando o contexto terminar de carregar os agendamentos iniciais
+      fetchMonthlyData();
+    }
+  }, [fetchMonthlyData, isLoadingContext]);
+  
   const attendedAppointments = useMemo(() => {
-    return appointments.filter(app => {
-      const appDate = new Date(app.date + 'T00:00:00'); // Ensure correct date parsing
-      return (
-        app.status === 'ATTENDED' &&
-        getYear(appDate) === selectedYear &&
-        getMonth(appDate) === selectedMonth
-      );
-    }).sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime());
-  }, [appointments, selectedYear, selectedMonth]);
+    return monthlyAppointments.filter(app => app.status === 'ATTENDED')
+      .sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime());
+  }, [monthlyAppointments]);
 
   const monthlyTotal = useMemo(() => {
     return attendedAppointments.reduce((sum, app) => sum + app.totalPrice, 0);
   }, [attendedAppointments]);
+
+  const displayIsLoading = isLoadingContext || isLoadingData;
 
   return (
     <div className="space-y-8">
@@ -56,6 +66,7 @@ export default function FinancialOverviewPage() {
               <Select
                 value={selectedYear.toString()}
                 onValueChange={(value) => setSelectedYear(parseInt(value))}
+                disabled={displayIsLoading}
               >
                 <SelectTrigger className="w-full sm:w-[120px]">
                   <SelectValue placeholder="Ano" />
@@ -68,26 +79,33 @@ export default function FinancialOverviewPage() {
               </Select>
             </div>
             <div className="flex w-full sm:w-auto gap-2 items-center">
-              <CalendarDays className="h-5 w-5 text-muted-foreground sm:hidden" /> {/* Ícone opcional para mobile */}
+              <CalendarDays className="h-5 w-5 text-muted-foreground sm:hidden" />
               <Select
                 value={selectedMonth.toString()}
                 onValueChange={(value) => setSelectedMonth(parseInt(value))}
+                disabled={displayIsLoading}
               >
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Mês" />
                 </SelectTrigger>
                 <SelectContent>
-                  {months.map(month => (
-                    <SelectItem key={month} value={month.toString()}>
-                      {format(setMonth(new Date(), month), 'MMMM', { locale: ptBR })}
+                  {months.map(monthIdx => (
+                    <SelectItem key={monthIdx} value={monthIdx.toString()}>
+                      {format(setMonth(new Date(), monthIdx), 'MMMM', { locale: ptBR })}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+            {displayIsLoading && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
           </div>
 
-          {attendedAppointments.length === 0 ? (
+          {displayIsLoading ? (
+            <div className="text-center py-10">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">Carregando dados financeiros...</p>
+            </div>
+          ) : attendedAppointments.length === 0 ? (
             <div className="text-center py-10 px-4 border border-dashed rounded-lg bg-card">
               <Info className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <p className="text-lg font-medium text-foreground">

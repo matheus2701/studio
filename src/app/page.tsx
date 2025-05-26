@@ -1,20 +1,19 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { BookingCalendar } from '@/components/BookingCalendar';
 import { BookingForm } from '@/components/forms/BookingForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
-import { format, addMinutes, parse, set } from 'date-fns';
+import { format, addMinutes, parse, set, isEqual, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, ListFilter, CreditCard, Tag, Edit } from 'lucide-react';
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useProcedures } from '@/contexts/ProceduresContext';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
@@ -40,93 +39,99 @@ export default function BookingPage() {
   const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
   const [appointmentToEdit, setAppointmentToEdit] = useState<Appointment | null>(null);
   
-  const { appointments, addAppointment, updateAppointment, updateAppointmentStatus } = useAppointments();
-  const { procedures } = useProcedures();
+  const { 
+    appointments, 
+    addAppointment, 
+    updateAppointment, 
+    updateAppointmentStatus,
+    isLoading: isLoadingAppointments 
+  } = useAppointments();
+  const { procedures, isLoading: isLoadingProcedures } = useProcedures();
   const { toast } = useToast();
+
+  const isLoading = isLoadingAppointments || isLoadingProcedures;
 
   // Recalcula os detalhes dos procedimentos selecionados, aplicando o preço promocional se ativo
   const selectedProceduresDetail = useMemo(() => {
-    if (!procedures || procedures.length === 0) return [];
+    if (isLoadingProcedures || procedures.length === 0) return [];
     return selectedProcedureIds.map(id => {
       const proc = procedures.find(p => p.id === id);
-      if (!proc) return null; // Deveria idealmente filtrar nulos, mas o map espera um retorno
-
-      // Se está em promoção e tem preço promocional, usa o preço promocional
+      if (!proc) return null;
       const effectivePrice = (proc.isPromo && proc.promoPrice !== undefined) ? proc.promoPrice : proc.price;
-      
-      return { 
-        ...proc, 
-        price: effectivePrice // Sobrescreve o preço com o promocional se aplicável
-      };
-    }).filter(Boolean) as Procedure[]; // Filtra quaisquer procedimentos não encontrados
-  }, [selectedProcedureIds, procedures]);
+      return { ...proc, price: effectivePrice };
+    }).filter(Boolean) as Procedure[];
+  }, [selectedProcedureIds, procedures, isLoadingProcedures]);
 
-  const handleFormSubmit = (newAppointmentData: Omit<Appointment, 'id' | 'status'>) => {
+  const handleFormSubmit = async (newAppointmentData: Omit<Appointment, 'id' | 'status'>) => {
+    let success = false;
     if (appointmentToEdit) {
-      const existingAppointment = appointments.find(app => app.id === appointmentToEdit.id);
-      if (existingAppointment) {
-         // Ao atualizar, newAppointmentData já vem com os selectedProcedures com preço correto
-         updateAppointment({ ...newAppointmentData, id: appointmentToEdit.id, status: existingAppointment.status });
+      const result = await updateAppointment({ ...newAppointmentData, id: appointmentToEdit.id, status: appointmentToEdit.status });
+      if (result) {
          toast({
             title: "Agendamento Atualizado!",
             description: `${newAppointmentData.selectedProcedures.map(p=>p.name).join(' + ')} para ${newAppointmentData.customerName} em ${format(new Date(newAppointmentData.date + 'T00:00:00'), 'dd/MM/yyyy')} às ${newAppointmentData.time}.`,
          });
+         success = true;
       }
     } else {
-      // Ao adicionar, newAppointmentData já vem com os selectedProcedures com preço correto
-      addAppointment(newAppointmentData);
-      toast({
-        title: "Agendamento Confirmado!",
-        description: `${newAppointmentData.selectedProcedures.map(p=>p.name).join(' + ')} para ${newAppointmentData.customerName} em ${format(new Date(newAppointmentData.date + 'T00:00:00'), 'dd/MM/yyyy')} às ${newAppointmentData.time}.`,
-      });
+      const result = await addAppointment(newAppointmentData);
+      if (result) {
+        toast({
+          title: "Agendamento Confirmado!",
+          description: `${newAppointmentData.selectedProcedures.map(p=>p.name).join(' + ')} para ${newAppointmentData.customerName} em ${format(new Date(newAppointmentData.date + 'T00:00:00'), 'dd/MM/yyyy')} às ${newAppointmentData.time}.`,
+        });
+        success = true;
+      }
     }
-    setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00'));
-    setSelectedProcedureIds([]); 
-    setSelectedTime(undefined);
-    setAppointmentToEdit(null);
+
+    if (success) {
+      setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00'));
+      setSelectedProcedureIds([]); 
+      setSelectedTime(undefined);
+      setAppointmentToEdit(null);
+    }
   };
 
-  const handleChangeStatus = (appointmentId: string, newStatus: AppointmentStatus) => {
-    updateAppointmentStatus(appointmentId, newStatus);
-    toast({
-      title: "Status Atualizado!",
-      description: `O agendamento foi marcado como ${statusTranslations[newStatus].toLowerCase()}.`,
-    });
+  const handleChangeStatus = async (appointmentId: string, newStatus: AppointmentStatus) => {
+    const result = await updateAppointmentStatus(appointmentId, newStatus);
+    if (result) {
+      toast({
+        title: "Status Atualizado!",
+        description: `O agendamento foi marcado como ${statusTranslations[newStatus].toLowerCase()}.`,
+      });
+    }
   };
 
   const handleEditClick = (appointment: Appointment) => {
     setAppointmentToEdit(appointment);
     setSelectedDate(new Date(appointment.date + 'T00:00:00'));
-    // Preenche selectedProcedureIds com os IDs dos procedimentos do agendamento
-    // A lógica de selectedProceduresDetail vai buscar os detalhes atualizados, incluindo promoções
     setSelectedProcedureIds(appointment.selectedProcedures.map(p => p.id));
     setSelectedTime(appointment.time);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
   const totalSelectedProceduresDuration = useMemo(() => {
-    // A duração não muda com a promoção, então podemos usar a duração original dos procedures
-    // para calcular o tempo de slot, mesmo que selectedProceduresDetail tenha preço ajustado.
+    if (isLoadingProcedures) return 0;
     return selectedProcedureIds.reduce((sum, id) => {
       const proc = procedures.find(p => p.id === id);
       return sum + (proc?.duration || 0);
     }, 0);
-  }, [selectedProcedureIds, procedures]);
-
+  }, [selectedProcedureIds, procedures, isLoadingProcedures]);
 
   const availableTimeSlots = useMemo(() => {
-    if (!selectedDate || selectedProcedureIds.length === 0) {
+    if (!selectedDate || selectedProcedureIds.length === 0 || isLoadingAppointments || isLoadingProcedures) {
       return [];
     }
 
     const slots: string[] = [];
-    const currentTotalDuration = totalSelectedProceduresDuration; // Usa a duração real, não afetada por promo preço
+    const currentTotalDuration = totalSelectedProceduresDuration;
+    if (currentTotalDuration === 0) return [];
 
     const dayStart = set(selectedDate, { hours: WORK_DAY_START_HOUR, minutes: 0, seconds: 0, milliseconds: 0 });
     const dayEnd = set(selectedDate, { hours: WORK_DAY_END_HOUR, minutes: 0, seconds: 0, milliseconds: 0 });
 
     const existingAppointmentsOnDate = appointments.filter(app => {
-        const isSameDay = app.date === format(selectedDate, 'yyyy-MM-dd');
+        const isSameDay = isEqual(startOfDay(new Date(app.date + 'T00:00:00')), startOfDay(selectedDate));
         const isRelevantStatus = app.status === 'CONFIRMED' || app.status === 'ATTENDED';
         if (appointmentToEdit && app.id === appointmentToEdit.id) {
             return false; 
@@ -134,17 +139,15 @@ export default function BookingPage() {
         return isSameDay && isRelevantStatus;
     }).map(app => {
       const appStart = parse(`${app.date} ${app.time}`, 'yyyy-MM-dd HH:mm', new Date());
-      const appDuration = app.totalDuration; // Usa a duração total salva no agendamento
+      const appDuration = app.totalDuration;
       const appEnd = addMinutes(appStart, appDuration);
       return { start: appStart, end: appEnd };
     });
 
     let currentTime = new Date(dayStart);
-
     while (addMinutes(currentTime, currentTotalDuration) <= dayEnd) {
       const potentialSlotStart = new Date(currentTime);
       const potentialSlotEnd = addMinutes(potentialSlotStart, currentTotalDuration);
-
       let isOverlapping = false;
       for (const existingApp of existingAppointmentsOnDate) {
         if (potentialSlotStart < existingApp.end && potentialSlotEnd > existingApp.start) {
@@ -152,14 +155,13 @@ export default function BookingPage() {
           break;
         }
       }
-
       if (!isOverlapping) {
         slots.push(format(potentialSlotStart, 'HH:mm'));
       }
       currentTime = addMinutes(currentTime, SLOT_INTERVAL_MINUTES);
     }
     return slots;
-  }, [selectedDate, selectedProcedureIds, appointments, totalSelectedProceduresDuration, appointmentToEdit, procedures]);
+  }, [selectedDate, selectedProcedureIds, appointments, totalSelectedProceduresDuration, appointmentToEdit, procedures, isLoadingAppointments, isLoadingProcedures]);
 
   const handleProcedureSelectionChange = (procedureId: string, checked: boolean) => {
     setSelectedProcedureIds(prevIds => {
@@ -176,6 +178,17 @@ export default function BookingPage() {
     setAppointmentToEdit(null);
     setSelectedProcedureIds([]);
     setSelectedTime(undefined);
+    // Reset selectedDate to today or keep it as is? For now, keep it.
+    // setSelectedDate(new Date()); 
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4 text-lg text-muted-foreground">Carregando dados...</p>
+      </div>
+    );
   }
 
   return (
@@ -212,6 +225,7 @@ export default function BookingPage() {
                     Procedimentos:
                   </label>
                   <ScrollArea className="h-[150px] border rounded-md p-3 bg-muted/20">
+                    {isLoadingProcedures ? <Loader2 className="h-5 w-5 animate-spin" /> : (
                     <div className="space-y-2">
                       {procedures.map(proc => (
                         <div key={proc.id} className="flex items-center space-x-2">
@@ -230,6 +244,7 @@ export default function BookingPage() {
                         </div>
                       ))}
                     </div>
+                    )}
                   </ScrollArea>
                 </div>
               )}
@@ -286,7 +301,7 @@ export default function BookingPage() {
               <BookingForm
                 selectedDate={selectedDate}
                 selectedTime={selectedTime}
-                selectedProcedures={selectedProceduresDetail} // Passa os procedimentos com preço já ajustado para promo
+                selectedProcedures={selectedProceduresDetail}
                 onFormSubmit={handleFormSubmit}
                 appointmentToEdit={appointmentToEdit}
               />
@@ -304,7 +319,8 @@ export default function BookingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {appointments.length === 0 ? (
+            {isLoadingAppointments ? <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /> :
+             appointments.length === 0 ? (
               <p className="text-muted-foreground text-sm">Nenhum agendamento ainda.</p>
             ) : (
               <ScrollArea className="h-[500px] pr-3"> 

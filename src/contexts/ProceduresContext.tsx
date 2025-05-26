@@ -3,139 +3,97 @@
 
 import type { Procedure } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import {
+  getProcedures as getProceduresAction,
+  addProcedureData as addProcedureAction,
+  updateProcedureData as updateProcedureAction,
+  deleteProcedureData as deleteProcedureAction
+} from '@/app/actions/procedureActions';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProceduresContextType {
   procedures: Procedure[];
-  addProcedure: (procedure: Omit<Procedure, 'id'>) => void;
-  updateProcedure: (updatedProcedure: Procedure) => void;
-  deleteProcedure: (procedureId: string) => void;
+  addProcedure: (procedure: Omit<Procedure, 'id'>) => Promise<void>;
+  updateProcedure: (updatedProcedure: Procedure) => Promise<void>;
+  deleteProcedure: (procedureId: string) => Promise<void>;
+  isLoading: boolean;
 }
 
 const ProceduresContext = createContext<ProceduresContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY_PROCEDURES = 'valeryStudioProcedures';
-
-const initialProcedures: Procedure[] = [
-  { 
-    id: '1', 
-    name: 'Design de Sobrancelhas sem Henna', 
-    duration: 30, 
-    price: 25.00, 
-    description: 'Modelagem das sobrancelhas de acordo com o formato do rosto, utilizando pinça ou cera, sem aplicação de henna.', 
-    isPromo: false, 
-    promoPrice: undefined 
-  },
-  { 
-    id: '2', 
-    name: 'Maquiagem Social', 
-    duration: 60, 
-    price: 90.00, 
-    description: 'Maquiagem profissional para eventos, festas e ocasiões especiais. Inclui preparação da pele, contorno, iluminação e aplicação de cílios postiços.', 
-    isPromo: false, 
-    promoPrice: undefined 
-  },
-  { 
-    id: '3', 
-    name: 'Epilação de Buço', 
-    duration: 10, 
-    price: 10.00, 
-    description: 'Remoção de pelos da região do buço utilizando técnica de preferência (cera ou linha).', 
-    isPromo: false, 
-    promoPrice: undefined 
-  },
-  { 
-    id: '4', 
-    name: 'Micropigmentação', 
-    duration: 90, 
-    price: 200.00, 
-    description: 'Técnica de implantação de pigmento na pele para corrigir falhas, realçar ou reconstruir sobrancelhas, lábios ou contorno dos olhos.', 
-    isPromo: false, 
-    promoPrice: undefined 
-  },
-];
-
-
 export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
   const [procedures, setProcedures] = useState<Procedure[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      let loadedSuccessfully = false;
-      let proceduresToSet = initialProcedures.map(p => ({
-        ...p,
-        isPromo: p.isPromo || false,
-        promoPrice: p.promoPrice
-      }));
-
+    const fetchProcedures = async () => {
       try {
-        const storedProcedures = localStorage.getItem(LOCAL_STORAGE_KEY_PROCEDURES);
-        if (storedProcedures) {
-          const parsedProcedures = JSON.parse(storedProcedures).map((p: any) => ({
-            ...p,
-            isPromo: typeof p.isPromo === 'boolean' ? p.isPromo : false, 
-            promoPrice: typeof p.promoPrice === 'number' ? p.promoPrice : undefined 
-          }));
-          proceduresToSet = parsedProcedures;
-          loadedSuccessfully = true;
-          console.log("Procedures loaded successfully from localStorage.");
-        } else {
-          console.log("No procedures found in localStorage. Initializing with default procedures and saving them.");
-          // Se não há nada, usamos os iniciais E salvamos eles imediatamente
-          localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(proceduresToSet));
-        }
+        setIsLoading(true);
+        console.log("Fetching procedures from server action...");
+        const serverProcedures = await getProceduresAction();
+        setProcedures(serverProcedures);
+        console.log("Procedures loaded successfully from server action:", serverProcedures.length);
       } catch (error) {
-        console.error("Failed to parse procedures from localStorage. Initializing with default procedures and saving them.", error);
-        localStorage.removeItem(LOCAL_STORAGE_KEY_PROCEDURES); // Limpa dados corrompidos
-        // Usamos os iniciais E salvamos eles imediatamente
-        localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(proceduresToSet));
+        console.error("Failed to fetch procedures from server action", error);
+        toast({ title: "Erro ao Carregar Procedimentos", description: "Não foi possível buscar os dados dos procedimentos.", variant: "destructive" });
+        setProcedures([]);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setProcedures(proceduresToSet);
-      setIsLoaded(true);
-    }
-  }, []);
+    };
+    fetchProcedures();
+  }, [toast]);
 
-  useEffect(() => {
-    if (isLoaded && typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(procedures));
-      } catch (error) {
-        console.error("Failed to save procedures to localStorage", error);
+  const addProcedure = useCallback(async (procedureData: Omit<Procedure, 'id'>) => {
+    try {
+      const newProcedure = await addProcedureAction(procedureData);
+      if (newProcedure) {
+        setProcedures(prev => [...prev, newProcedure].sort((a, b) => a.name.localeCompare(b.name)));
+        // Toast de sucesso é melhor tratado na UI que chama addProcedure
       }
+    } catch (error) {
+      console.error("Error adding procedure via server action:", error);
+      toast({ title: "Erro ao Adicionar Procedimento", variant: "destructive" });
     }
-  }, [procedures, isLoaded]);
+  }, [toast]);
 
+  const updateProcedure = useCallback(async (updatedProcedure: Procedure) => {
+    try {
+      const result = await updateProcedureAction(updatedProcedure);
+      if (result) {
+        setProcedures(prev => prev.map(p => p.id === result.id ? result : p).sort((a,b) => a.name.localeCompare(b.name)));
+        // Toast de sucesso é melhor tratado na UI que chama updateProcedure
+      } else {
+        toast({ title: "Erro ao Atualizar", description: "Procedimento não encontrado para atualização.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("Error updating procedure via server action:", error);
+      toast({ title: "Erro ao Atualizar Procedimento", variant: "destructive" });
+    }
+  }, [toast]);
 
-  const addProcedure = useCallback((procedureData: Omit<Procedure, 'id'>) => {
-    const newProcedure: Procedure = { 
-      ...procedureData, 
-      id: Date.now().toString(),
-      isPromo: procedureData.isPromo || false,
-      promoPrice: procedureData.isPromo ? procedureData.promoPrice : undefined,
-    };
-    setProcedures(prev => [...prev, newProcedure].sort((a,b) => a.name.localeCompare(b.name)));
-  }, []);
+  const deleteProcedure = useCallback(async (procedureId: string) => {
+    try {
+      const success = await deleteProcedureAction(procedureId);
+      if (success) {
+        setProcedures(prev => prev.filter(p => p.id !== procedureId));
+        // Toast de sucesso é melhor tratado na UI que chama deleteProcedure
+      } else {
+        toast({ title: "Erro ao Remover", description: "Não foi possível remover o procedimento.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("Error deleting procedure via server action:", error);
+      toast({ title: "Erro ao Remover Procedimento", variant: "destructive" });
+    }
+  }, [toast]);
 
-  const updateProcedure = useCallback((updatedProcedure: Procedure) => {
-    const procedureWithDefaults = {
-      ...updatedProcedure,
-      isPromo: updatedProcedure.isPromo || false,
-      promoPrice: updatedProcedure.isPromo ? updatedProcedure.promoPrice : undefined,
-    };
-    setProcedures(prev => prev.map(p => p.id === updatedProcedure.id ? procedureWithDefaults : p).sort((a,b) => a.name.localeCompare(b.name)));
-  }, []);
-
-  const deleteProcedure = useCallback((procedureId: string) => {
-    setProcedures(prev => prev.filter(p => p.id !== procedureId));
-  }, []);
-
-  if (!isLoaded && typeof window !== 'undefined') { 
-    return null; 
+  if (isLoading && procedures.length === 0) {
+    // Pode retornar um esqueleto/spinner global aqui se desejado
   }
 
   return (
-    <ProceduresContext.Provider value={{ procedures, addProcedure, updateProcedure, deleteProcedure }}>
+    <ProceduresContext.Provider value={{ procedures, addProcedure, updateProcedure, deleteProcedure, isLoading }}>
       {children}
     </ProceduresContext.Provider>
   );
