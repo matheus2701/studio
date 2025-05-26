@@ -7,12 +7,13 @@ export interface Procedure {
   duration: number; // in minutes
   price: number;
   description: string;
+  isPromo?: boolean;
+  promoPrice?: number;
 }
 
 export interface Appointment {
   id: string;
-  // Campos removidos: procedureId, procedureName, procedurePrice
-  selectedProcedures: Procedure[]; // Lista de procedimentos selecionados
+  selectedProcedures: Procedure[]; // Lista de procedimentos selecionados com o preço efetivo (pode ser promoPrice)
   totalPrice: number; // Preço total dos procedimentos selecionados
   totalDuration: number; // Duração total dos procedimentos selecionados
   customerName: string;

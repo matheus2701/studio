@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
 import { format, addMinutes, parse, set } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, Sparkles, ListFilter, CreditCard, Tag, Edit } from 'lucide-react';
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, ListFilter, CreditCard, Tag, Edit } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useProcedures } from '@/contexts/ProceduresContext';
@@ -30,7 +30,7 @@ const statusColors: Record<AppointmentStatus, string> = {
   CANCELLED: "text-rose-600",
 };
 
-const WORK_DAY_START_HOUR = 6; // Alterado de 9 para 6
+const WORK_DAY_START_HOUR = 6; 
 const WORK_DAY_END_HOUR = 20;
 const SLOT_INTERVAL_MINUTES = 30;
 
@@ -44,15 +44,28 @@ export default function BookingPage() {
   const { procedures } = useProcedures();
   const { toast } = useToast();
 
+  // Recalcula os detalhes dos procedimentos selecionados, aplicando o preço promocional se ativo
   const selectedProceduresDetail = useMemo(() => {
     if (!procedures || procedures.length === 0) return [];
-    return procedures.filter(p => selectedProcedureIds.includes(p.id));
+    return selectedProcedureIds.map(id => {
+      const proc = procedures.find(p => p.id === id);
+      if (!proc) return null; // Deveria idealmente filtrar nulos, mas o map espera um retorno
+
+      // Se está em promoção e tem preço promocional, usa o preço promocional
+      const effectivePrice = (proc.isPromo && proc.promoPrice !== undefined) ? proc.promoPrice : proc.price;
+      
+      return { 
+        ...proc, 
+        price: effectivePrice // Sobrescreve o preço com o promocional se aplicável
+      };
+    }).filter(Boolean) as Procedure[]; // Filtra quaisquer procedimentos não encontrados
   }, [selectedProcedureIds, procedures]);
 
   const handleFormSubmit = (newAppointmentData: Omit<Appointment, 'id' | 'status'>) => {
     if (appointmentToEdit) {
       const existingAppointment = appointments.find(app => app.id === appointmentToEdit.id);
       if (existingAppointment) {
+         // Ao atualizar, newAppointmentData já vem com os selectedProcedures com preço correto
          updateAppointment({ ...newAppointmentData, id: appointmentToEdit.id, status: existingAppointment.status });
          toast({
             title: "Agendamento Atualizado!",
@@ -60,14 +73,14 @@ export default function BookingPage() {
          });
       }
     } else {
+      // Ao adicionar, newAppointmentData já vem com os selectedProcedures com preço correto
       addAppointment(newAppointmentData);
       toast({
         title: "Agendamento Confirmado!",
         description: `${newAppointmentData.selectedProcedures.map(p=>p.name).join(' + ')} para ${newAppointmentData.customerName} em ${format(new Date(newAppointmentData.date + 'T00:00:00'), 'dd/MM/yyyy')} às ${newAppointmentData.time}.`,
       });
     }
-    // Reset selections and edit state
-    setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00')); // Keep selected date or reset as needed
+    setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00'));
     setSelectedProcedureIds([]); 
     setSelectedTime(undefined);
     setAppointmentToEdit(null);
@@ -84,24 +97,30 @@ export default function BookingPage() {
   const handleEditClick = (appointment: Appointment) => {
     setAppointmentToEdit(appointment);
     setSelectedDate(new Date(appointment.date + 'T00:00:00'));
+    // Preenche selectedProcedureIds com os IDs dos procedimentos do agendamento
+    // A lógica de selectedProceduresDetail vai buscar os detalhes atualizados, incluindo promoções
     setSelectedProcedureIds(appointment.selectedProcedures.map(p => p.id));
     setSelectedTime(appointment.time);
-    // Optionally scroll to the form or highlight it
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
   const totalSelectedProceduresDuration = useMemo(() => {
-    return selectedProceduresDetail.reduce((sum, proc) => sum + proc.duration, 0);
-  }, [selectedProceduresDetail]);
+    // A duração não muda com a promoção, então podemos usar a duração original dos procedures
+    // para calcular o tempo de slot, mesmo que selectedProceduresDetail tenha preço ajustado.
+    return selectedProcedureIds.reduce((sum, id) => {
+      const proc = procedures.find(p => p.id === id);
+      return sum + (proc?.duration || 0);
+    }, 0);
+  }, [selectedProcedureIds, procedures]);
 
 
   const availableTimeSlots = useMemo(() => {
-    if (!selectedDate || selectedProceduresDetail.length === 0) {
+    if (!selectedDate || selectedProcedureIds.length === 0) {
       return [];
     }
 
     const slots: string[] = [];
-    const currentTotalDuration = totalSelectedProceduresDuration;
+    const currentTotalDuration = totalSelectedProceduresDuration; // Usa a duração real, não afetada por promo preço
 
     const dayStart = set(selectedDate, { hours: WORK_DAY_START_HOUR, minutes: 0, seconds: 0, milliseconds: 0 });
     const dayEnd = set(selectedDate, { hours: WORK_DAY_END_HOUR, minutes: 0, seconds: 0, milliseconds: 0 });
@@ -109,14 +128,13 @@ export default function BookingPage() {
     const existingAppointmentsOnDate = appointments.filter(app => {
         const isSameDay = app.date === format(selectedDate, 'yyyy-MM-dd');
         const isRelevantStatus = app.status === 'CONFIRMED' || app.status === 'ATTENDED';
-        // If editing, exclude the current appointment being edited from collision check for its original time slot
         if (appointmentToEdit && app.id === appointmentToEdit.id) {
             return false; 
         }
         return isSameDay && isRelevantStatus;
     }).map(app => {
       const appStart = parse(`${app.date} ${app.time}`, 'yyyy-MM-dd HH:mm', new Date());
-      const appDuration = app.totalDuration;
+      const appDuration = app.totalDuration; // Usa a duração total salva no agendamento
       const appEnd = addMinutes(appStart, appDuration);
       return { start: appStart, end: appEnd };
     });
@@ -141,7 +159,7 @@ export default function BookingPage() {
       currentTime = addMinutes(currentTime, SLOT_INTERVAL_MINUTES);
     }
     return slots;
-  }, [selectedDate, selectedProceduresDetail, appointments, totalSelectedProceduresDuration, appointmentToEdit]);
+  }, [selectedDate, selectedProcedureIds, appointments, totalSelectedProceduresDuration, appointmentToEdit, procedures]);
 
   const handleProcedureSelectionChange = (procedureId: string, checked: boolean) => {
     setSelectedProcedureIds(prevIds => {
@@ -158,7 +176,6 @@ export default function BookingPage() {
     setAppointmentToEdit(null);
     setSelectedProcedureIds([]);
     setSelectedTime(undefined);
-    // Optionally reset selectedDate or keep it
   }
 
   return (
@@ -184,11 +201,6 @@ export default function BookingPage() {
                 onDateChange={(date) => {
                   setSelectedDate(date);
                   setSelectedTime(undefined); 
-                  // if not explicitly editing, changing date might clear current edit intent
-                  // if (appointmentToEdit && date?.toDateString() !== new Date(appointmentToEdit.date + 'T00:00:00').toDateString()) {
-                  //   setAppointmentToEdit(null); 
-                  //   setSelectedProcedureIds([]);
-                  // }
                 }}
               />
             </div>
@@ -209,7 +221,11 @@ export default function BookingPage() {
                             onCheckedChange={(checked) => handleProcedureSelectionChange(proc.id, !!checked)}
                           />
                           <Label htmlFor={`proc-${proc.id}`} className="text-sm font-normal cursor-pointer">
-                            {proc.name} ({proc.duration} min) - R$ {proc.price.toFixed(2)}
+                            {proc.name} ({proc.duration} min) - R$ 
+                            {proc.isPromo && proc.promoPrice !== undefined 
+                              ? <><span className="line-through text-muted-foreground/80">{proc.price.toFixed(2)}</span> <span className="text-destructive font-semibold">{proc.promoPrice.toFixed(2)}</span></>
+                              : proc.price.toFixed(2)
+                            }
                           </Label>
                         </div>
                       ))}
@@ -270,7 +286,7 @@ export default function BookingPage() {
               <BookingForm
                 selectedDate={selectedDate}
                 selectedTime={selectedTime}
-                selectedProcedures={selectedProceduresDetail}
+                selectedProcedures={selectedProceduresDetail} // Passa os procedimentos com preço já ajustado para promo
                 onFormSubmit={handleFormSubmit}
                 appointmentToEdit={appointmentToEdit}
               />
@@ -341,5 +357,3 @@ export default function BookingPage() {
     </div>
   );
 }
-
-    

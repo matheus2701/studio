@@ -16,11 +16,11 @@ const ProceduresContext = createContext<ProceduresContextType | undefined>(undef
 const LOCAL_STORAGE_KEY_PROCEDURES = 'valeryStudioProcedures';
 
 const initialProcedures: Procedure[] = [
-  { id: '1', name: 'Maquiagem Completa', duration: 60, price: 90.00, description: 'Maquiagem profissional para eventos, festas e ocasiões especiais. Inclui preparação da pele, contorno, iluminação e aplicação de cílios postiços.' },
-  { id: '2', name: 'Design de Sobrancelhas com Henna', duration: 60, price: 35.00, description: 'Modelagem das sobrancelhas de acordo com o formato do rosto, seguida pela aplicação de henna para preenchimento e definição.' },
-  { id: '3', name: 'Limpeza de Pele Profunda', duration: 75, price: 180.00, description: 'Tratamento facial que remove cravos, impurezas e células mortas, promovendo a renovação celular e uma pele mais saudável e luminosa.' },
-  { id: '4', name: 'Micropigmentação', duration: 90, price: 200.00, description: 'Técnica de implantação de pigmento na pele para corrigir falhas, realçar ou reconstruir sobrancelhas, lábios ou contorno dos olhos.' },
-  { id: '5', name: 'Design de Sobrancelhas sem Henna', duration: 30, price: 25.00, description: 'Modelagem das sobrancelhas de acordo com o formato do rosto, utilizando pinça ou cera, sem aplicação de henna.' },
+  { id: '1', name: 'Maquiagem Completa', duration: 60, price: 90.00, description: 'Maquiagem profissional para eventos, festas e ocasiões especiais. Inclui preparação da pele, contorno, iluminação e aplicação de cílios postiços.', isPromo: false, promoPrice: undefined },
+  { id: '2', name: 'Design de Sobrancelhas com Henna', duration: 60, price: 35.00, description: 'Modelagem das sobrancelhas de acordo com o formato do rosto, seguida pela aplicação de henna para preenchimento e definição.', isPromo: false, promoPrice: undefined },
+  { id: '3', name: 'Limpeza de Pele Profunda', duration: 75, price: 180.00, description: 'Tratamento facial que remove cravos, impurezas e células mortas, promovendo a renovação celular e uma pele mais saudável e luminosa.', isPromo: false, promoPrice: undefined },
+  { id: '4', name: 'Micropigmentação', duration: 90, price: 200.00, description: 'Técnica de implantação de pigmento na pele para corrigir falhas, realçar ou reconstruir sobrancelhas, lábios ou contorno dos olhos.', isPromo: false, promoPrice: undefined },
+  { id: '5', name: 'Design de Sobrancelhas sem Henna', duration: 30, price: 25.00, description: 'Modelagem das sobrancelhas de acordo com o formato do rosto, utilizando pinça ou cera, sem aplicação de henna.', isPromo: false, promoPrice: undefined },
 ];
 
 
@@ -33,17 +33,21 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
       try {
         const storedProcedures = localStorage.getItem(LOCAL_STORAGE_KEY_PROCEDURES);
         if (storedProcedures) {
-          setProcedures(JSON.parse(storedProcedures));
+          const parsedProcedures = JSON.parse(storedProcedures).map((p: any) => ({
+            ...p,
+            isPromo: p.isPromo || false, // Garante que isPromo exista
+            promoPrice: p.promoPrice // Mantém promoPrice ou undefined
+          }));
+          setProcedures(parsedProcedures);
         } else {
-          // If nothing in localStorage, use initial and save them
-          setProcedures(initialProcedures);
+          setProcedures(initialProcedures.map(p => ({...p, isPromo: p.isPromo || false, promoPrice: p.promoPrice})));
           localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(initialProcedures));
         }
       } catch (error) {
         console.error("Failed to parse procedures from localStorage", error);
-        // Fallback to initial procedures and save them if parsing fails
-        setProcedures(initialProcedures);
-        localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(initialProcedures));
+        const proceduresWithDefaults = initialProcedures.map(p => ({...p, isPromo: p.isPromo || false, promoPrice: p.promoPrice}));
+        setProcedures(proceduresWithDefaults);
+        localStorage.setItem(LOCAL_STORAGE_KEY_PROCEDURES, JSON.stringify(proceduresWithDefaults));
       }
       setIsLoaded(true);
     }
@@ -61,12 +65,22 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
 
 
   const addProcedure = useCallback((procedureData: Omit<Procedure, 'id'>) => {
-    const newProcedure: Procedure = { ...procedureData, id: Date.now().toString() }; // Use UUID in production
+    const newProcedure: Procedure = { 
+      ...procedureData, 
+      id: Date.now().toString(),
+      isPromo: procedureData.isPromo || false,
+      promoPrice: procedureData.isPromo ? procedureData.promoPrice : undefined,
+    };
     setProcedures(prev => [...prev, newProcedure].sort((a,b) => a.name.localeCompare(b.name)));
   }, []);
 
   const updateProcedure = useCallback((updatedProcedure: Procedure) => {
-    setProcedures(prev => prev.map(p => p.id === updatedProcedure.id ? updatedProcedure : p).sort((a,b) => a.name.localeCompare(b.name)));
+    const procedureWithDefaults = {
+      ...updatedProcedure,
+      isPromo: updatedProcedure.isPromo || false,
+      promoPrice: updatedProcedure.isPromo ? updatedProcedure.promoPrice : undefined,
+    };
+    setProcedures(prev => prev.map(p => p.id === updatedProcedure.id ? procedureWithDefaults : p).sort((a,b) => a.name.localeCompare(b.name)));
   }, []);
 
   const deleteProcedure = useCallback((procedureId: string) => {
@@ -74,7 +88,7 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   if (!isLoaded) {
-    return null; // Or a loading spinner component
+    return null; 
   }
 
   return (
@@ -91,4 +105,3 @@ export const useProcedures = () => {
   }
   return context;
 };
-
