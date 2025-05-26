@@ -7,6 +7,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useCa
 interface AppointmentsContextType {
   appointments: Appointment[];
   addAppointment: (appointmentData: Omit<Appointment, 'id' | 'status'>) => void;
+  updateAppointment: (updatedAppointment: Appointment) => void; // Nova função
   updateAppointmentStatus: (appointmentId: string, newStatus: AppointmentStatus) => void;
   getAppointmentsByMonth: (year: number, month: number) => Appointment[];
 }
@@ -27,11 +28,10 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
         if (storedAppointments) {
           const parsedAppointments = JSON.parse(storedAppointments).map((app: any) => ({
             ...app,
-            selectedProcedures: app.selectedProcedures || (app.procedureId ? [{id: app.procedureId, name: app.procedureName, price: app.procedurePrice, duration: app.totalDuration || 60, description: ''}] : []), // Adaptação para dados antigos
-            totalPrice: app.totalPrice || app.procedurePrice || 0, // Adaptação
-            totalDuration: app.totalDuration || 60, // Adaptação
+            selectedProcedures: app.selectedProcedures || (app.procedureId ? [{id: app.procedureId, name: app.procedureName, price: app.procedurePrice, duration: app.totalDuration || 60, description: ''}] : []),
+            totalPrice: typeof app.totalPrice === 'number' ? app.totalPrice : (app.procedurePrice || 0),
+            totalDuration: typeof app.totalDuration === 'number' ? app.totalDuration : 60,
             sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false,
-            // Remover campos antigos se existirem após a migração
             procedureId: undefined, 
             procedureName: undefined,
             procedurePrice: undefined,
@@ -50,9 +50,8 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (isLoaded && typeof window !== 'undefined') {
       try {
-        // Certifique-se de que os campos legados não sejam salvos
         const appointmentsToSave = appointments.map(app => {
-          const { procedureId, procedureName, procedurePrice, ...rest } = app as any; // Remove campos legados
+          const { procedureId, procedureName, procedurePrice, ...rest } = app as any;
           return rest;
         });
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(appointmentsToSave));
@@ -70,6 +69,13 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
       sinalPago: appointmentData.sinalPago || false,
     };
     setAppointments(prev => [...prev, newAppointment].sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()));
+  }, []);
+
+  const updateAppointment = useCallback((updatedAppointment: Appointment) => {
+    setAppointments(prev =>
+      prev.map(app => (app.id === updatedAppointment.id ? updatedAppointment : app))
+        .sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime())
+    );
   }, []);
 
   const updateAppointmentStatus = useCallback((appointmentId: string, newStatus: AppointmentStatus) => {
@@ -93,7 +99,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AppointmentsContext.Provider value={{ appointments, addAppointment, updateAppointmentStatus, getAppointmentsByMonth }}>
+    <AppointmentsContext.Provider value={{ appointments, addAppointment, updateAppointment, updateAppointmentStatus, getAppointmentsByMonth }}>
       {children}
     </AppointmentsContext.Provider>
   );

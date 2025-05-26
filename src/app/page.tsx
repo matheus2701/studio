@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
 import { format, addMinutes, parse, set } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, Sparkles, ListFilter, CreditCard, Tag } from 'lucide-react';
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, Sparkles, ListFilter, CreditCard, Tag, Edit } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useProcedures } from '@/contexts/ProceduresContext';
@@ -38,21 +38,39 @@ export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
+  const [appointmentToEdit, setAppointmentToEdit] = useState<Appointment | null>(null);
   
-  const { appointments, addAppointment, updateAppointmentStatus } = useAppointments();
+  const { appointments, addAppointment, updateAppointment, updateAppointmentStatus } = useAppointments();
   const { procedures } = useProcedures();
   const { toast } = useToast();
 
   const selectedProceduresDetail = useMemo(() => {
-    if (!procedures || procedures.length === 0) return []; // Adicionada verificação
+    if (!procedures || procedures.length === 0) return [];
     return procedures.filter(p => selectedProcedureIds.includes(p.id));
   }, [selectedProcedureIds, procedures]);
 
-  const handleBookingConfirmed = (newAppointmentData: Omit<Appointment, 'id' | 'status'>) => {
-    addAppointment(newAppointmentData);
-    setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00'));
+  const handleFormSubmit = (newAppointmentData: Omit<Appointment, 'id' | 'status'>) => {
+    if (appointmentToEdit) {
+      const existingAppointment = appointments.find(app => app.id === appointmentToEdit.id);
+      if (existingAppointment) {
+         updateAppointment({ ...newAppointmentData, id: appointmentToEdit.id, status: existingAppointment.status });
+         toast({
+            title: "Agendamento Atualizado!",
+            description: `${newAppointmentData.selectedProcedures.map(p=>p.name).join(' + ')} para ${newAppointmentData.customerName} em ${format(new Date(newAppointmentData.date + 'T00:00:00'), 'dd/MM/yyyy')} às ${newAppointmentData.time}.`,
+         });
+      }
+    } else {
+      addAppointment(newAppointmentData);
+      toast({
+        title: "Agendamento Confirmado!",
+        description: `${newAppointmentData.selectedProcedures.map(p=>p.name).join(' + ')} para ${newAppointmentData.customerName} em ${format(new Date(newAppointmentData.date + 'T00:00:00'), 'dd/MM/yyyy')} às ${newAppointmentData.time}.`,
+      });
+    }
+    // Reset selections and edit state
+    setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00')); // Keep selected date or reset as needed
     setSelectedProcedureIds([]); 
     setSelectedTime(undefined);
+    setAppointmentToEdit(null);
   };
 
   const handleChangeStatus = (appointmentId: string, newStatus: AppointmentStatus) => {
@@ -61,6 +79,15 @@ export default function BookingPage() {
       title: "Status Atualizado!",
       description: `O agendamento foi marcado como ${statusTranslations[newStatus].toLowerCase()}.`,
     });
+  };
+
+  const handleEditClick = (appointment: Appointment) => {
+    setAppointmentToEdit(appointment);
+    setSelectedDate(new Date(appointment.date + 'T00:00:00'));
+    setSelectedProcedureIds(appointment.selectedProcedures.map(p => p.id));
+    setSelectedTime(appointment.time);
+    // Optionally scroll to the form or highlight it
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
   const totalSelectedProceduresDuration = useMemo(() => {
@@ -79,9 +106,15 @@ export default function BookingPage() {
     const dayStart = set(selectedDate, { hours: WORK_DAY_START_HOUR, minutes: 0, seconds: 0, milliseconds: 0 });
     const dayEnd = set(selectedDate, { hours: WORK_DAY_END_HOUR, minutes: 0, seconds: 0, milliseconds: 0 });
 
-    const existingAppointmentsOnDate = appointments.filter(
-      app => app.date === format(selectedDate, 'yyyy-MM-dd') && (app.status === 'CONFIRMED' || app.status === 'ATTENDED')
-    ).map(app => {
+    const existingAppointmentsOnDate = appointments.filter(app => {
+        const isSameDay = app.date === format(selectedDate, 'yyyy-MM-dd');
+        const isRelevantStatus = app.status === 'CONFIRMED' || app.status === 'ATTENDED';
+        // If editing, exclude the current appointment being edited from collision check for its original time slot
+        if (appointmentToEdit && app.id === appointmentToEdit.id) {
+            return false; 
+        }
+        return isSameDay && isRelevantStatus;
+    }).map(app => {
       const appStart = parse(`${app.date} ${app.time}`, 'yyyy-MM-dd HH:mm', new Date());
       const appDuration = app.totalDuration;
       const appEnd = addMinutes(appStart, appDuration);
@@ -108,7 +141,7 @@ export default function BookingPage() {
       currentTime = addMinutes(currentTime, SLOT_INTERVAL_MINUTES);
     }
     return slots;
-  }, [selectedDate, selectedProceduresDetail, appointments, totalSelectedProceduresDuration]);
+  }, [selectedDate, selectedProceduresDetail, appointments, totalSelectedProceduresDuration, appointmentToEdit]);
 
   const handleProcedureSelectionChange = (procedureId: string, checked: boolean) => {
     setSelectedProcedureIds(prevIds => {
@@ -121,6 +154,13 @@ export default function BookingPage() {
     setSelectedTime(undefined); 
   };
 
+  const handleCancelEdit = () => {
+    setAppointmentToEdit(null);
+    setSelectedProcedureIds([]);
+    setSelectedTime(undefined);
+    // Optionally reset selectedDate or keep it
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 space-y-8">
@@ -128,9 +168,14 @@ export default function BookingPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CalendarCheck2 className="h-6 w-6 text-primary" />
-              Selecione Data e Procedimentos
+              {appointmentToEdit ? "Editar Agendamento" : "Selecione Data e Procedimentos"}
             </CardTitle>
-            <CardDescription>Escolha uma data e os procedimentos desejados para ver os horários.</CardDescription>
+            <CardDescription>
+              {appointmentToEdit 
+                ? `Editando agendamento para ${appointmentToEdit.customerName}. Faça as alterações abaixo.`
+                : "Escolha uma data e os procedimentos desejados para ver os horários."
+              }
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col md:flex-row gap-6">
             <div className="flex-shrink-0">
@@ -139,6 +184,11 @@ export default function BookingPage() {
                 onDateChange={(date) => {
                   setSelectedDate(date);
                   setSelectedTime(undefined); 
+                  // if not explicitly editing, changing date might clear current edit intent
+                  // if (appointmentToEdit && date?.toDateString() !== new Date(appointmentToEdit.date + 'T00:00:00').toDateString()) {
+                  //   setAppointmentToEdit(null); 
+                  //   setSelectedProcedureIds([]);
+                  // }
                 }}
               />
             </div>
@@ -205,17 +255,24 @@ export default function BookingPage() {
         {selectedDate && selectedProceduresDetail.length > 0 && selectedTime && (
           <Card>
             <CardHeader>
-              <CardTitle>Detalhes do Agendamento</CardTitle>
+              <CardTitle>{appointmentToEdit ? "Editar Detalhes do Agendamento" : "Detalhes do Agendamento"}</CardTitle>
               <CardDescription>
-                Confirme os dados para {selectedProceduresDetail.map(p => p.name).join(' + ')} em {format(selectedDate, "dd/MM/yyyy")} às {selectedTime}.
+                {appointmentToEdit ? `Atualize os dados para ${selectedProceduresDetail.map(p => p.name).join(' + ')} em ${format(selectedDate, "dd/MM/yyyy")} às ${selectedTime}.`
+                                 : `Confirme os dados para ${selectedProceduresDetail.map(p => p.name).join(' + ')} em ${format(selectedDate, "dd/MM/yyyy")} às ${selectedTime}.`}
               </CardDescription>
+               {appointmentToEdit && (
+                <Button variant="outline" size="sm" onClick={handleCancelEdit} className="mt-2 w-fit">
+                  Cancelar Edição
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               <BookingForm
                 selectedDate={selectedDate}
                 selectedTime={selectedTime}
                 selectedProcedures={selectedProceduresDetail}
-                onBookingConfirmed={handleBookingConfirmed}
+                onFormSubmit={handleFormSubmit}
+                appointmentToEdit={appointmentToEdit}
               />
             </CardContent>
           </Card>
@@ -234,7 +291,7 @@ export default function BookingPage() {
             {appointments.length === 0 ? (
               <p className="text-muted-foreground text-sm">Nenhum agendamento ainda.</p>
             ) : (
-              <ScrollArea className="h-[500px] pr-3"> {/* Increased height */}
+              <ScrollArea className="h-[500px] pr-3"> 
                 <ul className="space-y-4">
                   {appointments.sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()).map(app => (
                     <li key={app.id} className="p-4 border rounded-lg bg-card shadow-sm space-y-3">
@@ -258,16 +315,21 @@ export default function BookingPage() {
                           </p>
                         </div>
                       </div>
-                      {app.status === 'CONFIRMED' && (
-                        <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
-                          <Button variant="outline" size="sm" className="flex-1 text-emerald-600 border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-600" onClick={() => handleChangeStatus(app.id, 'ATTENDED')}>
-                            <CheckCircle className="mr-2 h-4 w-4" /> Atendido
-                          </Button>
-                          <Button variant="outline" size="sm" className="flex-1 text-rose-600 border-rose-500 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-600" onClick={() => handleChangeStatus(app.id, 'CANCELLED')}>
-                            <XCircle className="mr-2 h-4 w-4" /> Cancelar
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditClick(app)}>
+                          <Edit className="mr-2 h-4 w-4" /> Editar
+                        </Button>
+                        {app.status === 'CONFIRMED' && (
+                          <>
+                            <Button variant="outline" size="sm" className="flex-1 text-emerald-600 border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-600" onClick={() => handleChangeStatus(app.id, 'ATTENDED')}>
+                              <CheckCircle className="mr-2 h-4 w-4" /> Atendido
+                            </Button>
+                            <Button variant="outline" size="sm" className="flex-1 text-rose-600 border-rose-500 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-600" onClick={() => handleChangeStatus(app.id, 'CANCELLED')}>
+                              <XCircle className="mr-2 h-4 w-4" /> Cancelar
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>

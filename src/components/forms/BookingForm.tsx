@@ -20,8 +20,9 @@ import { useToast } from "@/hooks/use-toast";
 import type { Appointment, Procedure } from "@/lib/types";
 import { format } from 'date-fns';
 import { syncToGoogleCalendar } from "@/app/actions/scheduleActions";
-import { ScrollArea } from "@/components/ui/scroll-area"; // Caminho corrigido
-import { Card, CardTitle } from "@/components/ui/card"; // Importações adicionadas
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardTitle } from "@/components/ui/card";
+import { useEffect } from "react";
 
 const bookingFormSchema = z.object({
   customerName: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
@@ -35,11 +36,18 @@ type BookingFormValues = z.infer<typeof bookingFormSchema>;
 interface BookingFormProps {
   selectedDate: Date;
   selectedTime: string;
-  selectedProcedures: Procedure[]; // Agora espera uma lista de procedimentos
-  onBookingConfirmed: (appointmentData: Omit<Appointment, 'id' | 'status'>) => void;
+  selectedProcedures: Procedure[];
+  onFormSubmit: (appointmentData: Omit<Appointment, 'id' | 'status'>) => void;
+  appointmentToEdit?: Appointment | null;
 }
 
-export function BookingForm({ selectedDate, selectedTime, selectedProcedures, onBookingConfirmed }: BookingFormProps) {
+export function BookingForm({ 
+    selectedDate, 
+    selectedTime, 
+    selectedProcedures, 
+    onFormSubmit, 
+    appointmentToEdit 
+}: BookingFormProps) {
   const { toast } = useToast();
 
   const form = useForm<BookingFormValues>({
@@ -52,12 +60,30 @@ export function BookingForm({ selectedDate, selectedTime, selectedProcedures, on
     },
   });
 
+  useEffect(() => {
+    if (appointmentToEdit) {
+      form.reset({
+        customerName: appointmentToEdit.customerName,
+        customerPhone: appointmentToEdit.customerPhone || "",
+        notes: appointmentToEdit.notes || "",
+        sinalPago: appointmentToEdit.sinalPago,
+      });
+    } else {
+      // Reset to defaults when it's a new booking or edit is cancelled
+      form.reset({
+        customerName: "",
+        customerPhone: "",
+        notes: "",
+        sinalPago: false,
+      });
+    }
+  }, [appointmentToEdit, form]);
+
   const totalPrice = selectedProcedures.reduce((sum, proc) => sum + proc.price, 0);
   const totalDuration = selectedProcedures.reduce((sum, proc) => sum + proc.duration, 0);
-  const procedureNames = selectedProcedures.map(p => p.name).join(', ');
-
+  
   async function onSubmit(data: BookingFormValues) {
-    const appointmentDataForConfirmation: Omit<Appointment, 'id' | 'status'> = {
+    const appointmentDataPayload: Omit<Appointment, 'id' | 'status'> = {
       selectedProcedures: selectedProcedures,
       totalPrice: totalPrice,
       totalDuration: totalDuration,
@@ -69,42 +95,40 @@ export function BookingForm({ selectedDate, selectedTime, selectedProcedures, on
       sinalPago: data.sinalPago || false,
     };
 
-    onBookingConfirmed(appointmentDataForConfirmation);
-    toast({
-      title: "Agendamento Confirmado!",
-      description: `${procedureNames} para ${data.customerName} em ${format(selectedDate, 'dd/MM/yyyy')} às ${selectedTime}.`,
-    });
+    onFormSubmit(appointmentDataPayload); // Let parent handle add/update and toast
     
-    const tempAppointmentForSync: Appointment = {
-        ...appointmentDataForConfirmation,
-        id: 'temp-sync-id-' + Date.now(),
-        status: 'CONFIRMED' 
-    };
-
-    try {
-      const syncResult = await syncToGoogleCalendar(tempAppointmentForSync, tempAppointmentForSync.selectedProcedures);
-      if (syncResult.success) {
-        toast({
-          title: "Sincronizado!",
-          description: syncResult.message,
-        });
-      } else {
-         toast({
-            title: "Google Agenda",
-            description: syncResult.message,
-            variant: syncResult.message?.toLowerCase().includes('erro') || syncResult.message?.toLowerCase().includes('falha') ? "destructive" : "default",
-         });
-        console.warn("Google Calendar Sync:", syncResult.message);
-      }
-    } catch (error: any) {
-      console.error("Error syncing to Google Calendar:", error);
-      toast({
-        title: "Erro de Sincronização com Google Agenda",
-        description: error.message || "Não foi possível conectar ao Google Agenda.",
-        variant: "destructive",
-      });
+    // Sync logic (consider if sync needs to update existing events)
+    if (!appointmentToEdit) { // Only sync as new for new appointments for now
+        const tempAppointmentForSync: Appointment = {
+            ...appointmentDataPayload,
+            id: 'temp-sync-id-' + Date.now(), // Temporary ID for sync
+            status: 'CONFIRMED' 
+        };
+        try {
+          const syncResult = await syncToGoogleCalendar(tempAppointmentForSync, tempAppointmentForSync.selectedProcedures);
+          if (syncResult.success) {
+            toast({
+              title: "Sincronizado!",
+              description: syncResult.message,
+            });
+          } else {
+             toast({
+                title: "Google Agenda",
+                description: syncResult.message,
+                variant: syncResult.message?.toLowerCase().includes('erro') || syncResult.message?.toLowerCase().includes('falha') ? "destructive" : "default",
+             });
+            console.warn("Google Calendar Sync:", syncResult.message);
+          }
+        } catch (error: any) {
+          console.error("Error syncing to Google Calendar:", error);
+          toast({
+            title: "Erro de Sincronização com Google Agenda",
+            description: error.message || "Não foi possível conectar ao Google Agenda.",
+            variant: "destructive",
+          });
+        }
     }
-    form.reset();
+    // Form reset is handled by parent by clearing appointmentToEdit or changing key
   }
 
   return (
@@ -183,7 +207,9 @@ export function BookingForm({ selectedDate, selectedTime, selectedProcedures, on
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={selectedProcedures.length === 0}>Confirmar Agendamento</Button>
+        <Button type="submit" className="w-full" disabled={selectedProcedures.length === 0}>
+          {appointmentToEdit ? "Salvar Alterações" : "Confirmar Agendamento"}
+        </Button>
       </form>
     </Form>
   );
