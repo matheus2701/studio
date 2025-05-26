@@ -162,7 +162,7 @@ export function BookingForm({ selectedDate, selectedTime, selectedProcedure, onB
               </FormControl>
               <div className="space-y-1 leading-none">
                 <FormLabel>
-                  Sinal de 10% Pago?
+                  Sinal de 25% Pago?
                 </FormLabel>
               </div>
             </FormItem>
