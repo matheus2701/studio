@@ -2,61 +2,86 @@
 'use server';
 
 import type { Customer, Tag } from '@/lib/types';
+import { supabase } from '@/lib/supabaseClient';
 
-// Simulação de banco de dados em memória para Clientes
-let customersStore: Customer[] = [];
-let isInitialized = false;
+// No longer using in-memory store
+// let customersStore: Customer[] = [];
+// let isInitialized = false;
 
-function initializeStore() {
-  if (!isInitialized) {
-    // Poderia carregar de um JSON inicial ou deixar vazio
-    customersStore = []; // Começa vazio ou com alguns exemplos
-    isInitialized = true;
-    console.log("Customer store initialized (in-memory)");
-  }
-}
-
-initializeStore();
+// function initializeStore() { ... }
+// initializeStore();
 
 export async function getCustomers(): Promise<Customer[]> {
-  await new Promise(resolve => setTimeout(resolve, 50)); // Simula latência
-  return JSON.parse(JSON.stringify(customersStore));
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+    .order('name', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching customers from Supabase:', error);
+    return [];
+  }
+  return data || [];
 }
 
-export async function addCustomer(customerData: Omit<Customer, 'id'>): Promise<Customer> {
-  await new Promise(resolve => setTimeout(resolve, 50));
+export async function addCustomer(customerData: Omit<Customer, 'id'>): Promise<Customer | null> {
   const newCustomer: Customer = {
     ...customerData,
-    id: Date.now().toString(),
+    id: Date.now().toString(), // Consider Supabase default UUIDs
     tags: customerData.tags || [],
   };
-  customersStore.push(newCustomer);
-  customersStore.sort((a, b) => a.name.localeCompare(b.name));
-  return JSON.parse(JSON.stringify(newCustomer));
+
+  const { data, error } = await supabase
+    .from('customers')
+    .insert(newCustomer)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding customer to Supabase:', error);
+    return null;
+  }
+  return data;
 }
 
 export async function updateCustomerData(updatedCustomer: Customer): Promise<Customer | null> {
-  await new Promise(resolve => setTimeout(resolve, 50));
-  const index = customersStore.findIndex(c => c.id === updatedCustomer.id);
-  if (index !== -1) {
-    customersStore[index] = { ...updatedCustomer, tags: updatedCustomer.tags || [] };
-    customersStore.sort((a, b) => a.name.localeCompare(b.name));
-    return JSON.parse(JSON.stringify(customersStore[index]));
+  const customerToUpdate = {
+     ...updatedCustomer,
+     tags: updatedCustomer.tags || []
+  };
+  const { data, error } = await supabase
+    .from('customers')
+    .update(customerToUpdate)
+    .eq('id', updatedCustomer.id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating customer in Supabase:', error);
+    return null;
   }
-  return null;
+  return data;
 }
 
 export async function deleteCustomerData(customerId: string): Promise<boolean> {
-  await new Promise(resolve => setTimeout(resolve, 50));
-  const initialLength = customersStore.length;
-  customersStore = customersStore.filter(c => c.id !== customerId);
-  return customersStore.length < initialLength;
+  const { error } = await supabase
+    .from('customers')
+    .delete()
+    .eq('id', customerId);
+
+  if (error) {
+    console.error('Error deleting customer from Supabase:', error);
+    return false;
+  }
+  return true;
 }
 
 export async function getAllUniqueTagsData(): Promise<Tag[]> {
-  await new Promise(resolve => setTimeout(resolve, 50));
+  // This still fetches all customers and processes tags in memory.
+  // For large datasets, consider a more optimized Supabase query or function.
+  const allCustomers = await getCustomers();
   const allTagsMap = new Map<string, Tag>();
-  customersStore.forEach(customer => {
+  allCustomers.forEach(customer => {
     if (customer.tags && Array.isArray(customer.tags)) {
       customer.tags.forEach(tag => {
         if (tag && tag.id && tag.name) {

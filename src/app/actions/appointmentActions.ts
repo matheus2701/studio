@@ -2,69 +2,99 @@
 'use server';
 
 import type { Appointment, AppointmentStatus } from '@/lib/types';
+import { supabase } from '@/lib/supabaseClient';
+import { format } from 'date-fns'; // For date formatting in getAppointmentsByMonthData
 
-// Simulação de banco de dados em memória para Agendamentos
-let appointmentsStore: Appointment[] = [];
-let isInitialized = false;
+// No longer using in-memory store
+// let appointmentsStore: Appointment[] = [];
+// let isInitialized = false;
 
-function initializeStore() {
-  if (!isInitialized) {
-    // Poderia carregar de um JSON inicial ou deixar vazio
-    appointmentsStore = []; // Começa vazio
-    isInitialized = true;
-    console.log("Appointment store initialized (in-memory)");
-  }
-}
+// function initializeStore() { ... }
+// initializeStore();
 
-initializeStore();
 
 export async function getAppointments(): Promise<Appointment[]> {
-  await new Promise(resolve => setTimeout(resolve, 50)); // Simula latência
-  return JSON.parse(JSON.stringify(appointmentsStore));
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('*')
+    .order('date', { ascending: true })
+    .order('time', { ascending: true });
+
+
+  if (error) {
+    console.error('Error fetching appointments from Supabase:', error);
+    return [];
+  }
+  return data || [];
 }
 
-export async function addAppointmentData(appointmentData: Omit<Appointment, 'id' | 'status'>): Promise<Appointment> {
-  await new Promise(resolve => setTimeout(resolve, 50));
+export async function addAppointmentData(appointmentData: Omit<Appointment, 'id' | 'status'>): Promise<Appointment | null> {
   const newAppointment: Appointment = {
     ...appointmentData,
-    id: Date.now().toString(),
-    status: 'CONFIRMED', // Status padrão
+    id: Date.now().toString(), // Consider Supabase default UUIDs
+    status: 'CONFIRMED',
     sinalPago: appointmentData.sinalPago || false,
   };
-  appointmentsStore.push(newAppointment);
-  appointmentsStore.sort((a, b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime());
-  return JSON.parse(JSON.stringify(newAppointment));
+
+  const { data, error } = await supabase
+    .from('appointments')
+    .insert(newAppointment)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding appointment to Supabase:', error);
+    return null;
+  }
+  return data;
 }
 
 export async function updateAppointmentData(updatedAppointment: Appointment): Promise<Appointment | null> {
-  await new Promise(resolve => setTimeout(resolve, 50));
-  const index = appointmentsStore.findIndex(app => app.id === updatedAppointment.id);
-  if (index !== -1) {
-    appointmentsStore[index] = updatedAppointment;
-    appointmentsStore.sort((a, b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime());
-    return JSON.parse(JSON.stringify(appointmentsStore[index]));
+  const { data, error } = await supabase
+    .from('appointments')
+    .update(updatedAppointment)
+    .eq('id', updatedAppointment.id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating appointment in Supabase:', error);
+    return null;
   }
-  return null;
+  return data;
 }
 
 export async function updateAppointmentStatusData(appointmentId: string, newStatus: AppointmentStatus): Promise<Appointment | null> {
-  await new Promise(resolve => setTimeout(resolve, 50));
-  const index = appointmentsStore.findIndex(app => app.id === appointmentId);
-  if (index !== -1) {
-    appointmentsStore[index].status = newStatus;
-    return JSON.parse(JSON.stringify(appointmentsStore[index]));
+  const { data, error } = await supabase
+    .from('appointments')
+    .update({ status: newStatus })
+    .eq('id', appointmentId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating appointment status in Supabase:', error);
+    return null;
   }
-  return null;
+  return data;
 }
 
-// Não precisamos de deleteAppointmentData explicitamente, mas poderia ser adicionado se necessário
-// export async function deleteAppointmentData(appointmentId: string): Promise<boolean> { ... }
-
 export async function getAppointmentsByMonthData(year: number, month: number): Promise<Appointment[]> {
-  await new Promise(resolve => setTimeout(resolve, 50));
-  const filtered = appointmentsStore.filter(app => {
-    const appDate = new Date(app.date + 'T00:00:00');
-    return appDate.getFullYear() === year && appDate.getMonth() === month;
-  });
-  return JSON.parse(JSON.stringify(filtered));
+  // month is 0-indexed (0 for January, 11 for December)
+  const startDate = format(new Date(year, month, 1), 'yyyy-MM-dd');
+  const endDate = format(new Date(year, month + 1, 0), 'yyyy-MM-dd'); // Last day of the month
+
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('*')
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .order('date', { ascending: true })
+    .order('time', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching appointments by month from Supabase:', error);
+    return [];
+  }
+  return data || [];
 }
