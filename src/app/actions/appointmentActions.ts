@@ -1,7 +1,7 @@
 
 'use server';
 
-import type { Appointment, AppointmentStatus } from '@/lib/types'; // Removido PaymentMethod
+import type { Appointment, AppointmentStatus } from '@/lib/types';
 import { supabase } from '@/lib/supabaseClient';
 import { format } from 'date-fns';
 
@@ -16,19 +16,23 @@ export async function getAppointments(): Promise<Appointment[]> {
     console.error('Error fetching appointments from Supabase:', error);
     throw new Error(`Supabase error fetching appointments: ${error.message}`);
   }
-  // Garantir que sinalPago seja booleano
+  // Garantir que sinalPago seja booleano e selectedProcedures seja array
   return (data || []).map(app => ({
     ...app,
+    selectedProcedures: Array.isArray(app.selectedProcedures) ? app.selectedProcedures : [],
     sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false,
-    // paymentMethod: app.paymentMethod || undefined, // Removido
   }));
 }
 
 export async function addAppointmentData(appointmentData: Omit<Appointment, 'id' | 'status'>): Promise<Appointment | null> {
-  const newAppointmentPayload = {
+  const newAppointmentPayload: Appointment = {
     ...appointmentData,
+    id: Date.now().toString(), // Gerar ID para o novo agendamento
+    status: 'CONFIRMED',       // Definir status padrão
     sinalPago: appointmentData.sinalPago || false,
-    // paymentMethod: appointmentData.paymentMethod || undefined, // Removido
+    // Garantir que campos opcionais que podem ser undefined sejam tratados (Supabase client geralmente lida bem com undefined para NULL)
+    customerPhone: appointmentData.customerPhone || undefined,
+    notes: appointmentData.notes || undefined,
   };
 
   const { data, error } = await supabase
@@ -41,14 +45,18 @@ export async function addAppointmentData(appointmentData: Omit<Appointment, 'id'
     console.error('Error adding appointment to Supabase:', error);
     throw new Error(`Supabase error adding appointment: ${error.message}`);
   }
-  return data ? { ...data, sinalPago: data.sinalPago || false } : null; // Removido paymentMethod
+  // Garantir que dados retornados também estejam no formato esperado
+  return data ? { 
+    ...data, 
+    selectedProcedures: Array.isArray(data.selectedProcedures) ? data.selectedProcedures : [],
+    sinalPago: typeof data.sinalPago === 'boolean' ? data.sinalPago : false 
+  } : null;
 }
 
 export async function updateAppointmentData(updatedAppointment: Appointment): Promise<Appointment | null> {
   const appointmentToUpdate = {
     ...updatedAppointment,
     sinalPago: updatedAppointment.sinalPago || false,
-    // paymentMethod: updatedAppointment.paymentMethod || undefined, // Removido
   };
 
   const { data, error } = await supabase
@@ -62,7 +70,11 @@ export async function updateAppointmentData(updatedAppointment: Appointment): Pr
     console.error('Error updating appointment in Supabase:', error);
     throw new Error(`Supabase error updating appointment: ${error.message}`);
   }
-  return data ? { ...data, sinalPago: data.sinalPago || false } : null; // Removido paymentMethod
+  return data ? { 
+    ...data, 
+    selectedProcedures: Array.isArray(data.selectedProcedures) ? data.selectedProcedures : [],
+    sinalPago: typeof data.sinalPago === 'boolean' ? data.sinalPago : false 
+  } : null;
 }
 
 export async function updateAppointmentStatusData(appointmentId: string, newStatus: AppointmentStatus): Promise<Appointment | null> {
@@ -77,7 +89,11 @@ export async function updateAppointmentStatusData(appointmentId: string, newStat
     console.error('Error updating appointment status in Supabase:', error);
     throw new Error(`Supabase error updating appointment status: ${error.message}`);
   }
-  return data ? { ...data, sinalPago: data.sinalPago || false } : null; // Removido paymentMethod
+  return data ? { 
+    ...data, 
+    selectedProcedures: Array.isArray(data.selectedProcedures) ? data.selectedProcedures : [],
+    sinalPago: typeof data.sinalPago === 'boolean' ? data.sinalPago : false 
+  } : null;
 }
 
 export async function deleteAppointmentData(appointmentId: string): Promise<boolean> {
@@ -111,7 +127,7 @@ export async function getAppointmentsByMonthData(year: number, month: number): P
   }
   return (data || []).map(app => ({
     ...app,
+    selectedProcedures: Array.isArray(app.selectedProcedures) ? app.selectedProcedures : [],
     sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false,
-    // paymentMethod: app.paymentMethod || undefined, // Removido
   }));
 }
