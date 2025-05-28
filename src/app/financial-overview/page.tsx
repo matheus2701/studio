@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format, getYear, getMonth, setYear, setMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, CalendarDays, Info, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Repeat } from 'lucide-react';
+import { DollarSign, CalendarDays, Info, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Repeat, Loader2 } from 'lucide-react'; // Adicionado Loader2
 import type { Appointment, ManualFinancialEntry } from '@/lib/types';
 import { ManualFinancialEntryForm } from '@/components/forms/ManualFinancialEntryForm'; // Import form
 
@@ -323,3 +323,5 @@ export default function FinancialOverviewPage() {
     </div>
   );
 }
+
+    
