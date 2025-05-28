@@ -5,7 +5,8 @@ import './globals.css';
 import { ProceduresProvider } from '@/contexts/ProceduresContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AppointmentsProvider } from '@/contexts/AppointmentsContext';
-import { CustomersProvider } from '@/contexts/CustomersContext'; // Import CustomersProvider
+import { CustomersProvider } from '@/contexts/CustomersContext';
+import { FinancialEntriesProvider } from '@/contexts/FinancialEntriesContext'; // Import FinancialEntriesProvider
 import { ProtectedLayout } from '@/components/layout/ProtectedLayout';
 
 const geistSans = Geist({
@@ -34,10 +35,12 @@ export default function RootLayout({
         <AuthProvider>
           <ProceduresProvider>
             <AppointmentsProvider>
-              <CustomersProvider> {/* Add CustomersProvider here */}
-                <ProtectedLayout>
-                  {children}
-                </ProtectedLayout>
+              <CustomersProvider>
+                <FinancialEntriesProvider> {/* Add FinancialEntriesProvider here */}
+                  <ProtectedLayout>
+                    {children}
+                  </ProtectedLayout>
+                </FinancialEntriesProvider>
               </CustomersProvider>
             </AppointmentsProvider>
           </ProceduresProvider>

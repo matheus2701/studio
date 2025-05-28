@@ -1,6 +1,5 @@
 
 export type AppointmentStatus = 'CONFIRMED' | 'ATTENDED' | 'CANCELLED';
-// export type PaymentMethod = 'pix' | 'dinheiro' | 'cartao_credito' | 'cartao_debito'; // Removido
 
 export interface Procedure {
   id: string;
@@ -24,7 +23,6 @@ export interface Appointment {
   notes?: string;
   status: AppointmentStatus;
   sinalPago: boolean;
-  // paymentMethod?: PaymentMethod; // Removido
 }
 
 export interface NotificationPreferences {
@@ -44,4 +42,15 @@ export interface Customer {
   phone?: string;
   notes?: string;
   tags: Tag[];
+}
+
+export type FinancialEntryType = 'income' | 'expense';
+
+export interface ManualFinancialEntry {
+  id: string;
+  type: FinancialEntryType;
+  description: string;
+  amount: number;
+  date: string; // YYYY-MM-DD
+  created_at?: string;
 }
