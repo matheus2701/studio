@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppointments } from '@/contexts/AppointmentsContext';
-import { useFinancialEntries } from '@/contexts/FinancialEntriesContext'; // Import context
+import { useFinancialEntries } from '@/contexts/FinancialEntriesContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,17 +19,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format, getYear, getMonth, setYear, setMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, CalendarDays, Info, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Repeat, Loader2 } from 'lucide-react'; // Adicionado Loader2
+import { DollarSign, CalendarDays, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Repeat, Loader2 } from 'lucide-react';
 import type { Appointment, ManualFinancialEntry } from '@/lib/types';
-import { ManualFinancialEntryForm } from '@/components/forms/ManualFinancialEntryForm'; // Import form
+import { ManualFinancialEntryForm } from '@/components/forms/ManualFinancialEntryForm';
 
 const currentYear = getYear(new Date());
-const years = Array.from({ length: 5 }, (_, i) => currentYear - i); // Last 5 years
-const months = Array.from({ length: 12 }, (_, i) => i); // 0 (Jan) to 11 (Dec)
+const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+const months = Array.from({ length: 12 }, (_, i) => i);
 
 const financialEntryTypeTranslations: Record<ManualFinancialEntry['type'], string> = {
   income: "Entrada",
@@ -42,35 +41,33 @@ const financialEntryTypeColors: Record<ManualFinancialEntry['type'], string> = {
 };
 
 export default function FinancialOverviewPage() {
-  const { getAppointmentsByMonth, isLoading: isLoadingAppointments } = useAppointments();
+  const { getAppointmentsByMonth, isLoading: isLoadingAppointmentsContext } = useAppointments();
   const {
     financialEntries,
     fetchFinancialEntriesByMonth,
     deleteFinancialEntry,
-    isLoading: isLoadingEntries
+    isLoading: isLoadingEntriesContext
   } = useFinancialEntries();
 
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()));
   const [monthlyAppointments, setMonthlyAppointments] = useState<Appointment[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isFetchingPageData, setIsFetchingPageData] = useState(false);
   const [isAddEntryDialogOpen, setIsAddEntryDialogOpen] = useState(false);
 
-  const fetchDataForMonth = useCallback(async () => {
-    setIsLoadingData(true);
+  const fetchDataForSelectedPeriod = useCallback(async () => {
+    setIsFetchingPageData(true);
     console.log(`[FinancialOverview] Fetching data for ${selectedYear}-${selectedMonth + 1}`);
+    // Ambas as chamadas são async, podemos paralelizar se desejado, mas sequencial é mais simples aqui.
     await fetchFinancialEntriesByMonth(selectedYear, selectedMonth);
     const appointmentData = await getAppointmentsByMonth(selectedYear, selectedMonth);
     setMonthlyAppointments(appointmentData);
-    setIsLoadingData(false);
+    setIsFetchingPageData(false);
   }, [getAppointmentsByMonth, fetchFinancialEntriesByMonth, selectedYear, selectedMonth]);
 
   useEffect(() => {
-    // Fetch data when appointments or entries context are not loading, or when month/year changes
-    if (!isLoadingAppointments && !isLoadingEntries) {
-      fetchDataForMonth();
-    }
-  }, [fetchDataForMonth, isLoadingAppointments, isLoadingEntries, selectedYear, selectedMonth]);
+    fetchDataForSelectedPeriod();
+  }, [fetchDataForSelectedPeriod]); // fetchDataForSelectedPeriod já depende de selectedYear, selectedMonth e das funções de busca dos contextos
 
 
   const attendedAppointments = useMemo(() => {
@@ -98,10 +95,12 @@ export default function FinancialOverviewPage() {
     return totalAttendedAppointmentsValue + totalManualIncome - totalManualExpenses;
   }, [totalAttendedAppointmentsValue, totalManualIncome, totalManualExpenses]);
 
-  const displayIsLoading = isLoadingAppointments || isLoadingEntries || isLoadingData;
+  // isLoadingAppointmentsContext e isLoadingEntriesContext são para o carregamento inicial dos contextos.
+  // isFetchingPageData é para o carregamento específico desta página (ao mudar mês/ano).
+  const displayIsLoading = isLoadingAppointmentsContext || isLoadingEntriesContext || isFetchingPageData;
 
   const handleRefreshData = () => {
-    fetchDataForMonth();
+    fetchDataForSelectedPeriod();
   };
 
   return (
@@ -119,7 +118,8 @@ export default function FinancialOverviewPage() {
           </div>
            <div className="flex flex-col sm:flex-row gap-2 items-center w-full sm:w-auto">
             <Button onClick={handleRefreshData} variant="outline" className="w-full sm:w-auto" disabled={displayIsLoading}>
-              <Repeat className="mr-2 h-4 w-4" /> Atualizar Dados
+              {isFetchingPageData ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Repeat className="mr-2 h-4 w-4" />}
+              Atualizar Dados
             </Button>
             <Dialog open={isAddEntryDialogOpen} onOpenChange={setIsAddEntryDialogOpen}>
               <DialogTrigger asChild>
@@ -136,7 +136,8 @@ export default function FinancialOverviewPage() {
                 </DialogHeader>
                 <ManualFinancialEntryForm onFormSubmit={() => {
                   setIsAddEntryDialogOpen(false);
-                  // fetchDataForMonth(); // Data is re-fetched by context update or by manual refresh button
+                  // A atualização dos dados já é feita pelo FinancialEntriesContext
+                  // ao adicionar uma nova entrada, que por sua vez chama fetchFinancialEntriesByMonth.
                 }} />
               </DialogContent>
             </Dialog>
@@ -180,7 +181,8 @@ export default function FinancialOverviewPage() {
                 </SelectContent>
               </Select>
             </div>
-            {displayIsLoading && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
+            {displayIsLoading && !isFetchingPageData && (isLoadingAppointmentsContext || isLoadingEntriesContext) && <Loader2 className="h-5 w-5 animate-spin text-primary" title="Carregando dados iniciais..." />}
+            {isFetchingPageData && <Loader2 className="h-5 w-5 animate-spin text-primary" title="Buscando dados do período..." />}
           </div>
 
           {displayIsLoading ? (
@@ -323,5 +325,3 @@ export default function FinancialOverviewPage() {
     </div>
   );
 }
-
-    

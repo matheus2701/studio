@@ -11,15 +11,12 @@ import {
 } from '@/app/actions/procedureActions';
 import { useToast } from '@/hooks/use-toast';
 
-// Lista inicial de procedimentos. Com a integração do Supabase,
-// esta lista é usada principalmente como um fallback ou referência,
-// já que os dados reais vêm do banco de dados.
 const initialProcedures: Procedure[] = [
   {
     id: 'proc_1_henna_design',
     name: 'Design de sobrancelhas com henna',
-    duration: 60,
-    price: 35.00,
+    duration: 60, // Duração atualizada
+    price: 35.00,  // Preço atualizado
     description: 'Design profissional de sobrancelhas com aplicação de henna para realçar a cor e preencher falhas.',
     isPromo: false,
     promoPrice: undefined,
@@ -44,7 +41,7 @@ const initialProcedures: Procedure[] = [
   },
   {
     id: 'proc_4_buco_epilation',
-    name: 'Buço',
+    name: 'Buço', // Nome atualizado para 'Buço' (antes era Epilação de Buço)
     duration: 10,
     price: 10.00,
     description: 'Epilação do buço com cera ou linha, conforme preferência.',
@@ -53,7 +50,7 @@ const initialProcedures: Procedure[] = [
   },
   {
     id: 'proc_5_micropigmentation',
-    name: 'Micropigmentação de sobrancelha',
+    name: 'Micropigmentação de sobrancelha', // Nome atualizado
     duration: 90,
     price: 200.00,
     description: 'Técnica de micropigmentação para corrigir falhas e definir o formato das sobrancelhas com resultado duradouro.',
@@ -100,22 +97,40 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       console.log("[ProceduresContext] Fetching procedures from server action...");
-      const serverProcedures = await getProceduresAction();
+      let serverProcedures = await getProceduresAction();
+      
+      if (!serverProcedures || serverProcedures.length === 0) {
+        console.log("[ProceduresContext] No procedures found in DB, attempting to seed initial procedures...");
+        // Tenta adicionar os procedimentos iniciais um por um se o banco estiver vazio
+        // Isso só acontecerá na primeira vez ou se o banco for limpo.
+        const seededProcedures: Procedure[] = [];
+        for (const initialProc of initialProcedures) {
+          const addedProc = await addProcedureAction(initialProc);
+          if (addedProc) {
+            seededProcedures.push(addedProc);
+          }
+        }
+        serverProcedures = seededProcedures;
+        if (serverProcedures.length > 0) {
+          toast({ title: "Procedimentos Iniciais Adicionados", description: "A lista de procedimentos padrão foi carregada no banco de dados."});
+        }
+      }
+      
       const sanitizedProcedures = serverProcedures.map(proc => ({
         ...proc,
         isPromo: typeof proc.isPromo === 'boolean' ? proc.isPromo : false,
         promoPrice: typeof proc.promoPrice === 'number' ? proc.promoPrice : undefined,
       }));
-      setProcedures(sanitizedProcedures);
-      console.log("[ProceduresContext] Procedures loaded successfully from server action:", sanitizedProcedures.length);
+      setProcedures(sanitizedProcedures.sort((a, b) => a.name.localeCompare(b.name)));
+      console.log("[ProceduresContext] Procedures loaded successfully:", sanitizedProcedures.length);
     } catch (error: any) {
       console.error("[ProceduresContext] Failed to fetch procedures from server action:", error.message);
       toast({ title: "Erro ao Carregar Procedimentos", description: `Não foi possível buscar os dados dos procedimentos: ${error.message}`, variant: "destructive" });
-      setProcedures([]); // Fallback para lista vazia em caso de erro
+      setProcedures([]);
     } finally {
       setIsLoading(false);
     }
-  }, [toast]); // toast é estável
+  }, [toast]);
 
   useEffect(() => {
     fetchInitialProcedures();
@@ -126,6 +141,9 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
       const newProcedure = await addProcedureAction(procedureData);
       if (newProcedure) {
         setProcedures(prev => [...prev, newProcedure].sort((a, b) => a.name.localeCompare(b.name)));
+         // Toast para sucesso é melhor no local da chamada (ProcedureForm)
+      } else {
+        toast({ title: "Erro ao Adicionar", description: "Não foi possível adicionar o procedimento.", variant: "destructive" });
       }
     } catch (error: any) {
       console.error("Error adding procedure via server action:", error.message);
@@ -138,6 +156,7 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
       const result = await updateProcedureAction(updatedProcedure);
       if (result) {
         setProcedures(prev => prev.map(p => p.id === result.id ? result : p).sort((a,b) => a.name.localeCompare(b.name)));
+         // Toast para sucesso é melhor no local da chamada (ProcedureForm)
       } else {
         toast({ title: "Erro ao Atualizar", description: "Procedimento não encontrado para atualização.", variant: "destructive" });
       }
@@ -152,6 +171,7 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
       const success = await deleteProcedureAction(procedureId);
       if (success) {
         setProcedures(prev => prev.filter(p => p.id !== procedureId));
+        // Toast para sucesso é melhor no local da chamada (ProcedureList)
       } else {
         toast({ title: "Erro ao Remover", description: "Não foi possível remover o procedimento.", variant: "destructive" });
       }

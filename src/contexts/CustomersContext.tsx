@@ -8,7 +8,6 @@ import {
   addCustomer as addCustomerAction,
   updateCustomerData as updateCustomerAction,
   deleteCustomerData as deleteCustomerAction
-  // getAllUniqueTagsData is not used directly by the context for its state
 } from '@/app/actions/customerActions';
 import { useToast } from '@/hooks/use-toast';
 
@@ -35,14 +34,14 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
       const serverCustomers = await getCustomersAction();
       setCustomers(serverCustomers);
       console.log("[CustomersContext] Customers loaded successfully from server action:", serverCustomers.length);
-    } catch (error) {
+    } catch (error: any) {
       console.error("[CustomersContext] Failed to fetch customers from server action:", error);
-      toast({ title: "Erro ao Carregar Clientes", description: "Não foi possível buscar os dados dos clientes.", variant: "destructive" });
+      toast({ title: "Erro ao Carregar Clientes", description: error.message || "Não foi possível buscar os dados dos clientes.", variant: "destructive" });
       setCustomers([]);
     } finally {
       setIsLoading(false);
     }
-  }, [toast]); // toast is stable
+  }, [toast]); 
 
   useEffect(() => {
     fetchInitialCustomers();
@@ -53,11 +52,12 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
       const newCustomer = await addCustomerAction(customerData);
       if (newCustomer) {
         setCustomers(prev => [...prev, newCustomer].sort((a, b) => a.name.localeCompare(b.name)));
-        // Toast for success is handled by the calling component (CustomerForm)
+      } else {
+        toast({ title: "Erro ao Adicionar", description: "Não foi possível adicionar o cliente.", variant: "destructive" });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding customer via server action:", error);
-      toast({ title: "Erro ao Adicionar Cliente", variant: "destructive" });
+      toast({ title: "Erro ao Adicionar Cliente", description: error.message, variant: "destructive" });
     }
   }, [toast]);
 
@@ -69,13 +69,12 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
           prev.map(c => (c.id === result.id ? result : c))
             .sort((a, b) => a.name.localeCompare(b.name))
         );
-        // Toast for success is handled by the calling component (CustomerForm)
       } else {
         toast({ title: "Erro ao Atualizar", description: "Cliente não encontrado para atualização.", variant: "destructive" });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating customer via server action:", error);
-      toast({ title: "Erro ao Atualizar Cliente", variant: "destructive" });
+      toast({ title: "Erro ao Atualizar Cliente", description: error.message, variant: "destructive" });
     }
   }, [toast]);
 
@@ -88,9 +87,9 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
       } else {
          toast({ title: "Erro ao Remover", description: "Não foi possível remover o cliente.", variant: "destructive" });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting customer via server action:", error);
-      toast({ title: "Erro ao Remover Cliente", variant: "destructive" });
+      toast({ title: "Erro ao Remover Cliente", description: error.message, variant: "destructive" });
     }
   }, [toast]);
 
@@ -99,7 +98,6 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
     customers.forEach(customer => {
       if (customer.tags && Array.isArray(customer.tags)) {
         customer.tags.forEach(tag => {
-          // Ensure tag is a valid object with id and name before processing
           if (tag && typeof tag.id === 'string' && typeof tag.name === 'string') {
             if (!allTagsMap.has(tag.id)) {
               allTagsMap.set(tag.id, tag);

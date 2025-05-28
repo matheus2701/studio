@@ -35,7 +35,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
       console.log("[AppointmentsContext] Fetching appointments from server action...");
       const serverAppointments = await getAppointmentsAction();
-      setAppointments(serverAppointments); // Server action already sanitizes the data
+      setAppointments(serverAppointments);
       console.log("[AppointmentsContext] Appointments loaded successfully from server action:", serverAppointments.length);
     } catch (error: any) {
       console.error("[AppointmentsContext] Failed to fetch appointments from server action", error);
@@ -55,6 +55,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
       const newAppointment = await addAppointmentAction(appointmentData);
       if (newAppointment) {
         setAppointments(prev => [...prev, newAppointment].sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()));
+        // Toast de sucesso geralmente é melhor no local da chamada (BookingPage)
         return newAppointment;
       }
       return null;
@@ -73,6 +74,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
           prev.map(app => (app.id === result.id ? result : app))
             .sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime())
         );
+        // Toast de sucesso geralmente é melhor no local da chamada (BookingPage)
         return result;
       }
       return null;
@@ -92,6 +94,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
             app.id === updatedApp.id ? { ...app, status: updatedApp.status } : app
           )
         );
+        // Toast de sucesso geralmente é melhor no local da chamada (BookingPage)
         return updatedApp;
       }
       return null;
@@ -114,23 +117,16 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   }, [toast]);
 
   const getAppointmentsByMonth = useCallback(async (year: number, month: number): Promise<Appointment[]> => {
-    if (isLoading && appointments.length === 0 && !process.env.NEXT_PUBLIC_SUPABASE_URL) { 
-        // Se estiver carregando E não houver agendamentos E Supabase não estiver configurado,
-        // evita chamar a action desnecessariamente se for o estado inicial sem Supabase.
-        // No entanto, se Supabase ESTIVER configurado, queremos tentar buscar mesmo se isLoading.
-        console.warn("[AppointmentsContext] getAppointmentsByMonth called while initial load might be pending without Supabase, returning empty.");
-        return [];
-    }
     try {
         console.log(`[AppointmentsContext] Calling getAppointmentsByMonthAction for year ${year}, month ${month}`);
         const monthAppointments = await getAppointmentsByMonthAction(year, month);
-         return monthAppointments; // Server action já sanitiza
+         return monthAppointments;
     } catch (error: any) {
         console.error("[AppointmentsContext] Failed to fetch appointments by month from server action", error);
         toast({ title: "Erro ao Carregar Agendamentos do Mês", description: error.message, variant: "destructive" });
         return [];
     }
-  }, [isLoading, toast, appointments.length]); // appointments.length para re-memoizar se a lista principal mudar
+  }, [toast]);
 
 
   return (
