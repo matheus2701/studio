@@ -26,31 +26,38 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  const fetchInitialProcedures = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      console.log("Fetching procedures from server action...");
+      const serverProcedures = await getProceduresAction();
+      // Sanitize loaded procedures to ensure new fields have defaults
+      const sanitizedProcedures = serverProcedures.map(proc => ({
+        ...proc,
+        isPromo: typeof proc.isPromo === 'boolean' ? proc.isPromo : false,
+        promoPrice: typeof proc.promoPrice === 'number' ? proc.promoPrice : undefined,
+      }));
+      setProcedures(sanitizedProcedures);
+      console.log("Procedures loaded successfully from server action:", sanitizedProcedures.length);
+    } catch (error) {
+      console.error("Failed to fetch procedures from server action", error);
+      toast({ title: "Erro ao Carregar Procedimentos", description: "Não foi possível buscar os dados dos procedimentos.", variant: "destructive" });
+      setProcedures([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]); // toast is stable
+
   useEffect(() => {
-    const fetchProcedures = async () => {
-      try {
-        setIsLoading(true);
-        console.log("Fetching procedures from server action...");
-        const serverProcedures = await getProceduresAction();
-        setProcedures(serverProcedures);
-        console.log("Procedures loaded successfully from server action:", serverProcedures.length);
-      } catch (error) {
-        console.error("Failed to fetch procedures from server action", error);
-        toast({ title: "Erro ao Carregar Procedimentos", description: "Não foi possível buscar os dados dos procedimentos.", variant: "destructive" });
-        setProcedures([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchProcedures();
-  }, [toast]);
+    fetchInitialProcedures();
+  }, [fetchInitialProcedures]);
 
   const addProcedure = useCallback(async (procedureData: Omit<Procedure, 'id'>) => {
     try {
       const newProcedure = await addProcedureAction(procedureData);
       if (newProcedure) {
         setProcedures(prev => [...prev, newProcedure].sort((a, b) => a.name.localeCompare(b.name)));
-        // Toast de sucesso é melhor tratado na UI que chama addProcedure
+        // Toast for success is handled by the calling component (ProcedureForm)
       }
     } catch (error) {
       console.error("Error adding procedure via server action:", error);
@@ -63,7 +70,7 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
       const result = await updateProcedureAction(updatedProcedure);
       if (result) {
         setProcedures(prev => prev.map(p => p.id === result.id ? result : p).sort((a,b) => a.name.localeCompare(b.name)));
-        // Toast de sucesso é melhor tratado na UI que chama updateProcedure
+        // Toast for success is handled by the calling component (ProcedureForm)
       } else {
         toast({ title: "Erro ao Atualizar", description: "Procedimento não encontrado para atualização.", variant: "destructive" });
       }
@@ -78,7 +85,7 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
       const success = await deleteProcedureAction(procedureId);
       if (success) {
         setProcedures(prev => prev.filter(p => p.id !== procedureId));
-        // Toast de sucesso é melhor tratado na UI que chama deleteProcedure
+        // Toast for success is handled by the calling component (ProcedureList)
       } else {
         toast({ title: "Erro ao Remover", description: "Não foi possível remover o procedimento.", variant: "destructive" });
       }
@@ -88,9 +95,6 @@ export const ProceduresProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [toast]);
 
-  if (isLoading && procedures.length === 0) {
-    // Pode retornar um esqueleto/spinner global aqui se desejado
-  }
 
   return (
     <ProceduresContext.Provider value={{ procedures, addProcedure, updateProcedure, deleteProcedure, isLoading }}>

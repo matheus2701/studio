@@ -17,7 +17,7 @@ interface AppointmentsContextType {
   addAppointment: (appointmentData: Omit<Appointment, 'id' | 'status'>) => Promise<Appointment | null>;
   updateAppointment: (updatedAppointment: Appointment) => Promise<Appointment | null>;
   updateAppointmentStatus: (appointmentId: string, newStatus: AppointmentStatus) => Promise<Appointment | null>;
-  getAppointmentsByMonth: (year: number, month: number) => Promise<Appointment[]>; // Agora async
+  getAppointmentsByMonth: (year: number, month: number) => Promise<Appointment[]>;
   isLoading: boolean;
 }
 
@@ -28,24 +28,31 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  const fetchInitialAppointments = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      console.log("Fetching appointments from server action...");
+      const serverAppointments = await getAppointmentsAction();
+      // Ensure selectedProcedures is always an array, even if old data from localStorage was different
+      const sanitizedAppointments = serverAppointments.map(app => ({
+        ...app,
+        selectedProcedures: Array.isArray(app.selectedProcedures) ? app.selectedProcedures : [],
+        sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false,
+      }));
+      setAppointments(sanitizedAppointments);
+      console.log("Appointments loaded successfully from server action:", sanitizedAppointments.length);
+    } catch (error) {
+      console.error("Failed to fetch appointments from server action", error);
+      toast({ title: "Erro ao Carregar Agendamentos", description: "Não foi possível buscar os dados dos agendamentos.", variant: "destructive" });
+      setAppointments([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]); // toast is a stable dependency from useToast
+
   useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        setIsLoading(true);
-        console.log("Fetching appointments from server action...");
-        const serverAppointments = await getAppointmentsAction();
-        setAppointments(serverAppointments);
-        console.log("Appointments loaded successfully from server action:", serverAppointments.length);
-      } catch (error) {
-        console.error("Failed to fetch appointments from server action", error);
-        toast({ title: "Erro ao Carregar Agendamentos", description: "Não foi possível buscar os dados dos agendamentos.", variant: "destructive" });
-        setAppointments([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchAppointments();
-  }, [toast]);
+    fetchInitialAppointments();
+  }, [fetchInitialAppointments]);
 
   const addAppointment = useCallback(async (appointmentData: Omit<Appointment, 'id' | 'status'>): Promise<Appointment | null> => {
     try {
@@ -103,26 +110,21 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [toast]);
   
-  // getAppointmentsByMonth agora chama a server action.
-  // A lógica de filtragem está na server action.
   const getAppointmentsByMonth = useCallback(async (year: number, month: number): Promise<Appointment[]> => {
-    if (isLoading) return []; // Não busca se ainda está carregando o estado inicial
+    if (isLoading && appointments.length === 0) { // Prevent fetching if initial data is still loading
+        // console.log("getAppointmentsByMonth call skipped: initial data still loading or no appointments yet.");
+        return [];
+    }
     try {
-        // console.log(`Fetching appointments for ${month+1}/${year} from server action...`);
         const monthAppointments = await getAppointmentsByMonthAction(year, month);
-        // console.log(`Appointments for ${month+1}/${year} from server:`, monthAppointments.length);
         return monthAppointments;
     } catch (error) {
         console.error("Failed to fetch appointments by month from server action", error);
         toast({ title: "Erro ao Carregar Agendamentos do Mês", variant: "destructive" });
         return [];
     }
-  }, [isLoading, toast]);
+  }, [isLoading, toast, appointments.length]);
 
-
-  if (isLoading && appointments.length === 0) {
-    // Pode retornar um esqueleto/spinner global aqui se desejado
-  }
 
   return (
     <AppointmentsContext.Provider value={{ appointments, addAppointment, updateAppointment, updateAppointmentStatus, getAppointmentsByMonth, isLoading }}>

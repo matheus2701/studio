@@ -7,8 +7,8 @@ import {
   getCustomers as getCustomersAction,
   addCustomer as addCustomerAction,
   updateCustomerData as updateCustomerAction,
-  deleteCustomerData as deleteCustomerAction,
-  getAllUniqueTagsData as getAllUniqueTagsAction
+  deleteCustomerData as deleteCustomerAction
+  // getAllUniqueTagsData is not used directly by the context for its state
 } from '@/app/actions/customerActions';
 import { useToast } from '@/hooks/use-toast';
 
@@ -17,7 +17,7 @@ interface CustomersContextType {
   addCustomer: (customerData: Omit<Customer, 'id'>) => Promise<void>;
   updateCustomer: (updatedCustomer: Customer) => Promise<void>;
   deleteCustomer: (customerId: string) => Promise<void>;
-  getAllUniqueTags: () => Tag[]; // Esta pode permanecer síncrona baseada no estado local
+  getAllUniqueTags: () => Tag[];
   isLoading: boolean;
 }
 
@@ -28,31 +28,32 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  const fetchInitialCustomers = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      console.log("[CustomersContext] Fetching customers from server action...");
+      const serverCustomers = await getCustomersAction();
+      setCustomers(serverCustomers);
+      console.log("[CustomersContext] Customers loaded successfully from server action:", serverCustomers.length);
+    } catch (error) {
+      console.error("[CustomersContext] Failed to fetch customers from server action:", error);
+      toast({ title: "Erro ao Carregar Clientes", description: "Não foi possível buscar os dados dos clientes.", variant: "destructive" });
+      setCustomers([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]); // toast is stable
+
   useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        setIsLoading(true);
-        console.log("Fetching customers from server action...");
-        const serverCustomers = await getCustomersAction();
-        setCustomers(serverCustomers);
-        console.log("Customers loaded successfully from server action:", serverCustomers.length);
-      } catch (error) {
-        console.error("Failed to fetch customers from server action:", error);
-        toast({ title: "Erro ao Carregar Clientes", description: "Não foi possível buscar os dados dos clientes.", variant: "destructive" });
-        setCustomers([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchCustomers();
-  }, [toast]);
+    fetchInitialCustomers();
+  }, [fetchInitialCustomers]);
 
   const addCustomer = useCallback(async (customerData: Omit<Customer, 'id'>) => {
     try {
       const newCustomer = await addCustomerAction(customerData);
       if (newCustomer) {
         setCustomers(prev => [...prev, newCustomer].sort((a, b) => a.name.localeCompare(b.name)));
-        toast({ title: "Cliente Adicionado!", description: `"${newCustomer.name}" foi adicionado com sucesso.` });
+        // Toast for success is handled by the calling component (CustomerForm)
       }
     } catch (error) {
       console.error("Error adding customer via server action:", error);
@@ -68,7 +69,7 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
           prev.map(c => (c.id === result.id ? result : c))
             .sort((a, b) => a.name.localeCompare(b.name))
         );
-        toast({ title: "Cliente Atualizado!", description: `"${result.name}" foi atualizado com sucesso.` });
+        // Toast for success is handled by the calling component (CustomerForm)
       } else {
         toast({ title: "Erro ao Atualizar", description: "Cliente não encontrado para atualização.", variant: "destructive" });
       }
@@ -83,7 +84,7 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
       const success = await deleteCustomerAction(customerId);
       if (success) {
         setCustomers(prev => prev.filter(c => c.id !== customerId));
-        // O toast de sucesso é melhor tratado na UI que chama deleteCustomer
+        // Toast for success is handled by the calling component (CustomerList)
       } else {
          toast({ title: "Erro ao Remover", description: "Não foi possível remover o cliente.", variant: "destructive" });
       }
@@ -94,12 +95,12 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
   }, [toast]);
 
   const getAllUniqueTags = useCallback((): Tag[] => {
-    // Esta função pode operar sobre o estado local `customers` que é sincronizado com o servidor
     const allTagsMap = new Map<string, Tag>();
     customers.forEach(customer => {
       if (customer.tags && Array.isArray(customer.tags)) {
         customer.tags.forEach(tag => {
-          if (tag && tag.id && tag.name) {
+          // Ensure tag is a valid object with id and name before processing
+          if (tag && typeof tag.id === 'string' && typeof tag.name === 'string') {
             if (!allTagsMap.has(tag.id)) {
               allTagsMap.set(tag.id, tag);
             }
@@ -110,10 +111,6 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
     return Array.from(allTagsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [customers]);
 
-  if (isLoading && customers.length === 0) { // Mostrar loading apenas na carga inicial se não houver dados ainda
-    // Pode retornar um esqueleto/spinner global aqui se desejado, ou deixar as páginas lidarem com seu próprio estado de loading.
-    // Por simplicidade, vamos permitir que as páginas renderizem com lista vazia enquanto carregam.
-  }
 
   return (
     <CustomersContext.Provider value={{ customers, addCustomer, updateCustomer, deleteCustomer, getAllUniqueTags, isLoading }}>
