@@ -70,6 +70,19 @@ export async function updateAppointmentStatusData(appointmentId: string, newStat
   return data;
 }
 
+export async function deleteAppointmentData(appointmentId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('appointments')
+    .delete()
+    .eq('id', appointmentId);
+
+  if (error) {
+    console.error('Error deleting appointment from Supabase:', error);
+    return false;
+  }
+  return true;
+}
+
 export async function getAppointmentsByMonthData(year: number, month: number): Promise<Appointment[]> {
   // month is 0-indexed (0 for January, 11 for December)
   const startDate = format(new Date(year, month, 1), 'yyyy-MM-dd');

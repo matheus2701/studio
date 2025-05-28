@@ -10,12 +10,23 @@ import { Button } from '@/components/ui/button';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
 import { format, addMinutes, parse, set, isEqual, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2 } from 'lucide-react';
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useProcedures } from '@/contexts/ProceduresContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const statusTranslations: Record<AppointmentStatus, string> = {
   CONFIRMED: "Confirmado",
@@ -44,6 +55,7 @@ export default function BookingPage() {
     addAppointment, 
     updateAppointment, 
     updateAppointmentStatus,
+    deleteAppointment,
     isLoading: isLoadingAppointments 
   } = useAppointments();
   const { procedures, isLoading: isLoadingProcedures } = useProcedures();
@@ -51,7 +63,6 @@ export default function BookingPage() {
 
   const isLoading = isLoadingAppointments || isLoadingProcedures;
 
-  // Recalcula os detalhes dos procedimentos selecionados, aplicando o preço promocional se ativo
   const selectedProceduresDetail = useMemo(() => {
     if (isLoadingProcedures || procedures.length === 0) return [];
     return selectedProcedureIds.map(id => {
@@ -108,6 +119,14 @@ export default function BookingPage() {
     setSelectedProcedureIds(appointment.selectedProcedures.map(p => p.id));
     setSelectedTime(appointment.time);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteAppointment = async (appointmentId: string) => {
+    await deleteAppointment(appointmentId);
+    // Toast is handled by context
+    if (appointmentToEdit?.id === appointmentId) {
+        handleCancelEdit(); // Clear form if the edited appointment was deleted
+    }
   };
   
   const totalSelectedProceduresDuration = useMemo(() => {
@@ -178,8 +197,6 @@ export default function BookingPage() {
     setAppointmentToEdit(null);
     setSelectedProcedureIds([]);
     setSelectedTime(undefined);
-    // Reset selectedDate to today or keep it as is? For now, keep it.
-    // setSelectedDate(new Date()); 
   }
 
   if (isLoading) {
@@ -361,6 +378,30 @@ export default function BookingPage() {
                             </Button>
                           </>
                         )}
+                         <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm" className="flex-1">
+                              <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir o agendamento de {app.customerName} para {app.selectedProcedures.map(p=>p.name).join(' + ')} em {format(new Date(app.date + 'T00:00:00'), "dd/MM/yyyy")} às {app.time}? Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive hover:bg-destructive/90"
+                                onClick={() => handleDeleteAppointment(app.id)}
+                              >
+                                Excluir Agendamento
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </li>
                   ))}

@@ -8,6 +8,7 @@ import {
   addAppointmentData as addAppointmentAction,
   updateAppointmentData as updateAppointmentAction,
   updateAppointmentStatusData as updateAppointmentStatusAction,
+  deleteAppointmentData as deleteAppointmentAction,
   getAppointmentsByMonthData as getAppointmentsByMonthAction
 } from '@/app/actions/appointmentActions';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +18,7 @@ interface AppointmentsContextType {
   addAppointment: (appointmentData: Omit<Appointment, 'id' | 'status'>) => Promise<Appointment | null>;
   updateAppointment: (updatedAppointment: Appointment) => Promise<Appointment | null>;
   updateAppointmentStatus: (appointmentId: string, newStatus: AppointmentStatus) => Promise<Appointment | null>;
+  deleteAppointment: (appointmentId: string) => Promise<void>;
   getAppointmentsByMonth: (year: number, month: number) => Promise<Appointment[]>;
   isLoading: boolean;
 }
@@ -33,7 +35,6 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
       console.log("Fetching appointments from server action...");
       const serverAppointments = await getAppointmentsAction();
-      // Ensure selectedProcedures is always an array, even if old data from localStorage was different
       const sanitizedAppointments = serverAppointments.map(app => ({
         ...app,
         selectedProcedures: Array.isArray(app.selectedProcedures) ? app.selectedProcedures : [],
@@ -48,7 +49,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]); // toast is a stable dependency from useToast
+  }, [toast]);
 
   useEffect(() => {
     fetchInitialAppointments();
@@ -110,9 +111,23 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [toast]);
   
+  const deleteAppointment = useCallback(async (appointmentId: string) => {
+    try {
+      const success = await deleteAppointmentAction(appointmentId);
+      if (success) {
+        setAppointments(prev => prev.filter(app => app.id !== appointmentId));
+        toast({ title: "Agendamento Removido", description: "O agendamento foi removido com sucesso." });
+      } else {
+        toast({ title: "Erro ao Remover Agendamento", description: "Não foi possível remover o agendamento do banco de dados.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("Error deleting appointment via server action:", error);
+      toast({ title: "Erro ao Remover Agendamento", description: "Ocorreu um erro ao tentar remover o agendamento.", variant: "destructive" });
+    }
+  }, [toast]);
+
   const getAppointmentsByMonth = useCallback(async (year: number, month: number): Promise<Appointment[]> => {
-    if (isLoading && appointments.length === 0) { // Prevent fetching if initial data is still loading
-        // console.log("getAppointmentsByMonth call skipped: initial data still loading or no appointments yet.");
+    if (isLoading && appointments.length === 0) { 
         return [];
     }
     try {
@@ -127,7 +142,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
 
 
   return (
-    <AppointmentsContext.Provider value={{ appointments, addAppointment, updateAppointment, updateAppointmentStatus, getAppointmentsByMonth, isLoading }}>
+    <AppointmentsContext.Provider value={{ appointments, addAppointment, updateAppointment, updateAppointmentStatus, deleteAppointment, getAppointmentsByMonth, isLoading }}>
       {children}
     </AppointmentsContext.Provider>
   );
