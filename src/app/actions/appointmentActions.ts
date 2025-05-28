@@ -25,23 +25,25 @@ export async function getAppointments(): Promise<Appointment[]> {
 }
 
 export async function addAppointmentData(appointmentData: Omit<Appointment, 'id' | 'status'>): Promise<Appointment | null> {
-  // Certifique-se de que sinalPago tenha um valor padrão se não for fornecido
-  const newAppointment: Omit<Appointment, 'id' | 'status' | 'selectedProcedures'> & { selectedProcedures: string } = {
+  // Prepara o objeto para inserção, garantindo valores padrão onde necessário.
+  // selectedProcedures já está no formato correto (Procedure[]) em appointmentData.
+  // O cliente Supabase JS lida com a serialização de objetos para colunas jsonb.
+  const newAppointmentPayload = {
     ...appointmentData,
     sinalPago: appointmentData.sinalPago || false,
     paymentMethod: appointmentData.paymentMethod || undefined,
-    // Supabase espera JSON stringificado para colunas jsonb via API, ou objetos diretos via JS client.
-    // O JS client lida com a serialização.
   };
 
   const { data, error } = await supabase
     .from('appointments')
-    .insert(newAppointment)
+    .insert(newAppointmentPayload)
     .select()
     .single();
 
   if (error) {
     console.error('Error adding appointment to Supabase:', error);
+    // Você pode querer lançar o erro aqui para que o cliente saiba da falha
+    // throw new Error(`Supabase error adding appointment: ${error.message}`);
     return null;
   }
   return data ? { ...data, sinalPago: data.sinalPago || false, paymentMethod: data.paymentMethod || undefined } : null;
@@ -65,6 +67,7 @@ export async function updateAppointmentData(updatedAppointment: Appointment): Pr
 
   if (error) {
     console.error('Error updating appointment in Supabase:', error);
+    // throw new Error(`Supabase error updating appointment: ${error.message}`);
     return null;
   }
   return data ? { ...data, sinalPago: data.sinalPago || false, paymentMethod: data.paymentMethod || undefined } : null;
@@ -120,3 +123,4 @@ export async function getAppointmentsByMonthData(year: number, month: number): P
     paymentMethod: app.paymentMethod || undefined,
   }));
 }
+
