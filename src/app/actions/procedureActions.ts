@@ -15,7 +15,7 @@ export async function getProcedures(): Promise<Procedure[]> {
     console.error('[procedureActions] Supabase error fetching procedures:', error);
     throw new Error(`Supabase error fetching procedures: ${error.message}`);
   }
-  console.log('[procedureActions] Raw data from Supabase for getProcedures:', data);
+  // console.log('[procedureActions] Raw data from Supabase for getProcedures:', data); // Log revertido
   return data || [];
 }
 

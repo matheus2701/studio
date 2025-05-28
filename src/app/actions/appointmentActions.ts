@@ -17,7 +17,7 @@ export async function getAppointments(): Promise<Appointment[]> {
     console.error('[appointmentActions] Supabase error fetching appointments:', error);
     throw new Error(`Supabase error fetching appointments: ${error.message}`);
   }
-  console.log('[appointmentActions] Raw data from Supabase for getAppointments:', data);
+  // console.log('[appointmentActions] Raw data from Supabase for getAppointments:', data); // Log revertido
   // Garantir que sinalPago seja booleano e selectedProcedures seja array
   return (data || []).map(app => ({
     ...app,
@@ -134,7 +134,7 @@ export async function getAppointmentsByMonthData(year: number, month: number): P
     console.error('[appointmentActions] Supabase error fetching appointments by month:', error);
     throw new Error(`Supabase error fetching appointments by month: ${error.message}`);
   }
-  console.log('[appointmentActions] Raw data from Supabase for getAppointmentsByMonthData:', data);
+  // console.log('[appointmentActions] Raw data from Supabase for getAppointmentsByMonthData:', data); // Log revertido
   return (data || []).map(app => ({
     ...app,
     selectedProcedures: Array.isArray(app.selectedProcedures) ? app.selectedProcedures : [],
