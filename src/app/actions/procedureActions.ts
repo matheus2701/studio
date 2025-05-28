@@ -5,15 +5,17 @@ import type { Procedure } from '@/lib/types';
 import { supabase } from '@/lib/supabaseClient';
 
 export async function getProcedures(): Promise<Procedure[]> {
+  console.log('[procedureActions] Attempting to fetch procedures from Supabase...');
   const { data, error } = await supabase
     .from('procedures')
     .select('*')
     .order('name', { ascending: true });
 
   if (error) {
-    console.error('Error fetching procedures from Supabase:', error);
+    console.error('[procedureActions] Supabase error fetching procedures:', error);
     throw new Error(`Supabase error fetching procedures: ${error.message}`);
   }
+  console.log('[procedureActions] Raw data from Supabase for getProcedures:', data);
   return data || [];
 }
 
@@ -25,6 +27,7 @@ export async function addProcedureData(procedureData: Omit<Procedure, 'id'>): Pr
     promoPrice: procedureData.isPromo ? procedureData.promoPrice : undefined,
   };
 
+  console.log('[procedureActions] Attempting to add procedure to Supabase:', newProcedure);
   const { data, error } = await supabase
     .from('procedures')
     .insert(newProcedure)
@@ -32,23 +35,23 @@ export async function addProcedureData(procedureData: Omit<Procedure, 'id'>): Pr
     .single();
 
   if (error) {
-    console.error('Error adding procedure to Supabase:', error);
+    console.error('[procedureActions] Supabase error adding procedure:', error);
     throw new Error(`Supabase error adding procedure: ${error.message}`);
   }
+  console.log('[procedureActions] Successfully added procedure, returned data:', data);
   return data;
 }
 
 export async function updateProcedureData(updatedProcedure: Procedure): Promise<Procedure | null> {
-  // Destructure id from the rest of the payload for Supabase update
   const { id, ...updatePayload } = updatedProcedure;
 
-  // Ensure isPromo and promoPrice are correctly handled
   const payloadToUpdate = {
     ...updatePayload,
     isPromo: updatePayload.isPromo || false,
     promoPrice: updatePayload.isPromo ? updatePayload.promoPrice : undefined,
   };
 
+  console.log(`[procedureActions] Attempting to update procedure ${id} in Supabase:`, payloadToUpdate);
   const { data, error } = await supabase
     .from('procedures')
     .update(payloadToUpdate)
@@ -57,23 +60,24 @@ export async function updateProcedureData(updatedProcedure: Procedure): Promise<
     .single();
 
   if (error) {
-    console.error('Error updating procedure in Supabase:', error);
+    console.error('[procedureActions] Supabase error updating procedure:', error);
     throw new Error(`Supabase error updating procedure: ${error.message}`);
   }
+  console.log(`[procedureActions] Successfully updated procedure ${id}, returned data:`, data);
   return data;
 }
 
 export async function deleteProcedureData(procedureId: string): Promise<boolean> {
+  console.log(`[procedureActions] Attempting to delete procedure ${procedureId} from Supabase`);
   const { error } = await supabase
     .from('procedures')
     .delete()
     .eq('id', procedureId);
 
   if (error) {
-    console.error('Error deleting procedure from Supabase:', error);
-    // Consider throwing an error here too if you want client-side toast for delete failures
-    // throw new Error(`Supabase error deleting procedure: ${error.message}`);
-    return false;
+    console.error('[procedureActions] Supabase error deleting procedure:', error);
+    throw new Error(`Supabase error deleting procedure: ${error.message}`);
   }
+  console.log(`[procedureActions] Successfully deleted procedure ${procedureId}`);
   return true;
 }

@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Appointment, AppointmentStatus } from '@/lib/types'; // Removido PaymentMethod
+import type { Appointment, AppointmentStatus } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import {
   getAppointments as getAppointmentsAction,
@@ -35,14 +35,8 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
       console.log("[AppointmentsContext] Fetching appointments from server action...");
       const serverAppointments = await getAppointmentsAction();
-      const sanitizedAppointments = serverAppointments.map(app => ({
-        ...app,
-        selectedProcedures: Array.isArray(app.selectedProcedures) ? app.selectedProcedures : [],
-        sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false,
-        // paymentMethod: app.paymentMethod || undefined, // Removido
-      }));
-      setAppointments(sanitizedAppointments);
-      console.log("[AppointmentsContext] Appointments loaded successfully from server action:", sanitizedAppointments.length);
+      setAppointments(serverAppointments); // Server action already sanitizes the data
+      console.log("[AppointmentsContext] Appointments loaded successfully from server action:", serverAppointments.length);
     } catch (error: any) {
       console.error("[AppointmentsContext] Failed to fetch appointments from server action", error);
       toast({ title: "Erro ao Carregar Agendamentos", description: error.message || "Não foi possível buscar os dados dos agendamentos.", variant: "destructive" });
@@ -60,12 +54,12 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
     try {
       const newAppointment = await addAppointmentAction(appointmentData);
       if (newAppointment) {
-        setAppointments(prev => [...prev, { ...newAppointment, sinalPago: newAppointment.sinalPago || false }].sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()));
+        setAppointments(prev => [...prev, newAppointment].sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()));
         return newAppointment;
       }
       return null;
     } catch (error: any) {
-      console.error("Error adding appointment via server action:", error);
+      console.error("[AppointmentsContext] Error adding appointment via server action:", error);
       toast({ title: "Erro ao Adicionar Agendamento", description: error.message, variant: "destructive" });
       return null;
     }
@@ -81,10 +75,9 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
         );
         return result;
       }
-      // toast de sucesso/erro é tratado no local da chamada
       return null;
     } catch (error: any) {
-      console.error("Error updating appointment via server action:", error);
+      console.error("[AppointmentsContext] Error updating appointment via server action:", error);
       toast({ title: "Erro ao Atualizar Agendamento", description: error.message, variant: "destructive" });
       return null;
     }
@@ -103,7 +96,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
       }
       return null;
     } catch (error: any) {
-      console.error("Error updating appointment status via server action:", error);
+      console.error("[AppointmentsContext] Error updating appointment status via server action:", error);
       toast({ title: "Erro ao Atualizar Status do Agendamento", description: error.message, variant: "destructive" });
       return null;
     }
@@ -111,33 +104,33 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   
   const deleteAppointment = useCallback(async (appointmentId: string) => {
     try {
-      await deleteAppointmentAction(appointmentId); // Supõe que a action lança erro em caso de falha
+      await deleteAppointmentAction(appointmentId);
       setAppointments(prev => prev.filter(app => app.id !== appointmentId));
       toast({ title: "Agendamento Removido", description: "O agendamento foi removido com sucesso." });
     } catch (error: any) {
-      console.error("Error deleting appointment via server action:", error);
+      console.error("[AppointmentsContext] Error deleting appointment via server action:", error);
       toast({ title: "Erro ao Remover Agendamento", description: error.message || "Ocorreu um erro ao tentar remover o agendamento.", variant: "destructive" });
     }
   }, [toast]);
 
   const getAppointmentsByMonth = useCallback(async (year: number, month: number): Promise<Appointment[]> => {
-    if (isLoading && appointments.length === 0) { 
+    if (isLoading && appointments.length === 0 && !process.env.NEXT_PUBLIC_SUPABASE_URL) { 
+        // Se estiver carregando E não houver agendamentos E Supabase não estiver configurado,
+        // evita chamar a action desnecessariamente se for o estado inicial sem Supabase.
+        // No entanto, se Supabase ESTIVER configurado, queremos tentar buscar mesmo se isLoading.
+        console.warn("[AppointmentsContext] getAppointmentsByMonth called while initial load might be pending without Supabase, returning empty.");
         return [];
     }
     try {
+        console.log(`[AppointmentsContext] Calling getAppointmentsByMonthAction for year ${year}, month ${month}`);
         const monthAppointments = await getAppointmentsByMonthAction(year, month);
-         return monthAppointments.map(app => ({
-          ...app,
-          selectedProcedures: Array.isArray(app.selectedProcedures) ? app.selectedProcedures : [],
-          sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false,
-          // paymentMethod: app.paymentMethod || undefined, // Removido
-        }));
+         return monthAppointments; // Server action já sanitiza
     } catch (error: any) {
-        console.error("Failed to fetch appointments by month from server action", error);
+        console.error("[AppointmentsContext] Failed to fetch appointments by month from server action", error);
         toast({ title: "Erro ao Carregar Agendamentos do Mês", description: error.message, variant: "destructive" });
         return [];
     }
-  }, [isLoading, toast, appointments.length]);
+  }, [isLoading, toast, appointments.length]); // appointments.length para re-memoizar se a lista principal mudar
 
 
   return (
