@@ -22,7 +22,7 @@ const FinancialEntriesContext = createContext<FinancialEntriesContextType | unde
 
 export const FinancialEntriesProvider = ({ children }: { children: ReactNode }) => {
   const [financialEntries, setFinancialEntries] = useState<ManualFinancialEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(false); // Start with false, true when fetching
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const fetchFinancialEntriesByMonth = useCallback(async (year: number, month: number) => {
@@ -43,13 +43,14 @@ export const FinancialEntriesProvider = ({ children }: { children: ReactNode }) 
 
   const addFinancialEntry = useCallback(async (entryData: Omit<ManualFinancialEntry, 'id' | 'created_at'>): Promise<ManualFinancialEntry | null> => {
     setIsLoading(true);
+    let newEntry: ManualFinancialEntry | null = null;
     try {
-      const newEntry = await addFinancialEntryData(entryData);
+      newEntry = await addFinancialEntryData(entryData);
       if (newEntry) {
-        // Re-fetch entries for the month of the new entry to ensure consistency
-        // Or, more simply, add to local state and sort if date matches current view (can be complex)
-        // For now, let's just add and assume the user will re-fetch or the view will update
-        setFinancialEntries(prev => [...prev, newEntry].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+        // Para garantir que a lista seja atualizada, vamos buscar novamente as entradas do mês corrente.
+        // Poderia ser mais otimizado, mas isso garante consistência.
+        const entryDate = new Date(newEntry.date + 'T00:00:00'); // Adiciona T00:00:00 para evitar problemas de fuso ao pegar mês/ano
+        await fetchFinancialEntriesByMonth(entryDate.getFullYear(), entryDate.getMonth());
         toast({ title: "Transação Adicionada!", description: "Nova transação financeira registrada." });
         return newEntry;
       }
@@ -61,13 +62,18 @@ export const FinancialEntriesProvider = ({ children }: { children: ReactNode }) 
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, fetchFinancialEntriesByMonth]); // Adiciona fetchFinancialEntriesByMonth como dependência
 
   const deleteFinancialEntry = useCallback(async (entryId: string) => {
     setIsLoading(true);
+    // Para obter a data da entrada a ser excluída e buscar novamente as entradas do mês
+    const entryToDelete = financialEntries.find(e => e.id === entryId);
+    const entryYear = entryToDelete ? new Date(entryToDelete.date + 'T00:00:00').getFullYear() : new Date().getFullYear();
+    const entryMonth = entryToDelete ? new Date(entryToDelete.date + 'T00:00:00').getMonth() : new Date().getMonth();
+
     try {
       await deleteFinancialEntryData(entryId);
-      setFinancialEntries(prev => prev.filter(entry => entry.id !== entryId));
+      await fetchFinancialEntriesByMonth(entryYear, entryMonth); // Re-fetch
       toast({ title: "Transação Removida", description: "A transação financeira foi removida." });
     } catch (error: any) {
       console.error("[FinancialEntriesContext] Error deleting financial entry:", error);
@@ -75,7 +81,7 @@ export const FinancialEntriesProvider = ({ children }: { children: ReactNode }) 
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, fetchFinancialEntriesByMonth, financialEntries]); // Adiciona financialEntries como dependência
 
   return (
     <FinancialEntriesContext.Provider value={{ financialEntries, addFinancialEntry, deleteFinancialEntry, fetchFinancialEntriesByMonth, isLoading }}>
