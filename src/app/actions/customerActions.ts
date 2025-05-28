@@ -11,8 +11,8 @@ export async function getCustomers(): Promise<Customer[]> {
     .order('name', { ascending: true });
 
   if (error) {
-    console.error('Error fetching customers from Supabase:', error);
-    return [];
+    console.error('[customerActions] Supabase error fetching customers:', error);
+    throw new Error(`Supabase error fetching customers: ${error.message}`);
   }
   return data || [];
 }
@@ -31,8 +31,8 @@ export async function addCustomer(customerData: Omit<Customer, 'id'>): Promise<C
     .single();
 
   if (error) {
-    console.error('Error adding customer to Supabase:', error);
-    return null;
+    console.error('[customerActions] Supabase error adding customer:', error);
+    throw new Error(`Supabase error adding customer: ${error.message}`);
   }
   return data;
 }
@@ -50,8 +50,8 @@ export async function updateCustomerData(updatedCustomer: Customer): Promise<Cus
     .single();
 
   if (error) {
-    console.error('Error updating customer in Supabase:', error);
-    return null;
+    console.error('[customerActions] Supabase error updating customer:', error);
+    throw new Error(`Supabase error updating customer: ${error.message}`);
   }
   return data;
 }
@@ -63,8 +63,8 @@ export async function deleteCustomerData(customerId: string): Promise<boolean> {
     .eq('id', customerId);
 
   if (error) {
-    console.error('Error deleting customer from Supabase:', error);
-    return false;
+    console.error('[customerActions] Supabase error deleting customer:', error);
+    throw new Error(`Supabase error deleting customer: ${error.message}`);
   }
   return true;
 }

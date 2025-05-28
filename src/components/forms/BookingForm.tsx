@@ -19,9 +19,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import type { Appointment, Procedure } from "@/lib/types";
 import { format } from 'date-fns';
-import { syncToGoogleCalendar } from "@/app/actions/scheduleActions";
+// import { syncToGoogleCalendar } from "@/app/actions/scheduleActions"; // Google Sync Desativado
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card, CardTitle } from "@/components/ui/card"; // Corrected import
+import { Card, CardTitle } from "@/components/ui/card";
 import { useEffect } from "react";
 
 const bookingFormSchema = z.object({
@@ -97,40 +97,6 @@ export function BookingForm({
 
     onFormSubmit(appointmentDataPayload); // Let parent handle add/update and toast
     
-    // Sync logic (consider if sync needs to update existing events)
-    // Temporarily disabling Google Calendar sync
-    /*
-    if (!appointmentToEdit) { // Only sync as new for new appointments for now
-        const tempAppointmentForSync: Appointment = {
-            ...appointmentDataPayload,
-            id: 'temp-sync-id-' + Date.now(), // Temporary ID for sync
-            status: 'CONFIRMED' 
-        };
-        try {
-          const syncResult = await syncToGoogleCalendar(tempAppointmentForSync, tempAppointmentForSync.selectedProcedures);
-          if (syncResult.success) {
-            toast({
-              title: "Sincronizado!",
-              description: syncResult.message,
-            });
-          } else {
-             toast({
-                title: "Google Agenda",
-                description: syncResult.message,
-                variant: syncResult.message?.toLowerCase().includes('erro') || syncResult.message?.toLowerCase().includes('falha') ? "destructive" : "default",
-             });
-            console.warn("Google Calendar Sync:", syncResult.message);
-          }
-        } catch (error: any) {
-          console.error("Error syncing to Google Calendar:", error);
-          toast({
-            title: "Erro de Sincronização com Google Agenda",
-            description: error.message || "Não foi possível conectar ao Google Agenda.",
-            variant: "destructive",
-          });
-        }
-    }
-    */
     // Form reset is handled by parent by clearing appointmentToEdit or changing key
   }
 
@@ -217,4 +183,3 @@ export function BookingForm({
     </Form>
   );
 }
-
