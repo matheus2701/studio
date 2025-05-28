@@ -4,13 +4,6 @@
 import type { Customer, Tag } from '@/lib/types';
 import { supabase } from '@/lib/supabaseClient';
 
-// No longer using in-memory store
-// let customersStore: Customer[] = [];
-// let isInitialized = false;
-
-// function initializeStore() { ... }
-// initializeStore();
-
 export async function getCustomers(): Promise<Customer[]> {
   const { data, error } = await supabase
     .from('customers')
@@ -27,7 +20,7 @@ export async function getCustomers(): Promise<Customer[]> {
 export async function addCustomer(customerData: Omit<Customer, 'id'>): Promise<Customer | null> {
   const newCustomer: Customer = {
     ...customerData,
-    id: Date.now().toString(), // Consider Supabase default UUIDs
+    id: Date.now().toString(), // Consider Supabase default UUIDs for future improvements
     tags: customerData.tags || [],
   };
 
@@ -84,7 +77,8 @@ export async function getAllUniqueTagsData(): Promise<Tag[]> {
   allCustomers.forEach(customer => {
     if (customer.tags && Array.isArray(customer.tags)) {
       customer.tags.forEach(tag => {
-        if (tag && tag.id && tag.name) {
+        // Ensure tag is a valid object with id and name before processing
+        if (tag && typeof tag.id === 'string' && typeof tag.name === 'string') {
           if (!allTagsMap.has(tag.id)) {
             allTagsMap.set(tag.id, tag);
           }

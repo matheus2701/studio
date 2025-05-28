@@ -5,21 +5,12 @@ import type { Appointment, AppointmentStatus } from '@/lib/types';
 import { supabase } from '@/lib/supabaseClient';
 import { format } from 'date-fns'; // For date formatting in getAppointmentsByMonthData
 
-// No longer using in-memory store
-// let appointmentsStore: Appointment[] = [];
-// let isInitialized = false;
-
-// function initializeStore() { ... }
-// initializeStore();
-
-
 export async function getAppointments(): Promise<Appointment[]> {
   const { data, error } = await supabase
     .from('appointments')
     .select('*')
     .order('date', { ascending: true })
     .order('time', { ascending: true });
-
 
   if (error) {
     console.error('Error fetching appointments from Supabase:', error);
@@ -31,7 +22,7 @@ export async function getAppointments(): Promise<Appointment[]> {
 export async function addAppointmentData(appointmentData: Omit<Appointment, 'id' | 'status'>): Promise<Appointment | null> {
   const newAppointment: Appointment = {
     ...appointmentData,
-    id: Date.now().toString(), // Consider Supabase default UUIDs
+    id: Date.now().toString(), // Consider Supabase default UUIDs for future improvements
     status: 'CONFIRMED',
     sinalPago: appointmentData.sinalPago || false,
   };

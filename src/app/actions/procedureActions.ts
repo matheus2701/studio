@@ -4,14 +4,6 @@
 import type { Procedure } from '@/lib/types';
 import { supabase } from '@/lib/supabaseClient';
 
-// No longer using in-memory store
-// const initialProceduresData: Procedure[] = [ ... ];
-// let proceduresStore: Procedure[] = [];
-// let isInitialized = false;
-
-// function initializeStore() { ... }
-// initializeStore();
-
 export async function getProcedures(): Promise<Procedure[]> {
   const { data, error } = await supabase
     .from('procedures')
@@ -28,7 +20,7 @@ export async function getProcedures(): Promise<Procedure[]> {
 export async function addProcedureData(procedureData: Omit<Procedure, 'id'>): Promise<Procedure | null> {
   const newProcedure: Procedure = {
     ...procedureData,
-    id: Date.now().toString(), // Consider using Supabase's default UUIDs in a real scenario
+    id: Date.now().toString(), // Consider Supabase default UUIDs for future improvements
     isPromo: procedureData.isPromo || false,
     promoPrice: procedureData.isPromo ? procedureData.promoPrice : undefined,
   };
