@@ -7,16 +7,16 @@ import { BookingForm } from '@/components/forms/BookingForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import type { Appointment, AppointmentStatus, Procedure, PaymentMethod } from '@/lib/types';
+import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types'; // Removido PaymentMethod
 import { format, addMinutes, parse, set, isEqual, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, WalletCards } from 'lucide-react';
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2 } from 'lucide-react'; // Removido WalletCards
 import { useToast } from "@/hooks/use-toast";
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useProcedures } from '@/contexts/ProceduresContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Removido Select para paymentMethod
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,12 +41,12 @@ const statusColors: Record<AppointmentStatus, string> = {
   CANCELLED: "text-rose-600",
 };
 
-const paymentMethodTranslations: Record<PaymentMethod, string> = {
-  pix: "Pix",
-  dinheiro: "Dinheiro",
-  cartao_credito: "Cartão de Crédito",
-  cartao_debito: "Cartão de Débito",
-};
+// const paymentMethodTranslations: Record<PaymentMethod, string> = { // Removido
+//   pix: "Pix",
+//   dinheiro: "Dinheiro",
+//   cartao_credito: "Cartão de Crédito",
+//   cartao_debito: "Cartão de Débito",
+// };
 
 const WORK_DAY_START_HOUR = 6;
 const WORK_DAY_END_HOUR = 20;
@@ -84,13 +84,16 @@ export default function BookingPage() {
   const handleFormSubmit = async (newAppointmentData: Omit<Appointment, 'id' | 'status'>) => {
     let success = false;
     if (appointmentToEdit) {
-      const result = await updateAppointment({ ...newAppointmentData, id: appointmentToEdit.id, status: appointmentToEdit.status, paymentMethod: appointmentToEdit.paymentMethod });
+      // const result = await updateAppointment({ ...newAppointmentData, id: appointmentToEdit.id, status: appointmentToEdit.status, paymentMethod: appointmentToEdit.paymentMethod }); // Removido paymentMethod
+      const result = await updateAppointment({ ...newAppointmentData, id: appointmentToEdit.id, status: appointmentToEdit.status });
       if (result) {
          toast({
             title: "Agendamento Atualizado!",
             description: `${newAppointmentData.selectedProcedures.map(p=>p.name).join(' + ')} para ${newAppointmentData.customerName} em ${format(new Date(newAppointmentData.date + 'T00:00:00'), 'dd/MM/yyyy')} às ${newAppointmentData.time}.`,
          });
          success = true;
+      } else {
+        toast({ title: "Erro ao Atualizar", description: "Não foi possível atualizar o agendamento.", variant: "destructive" });
       }
     } else {
       const result = await addAppointment(newAppointmentData);
@@ -100,6 +103,8 @@ export default function BookingPage() {
           description: `${newAppointmentData.selectedProcedures.map(p=>p.name).join(' + ')} para ${newAppointmentData.customerName} em ${format(new Date(newAppointmentData.date + 'T00:00:00'), 'dd/MM/yyyy')} às ${newAppointmentData.time}.`,
         });
         success = true;
+      } else {
+         toast({ title: "Erro ao Agendar", description: "Não foi possível criar o agendamento.", variant: "destructive" });
       }
     }
 
@@ -118,6 +123,8 @@ export default function BookingPage() {
         title: "Status Atualizado!",
         description: `O agendamento foi marcado como ${statusTranslations[newStatus].toLowerCase()}.`,
       });
+    } else {
+      toast({ title: "Erro ao Atualizar Status", variant: "destructive"});
     }
   };
 
@@ -206,24 +213,24 @@ export default function BookingPage() {
     setSelectedTime(undefined);
   }
 
-  const handlePaymentMethodChange = async (appointmentId: string, newPaymentMethod: PaymentMethod) => {
-    const appointment = appointments.find(app => app.id === appointmentId);
-    if (!appointment) return;
+  // const handlePaymentMethodChange = async (appointmentId: string, newPaymentMethod: PaymentMethod) => { // Removido
+  //   const appointment = appointments.find(app => app.id === appointmentId);
+  //   if (!appointment) return;
 
-    const updatedAppointment = { ...appointment, paymentMethod: newPaymentMethod };
-    const result = await updateAppointment(updatedAppointment);
-    if (result) {
-      toast({
-        title: "Forma de Pagamento Atualizada!",
-        description: `Pagamento para ${appointment.customerName} definido como ${paymentMethodTranslations[newPaymentMethod]}.`,
-      });
-    } else {
-      toast({
-        title: "Erro ao Atualizar Pagamento",
-        variant: "destructive",
-      });
-    }
-  };
+  //   const updatedAppointment = { ...appointment, paymentMethod: newPaymentMethod };
+  //   const result = await updateAppointment(updatedAppointment);
+  //   if (result) {
+  //     toast({
+  //       title: "Forma de Pagamento Atualizada!",
+  //       description: `Pagamento para ${appointment.customerName} definido como ${paymentMethodTranslations[newPaymentMethod]}.`,
+  //     });
+  //   } else {
+  //     toast({
+  //       title: "Erro ao Atualizar Pagamento",
+  //       variant: "destructive",
+  //     });
+  //   }
+  // };
 
   if (isLoading) {
     return (
@@ -388,34 +395,11 @@ export default function BookingPage() {
                             <CreditCard className={`h-4 w-4 ${app.sinalPago ? 'text-emerald-600' : 'text-amber-500'}`} />
                             Sinal: {app.sinalPago ? <span className="font-medium text-emerald-600">Pago</span> : <span className="font-medium text-amber-500">Pendente</span>}
                           </p>
-                          {app.paymentMethod && (
-                            <p className="flex items-center gap-1.5">
-                              <WalletCards className="h-4 w-4 text-blue-600" />
-                              Pagamento: <span className="font-medium text-blue-700">{paymentMethodTranslations[app.paymentMethod]}</span>
-                            </p>
-                          )}
+                          {/* Seção de forma de pagamento removida */}
                         </div>
                       </div>
 
-                      {(app.status === 'CONFIRMED' || app.status === 'ATTENDED') && (
-                        <div className="space-y-2 pt-2 border-t">
-                           <Label htmlFor={`payment-${app.id}`} className="text-xs text-muted-foreground">Forma de Pagamento:</Label>
-                           <Select
-                            value={app.paymentMethod || ""}
-                            onValueChange={(value) => handlePaymentMethodChange(app.id, value as PaymentMethod)}
-                           >
-                            <SelectTrigger id={`payment-${app.id}`} className="h-9">
-                              <SelectValue placeholder="Selecionar pagamento..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pix">Pix</SelectItem>
-                              <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                              <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
-                              <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
+                      {/* Seletor de forma de pagamento removido */}
 
                       <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
                         <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditClick(app)}>

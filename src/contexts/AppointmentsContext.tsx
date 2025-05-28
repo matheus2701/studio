@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Appointment, AppointmentStatus, PaymentMethod } from '@/lib/types';
+import type { Appointment, AppointmentStatus } from '@/lib/types'; // Removido PaymentMethod
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import {
   getAppointments as getAppointmentsAction,
@@ -39,18 +39,18 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
         ...app,
         selectedProcedures: Array.isArray(app.selectedProcedures) ? app.selectedProcedures : [],
         sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false,
-        paymentMethod: app.paymentMethod || undefined, // Garantir que seja undefined se não existir
+        // paymentMethod: app.paymentMethod || undefined, // Removido
       }));
       setAppointments(sanitizedAppointments);
       console.log("[AppointmentsContext] Appointments loaded successfully from server action:", sanitizedAppointments.length);
-    } catch (error) {
+    } catch (error: any) {
       console.error("[AppointmentsContext] Failed to fetch appointments from server action", error);
-      toast({ title: "Erro ao Carregar Agendamentos", description: "Não foi possível buscar os dados dos agendamentos.", variant: "destructive" });
+      toast({ title: "Erro ao Carregar Agendamentos", description: error.message || "Não foi possível buscar os dados dos agendamentos.", variant: "destructive" });
       setAppointments([]);
     } finally {
       setIsLoading(false);
     }
-  }, [toast]); // toast é estável
+  }, [toast]);
 
   useEffect(() => {
     fetchInitialAppointments();
@@ -64,9 +64,9 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
         return newAppointment;
       }
       return null;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding appointment via server action:", error);
-      toast({ title: "Erro ao Adicionar Agendamento", variant: "destructive" });
+      toast({ title: "Erro ao Adicionar Agendamento", description: error.message, variant: "destructive" });
       return null;
     }
   }, [toast]);
@@ -80,13 +80,12 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
             .sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime())
         );
         return result;
-      } else {
-        toast({ title: "Erro ao Atualizar", description: "Agendamento não encontrado para atualização.", variant: "destructive" });
-        return null;
       }
-    } catch (error) {
+      // toast de sucesso/erro é tratado no local da chamada
+      return null;
+    } catch (error: any) {
       console.error("Error updating appointment via server action:", error);
-      toast({ title: "Erro ao Atualizar Agendamento", variant: "destructive" });
+      toast({ title: "Erro ao Atualizar Agendamento", description: error.message, variant: "destructive" });
       return null;
     }
   }, [toast]);
@@ -101,29 +100,23 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
           )
         );
         return updatedApp;
-      } else {
-        toast({ title: "Erro ao Atualizar Status", description: "Agendamento não encontrado.", variant: "destructive" });
-        return null;
       }
-    } catch (error) {
+      return null;
+    } catch (error: any) {
       console.error("Error updating appointment status via server action:", error);
-      toast({ title: "Erro ao Atualizar Status do Agendamento", variant: "destructive" });
+      toast({ title: "Erro ao Atualizar Status do Agendamento", description: error.message, variant: "destructive" });
       return null;
     }
   }, [toast]);
   
   const deleteAppointment = useCallback(async (appointmentId: string) => {
     try {
-      const success = await deleteAppointmentAction(appointmentId);
-      if (success) {
-        setAppointments(prev => prev.filter(app => app.id !== appointmentId));
-        toast({ title: "Agendamento Removido", description: "O agendamento foi removido com sucesso." });
-      } else {
-        toast({ title: "Erro ao Remover Agendamento", description: "Não foi possível remover o agendamento do banco de dados.", variant: "destructive" });
-      }
-    } catch (error) {
+      await deleteAppointmentAction(appointmentId); // Supõe que a action lança erro em caso de falha
+      setAppointments(prev => prev.filter(app => app.id !== appointmentId));
+      toast({ title: "Agendamento Removido", description: "O agendamento foi removido com sucesso." });
+    } catch (error: any) {
       console.error("Error deleting appointment via server action:", error);
-      toast({ title: "Erro ao Remover Agendamento", description: "Ocorreu um erro ao tentar remover o agendamento.", variant: "destructive" });
+      toast({ title: "Erro ao Remover Agendamento", description: error.message || "Ocorreu um erro ao tentar remover o agendamento.", variant: "destructive" });
     }
   }, [toast]);
 
@@ -137,11 +130,11 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
           ...app,
           selectedProcedures: Array.isArray(app.selectedProcedures) ? app.selectedProcedures : [],
           sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false,
-          paymentMethod: app.paymentMethod || undefined,
+          // paymentMethod: app.paymentMethod || undefined, // Removido
         }));
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to fetch appointments by month from server action", error);
-        toast({ title: "Erro ao Carregar Agendamentos do Mês", variant: "destructive" });
+        toast({ title: "Erro ao Carregar Agendamentos do Mês", description: error.message, variant: "destructive" });
         return [];
     }
   }, [isLoading, toast, appointments.length]);

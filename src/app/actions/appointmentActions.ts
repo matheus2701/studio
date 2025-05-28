@@ -1,7 +1,7 @@
 
 'use server';
 
-import type { Appointment, AppointmentStatus, PaymentMethod } from '@/lib/types'; // Adicionado PaymentMethod
+import type { Appointment, AppointmentStatus } from '@/lib/types'; // Removido PaymentMethod
 import { supabase } from '@/lib/supabaseClient';
 import { format } from 'date-fns';
 
@@ -14,24 +14,21 @@ export async function getAppointments(): Promise<Appointment[]> {
 
   if (error) {
     console.error('Error fetching appointments from Supabase:', error);
-    return [];
+    throw new Error(`Supabase error fetching appointments: ${error.message}`);
   }
-  // Garantir que sinalPago seja booleano e paymentMethod seja tratado
+  // Garantir que sinalPago seja booleano
   return (data || []).map(app => ({
     ...app,
     sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false,
-    paymentMethod: app.paymentMethod || undefined,
+    // paymentMethod: app.paymentMethod || undefined, // Removido
   }));
 }
 
 export async function addAppointmentData(appointmentData: Omit<Appointment, 'id' | 'status'>): Promise<Appointment | null> {
-  // Prepara o objeto para inserção, garantindo valores padrão onde necessário.
-  // selectedProcedures já está no formato correto (Procedure[]) em appointmentData.
-  // O cliente Supabase JS lida com a serialização de objetos para colunas jsonb.
   const newAppointmentPayload = {
     ...appointmentData,
     sinalPago: appointmentData.sinalPago || false,
-    paymentMethod: appointmentData.paymentMethod || undefined,
+    // paymentMethod: appointmentData.paymentMethod || undefined, // Removido
   };
 
   const { data, error } = await supabase
@@ -42,21 +39,17 @@ export async function addAppointmentData(appointmentData: Omit<Appointment, 'id'
 
   if (error) {
     console.error('Error adding appointment to Supabase:', error);
-    // Você pode querer lançar o erro aqui para que o cliente saiba da falha
-    // throw new Error(`Supabase error adding appointment: ${error.message}`);
-    return null;
+    throw new Error(`Supabase error adding appointment: ${error.message}`);
   }
-  return data ? { ...data, sinalPago: data.sinalPago || false, paymentMethod: data.paymentMethod || undefined } : null;
+  return data ? { ...data, sinalPago: data.sinalPago || false } : null; // Removido paymentMethod
 }
 
 export async function updateAppointmentData(updatedAppointment: Appointment): Promise<Appointment | null> {
-   // Certifique-se de que sinalPago tenha um valor padrão se não for fornecido
   const appointmentToUpdate = {
     ...updatedAppointment,
     sinalPago: updatedAppointment.sinalPago || false,
-    paymentMethod: updatedAppointment.paymentMethod || undefined,
+    // paymentMethod: updatedAppointment.paymentMethod || undefined, // Removido
   };
-
 
   const { data, error } = await supabase
     .from('appointments')
@@ -67,10 +60,9 @@ export async function updateAppointmentData(updatedAppointment: Appointment): Pr
 
   if (error) {
     console.error('Error updating appointment in Supabase:', error);
-    // throw new Error(`Supabase error updating appointment: ${error.message}`);
-    return null;
+    throw new Error(`Supabase error updating appointment: ${error.message}`);
   }
-  return data ? { ...data, sinalPago: data.sinalPago || false, paymentMethod: data.paymentMethod || undefined } : null;
+  return data ? { ...data, sinalPago: data.sinalPago || false } : null; // Removido paymentMethod
 }
 
 export async function updateAppointmentStatusData(appointmentId: string, newStatus: AppointmentStatus): Promise<Appointment | null> {
@@ -83,9 +75,9 @@ export async function updateAppointmentStatusData(appointmentId: string, newStat
 
   if (error) {
     console.error('Error updating appointment status in Supabase:', error);
-    return null;
+    throw new Error(`Supabase error updating appointment status: ${error.message}`);
   }
-  return data ? { ...data, sinalPago: data.sinalPago || false, paymentMethod: data.paymentMethod || undefined } : null;
+  return data ? { ...data, sinalPago: data.sinalPago || false } : null; // Removido paymentMethod
 }
 
 export async function deleteAppointmentData(appointmentId: string): Promise<boolean> {
@@ -96,7 +88,7 @@ export async function deleteAppointmentData(appointmentId: string): Promise<bool
 
   if (error) {
     console.error('Error deleting appointment from Supabase:', error);
-    return false;
+    throw new Error(`Supabase error deleting appointment: ${error.message}`);
   }
   return true;
 }
@@ -115,12 +107,11 @@ export async function getAppointmentsByMonthData(year: number, month: number): P
 
   if (error) {
     console.error('Error fetching appointments by month from Supabase:', error);
-    return [];
+    throw new Error(`Supabase error fetching appointments by month: ${error.message}`);
   }
   return (data || []).map(app => ({
     ...app,
     sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false,
-    paymentMethod: app.paymentMethod || undefined,
+    // paymentMethod: app.paymentMethod || undefined, // Removido
   }));
 }
-

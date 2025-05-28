@@ -9,19 +9,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, getYear, getMonth, setYear, setMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, CalendarDays, Info, Package, Loader2, WalletCards } from 'lucide-react';
-import type { Appointment, PaymentMethod } from '@/lib/types';
+import { DollarSign, CalendarDays, Info, Package, Loader2 } from 'lucide-react'; // Removido WalletCards
+import type { Appointment } from '@/lib/types'; // Removido PaymentMethod
 
 const currentYear = getYear(new Date());
 const years = Array.from({ length: 5 }, (_, i) => currentYear - i); // Last 5 years
 const months = Array.from({ length: 12 }, (_, i) => i); // 0 (Jan) to 11 (Dec)
 
-const paymentMethodTranslations: Record<PaymentMethod, string> = {
-  pix: "Pix",
-  dinheiro: "Dinheiro",
-  cartao_credito: "Cartão de Crédito",
-  cartao_debito: "Cartão de Débito",
-};
+// const paymentMethodTranslations: Record<PaymentMethod, string> = { // Removido
+//   pix: "Pix",
+//   dinheiro: "Dinheiro",
+//   cartao_credito: "Cartão de Crédito",
+//   cartao_debito: "Cartão de Débito",
+// };
 
 
 export default function FinancialOverviewPage() {
@@ -143,7 +143,7 @@ export default function FinancialOverviewPage() {
                       <TableHead>Data</TableHead>
                       <TableHead>Cliente</TableHead>
                       <TableHead className="flex items-center gap-1"><Package className="h-4 w-4" />Procedimentos</TableHead>
-                      <TableHead>Forma Pag.</TableHead>
+                      {/* Coluna Forma Pag. removida */}
                       <TableHead className="text-right">Valor (R$)</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -158,12 +158,7 @@ export default function FinancialOverviewPage() {
                             : <span className="text-muted-foreground italic">N/A</span>
                           }
                         </TableCell>
-                        <TableCell>
-                          {app.paymentMethod
-                            ? paymentMethodTranslations[app.paymentMethod]
-                            : <span className="text-xs text-muted-foreground italic">N/D</span>
-                          }
-                        </TableCell>
+                        {/* Célula Forma Pag. removida */}
                         <TableCell className="text-right font-medium">{app.totalPrice.toFixed(2)}</TableCell>
                       </TableRow>
                     ))}

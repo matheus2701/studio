@@ -1,76 +1,90 @@
+-- Script para criar as tabelas no Supabase
 
--- Tabela para armazenar os procedimentos oferecidos
-CREATE TABLE IF NOT EXISTS procedures (
-    id TEXT PRIMARY KEY NOT NULL,
+-- Tabela: procedures
+CREATE TABLE IF NOT EXISTS public.procedures (
+    id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    duration INT4 NOT NULL, -- Duração em minutos
-    price FLOAT8 NOT NULL,
+    duration INTEGER NOT NULL,
+    price NUMERIC NOT NULL,
     description TEXT NOT NULL,
-    "isPromo" BOOLEAN NOT NULL DEFAULT FALSE,
-    "promoPrice" FLOAT8,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "isPromo" BOOLEAN DEFAULT false NOT NULL,
+    "promoPrice" NUMERIC,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
-COMMENT ON COLUMN procedures.duration IS 'Duração em minutos';
-COMMENT ON COLUMN procedures."isPromo" IS 'Indica se o procedimento está em promoção';
-COMMENT ON COLUMN procedures."promoPrice" IS 'Preço promocional, se aplicável';
+-- Comentários para a tabela procedures (opcional, mas bom para documentação)
+COMMENT ON TABLE public.procedures IS 'Armazena os procedimentos oferecidos pelo estúdio.';
+COMMENT ON COLUMN public.procedures.id IS 'Identificador único do procedimento (gerado pela aplicação).';
+COMMENT ON COLUMN public.procedures.name IS 'Nome do procedimento.';
+COMMENT ON COLUMN public.procedures.duration IS 'Duração do procedimento em minutos.';
+COMMENT ON COLUMN public.procedures.price IS 'Preço normal do procedimento.';
+COMMENT ON COLUMN public.procedures.description IS 'Descrição detalhada do procedimento.';
+COMMENT ON COLUMN public.procedures."isPromo" IS 'Indica se o procedimento está em promoção.';
+COMMENT ON COLUMN public.procedures."promoPrice" IS 'Preço promocional, se aplicável.';
+COMMENT ON COLUMN public.procedures.created_at IS 'Data e hora de criação do registro.';
 
--- Tabela para armazenar informações dos clientes
-CREATE TABLE IF NOT EXISTS customers (
-    id TEXT PRIMARY KEY NOT NULL,
+
+-- Tabela: customers
+CREATE TABLE IF NOT EXISTS public.customers (
+    id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     phone TEXT,
     notes TEXT,
-    tags JSONB, -- Armazena um array de objetos Tag: [{"id": "tag1", "name": "Cliente Novo"}]
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    tags JSONB,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
-COMMENT ON COLUMN customers.tags IS 'Armazena um array de objetos Tag: [{"id": "tag1", "name": "Cliente Novo"}]';
+-- Comentários para a tabela customers
+COMMENT ON TABLE public.customers IS 'Armazena informações dos clientes.';
+COMMENT ON COLUMN public.customers.id IS 'Identificador único do cliente (gerado pela aplicação).';
+COMMENT ON COLUMN public.customers.name IS 'Nome completo do cliente.';
+COMMENT ON COLUMN public.customers.phone IS 'Número de telefone/Whatsapp do cliente.';
+COMMENT ON COLUMN public.customers.notes IS 'Observações sobre o cliente (alergias, preferências, etc.).';
+COMMENT ON COLUMN public.customers.tags IS 'Tags associadas ao cliente (ex: cliente novo, VIP), armazenadas como um array de objetos JSON.';
+COMMENT ON COLUMN public.customers.created_at IS 'Data e hora de criação do registro.';
 
--- Tabela para armazenar os agendamentos
-CREATE TABLE IF NOT EXISTS appointments (
-    id TEXT PRIMARY KEY NOT NULL,
-    "selectedProcedures" JSONB NOT NULL, -- Armazena um array dos objetos de procedimento selecionados
-    "totalPrice" FLOAT8 NOT NULL,
-    "totalDuration" INT4 NOT NULL, -- Duração total em minutos
+
+-- Tabela: appointments
+CREATE TABLE IF NOT EXISTS public.appointments (
+    id TEXT PRIMARY KEY,
+    "selectedProcedures" JSONB NOT NULL,
+    "totalPrice" NUMERIC NOT NULL,
+    "totalDuration" INTEGER NOT NULL,
     "customerName" TEXT NOT NULL,
     "customerPhone" TEXT,
-    date DATE NOT NULL, -- Formato YYYY-MM-DD
-    time TEXT NOT NULL, -- Formato HH:MM
+    date DATE NOT NULL,
+    time TEXT NOT NULL,
     notes TEXT,
-    status TEXT NOT NULL, -- Ex: 'CONFIRMED', 'ATTENDED', 'CANCELLED'
-    "sinalPago" BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    status TEXT NOT NULL,
+    "sinalPago" BOOLEAN DEFAULT false NOT NULL,
+    -- "paymentMethod" TEXT, -- Coluna removida
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
-COMMENT ON COLUMN appointments."selectedProcedures" IS 'Armazena um array dos objetos de procedimento selecionados';
-COMMENT ON COLUMN appointments."totalDuration" IS 'Duração total em minutos';
-COMMENT ON COLUMN appointments.date IS 'Formato YYYY-MM-DD';
-COMMENT ON COLUMN appointments.time IS 'Formato HH:MM';
-COMMENT ON COLUMN appointments.status IS 'Ex: ''CONFIRMED'', ''ATTENDED'', ''CANCELLED''';
+-- Comentários para a tabela appointments
+COMMENT ON TABLE public.appointments IS 'Armazena os agendamentos realizados.';
+COMMENT ON COLUMN public.appointments.id IS 'Identificador único do agendamento (gerado pela aplicação).';
+COMMENT ON COLUMN public.appointments."selectedProcedures" IS 'Array JSON dos objetos de procedimento selecionados para este agendamento.';
+COMMENT ON COLUMN public.appointments."totalPrice" IS 'Preço total do agendamento.';
+COMMENT ON COLUMN public.appointments."totalDuration" IS 'Duração total do agendamento em minutos.';
+COMMENT ON COLUMN public.appointments."customerName" IS 'Nome do cliente para o agendamento.';
+COMMENT ON COLUMN public.appointments."customerPhone" IS 'Telefone do cliente para o agendamento.';
+COMMENT ON COLUMN public.appointments.date IS 'Data do agendamento (YYYY-MM-DD).';
+COMMENT ON COLUMN public.appointments.time IS 'Hora do agendamento (HH:MM).';
+COMMENT ON COLUMN public.appointments.notes IS 'Observações sobre o agendamento.';
+COMMENT ON COLUMN public.appointments.status IS 'Status do agendamento (CONFIRMED, ATTENDED, CANCELLED).';
+COMMENT ON COLUMN public.appointments."sinalPago" IS 'Indica se o sinal foi pago.';
+COMMENT ON COLUMN public.appointments.created_at IS 'Data e hora de criação do registro.';
 
--- Adiciona algumas políticas básicas de Row Level Security (RLS) - DESABILITADAS POR PADRÃO
--- Para habilitar RLS nas tabelas (recomendado para produção):
--- 1. Vá para "Authentication" > "Policies" no Supabase.
--- 2. Selecione a tabela e clique em "Enable RLS".
--- 3. Crie políticas para permitir SELECT, INSERT, UPDATE, DELETE conforme necessário.
--- Exemplo de política para permitir que usuários autenticados leiam todos os procedimentos:
--- CREATE POLICY "Allow authenticated read access to procedures"
--- ON procedures FOR SELECT
--- TO authenticated
--- USING (true);
+-- Habilitar Row Level Security (RLS) - Recomenda-se configurar políticas após a criação
+-- Por padrão, o Supabase pode criar tabelas com RLS já habilitado.
+-- Se você quiser desabilitar RLS temporariamente para facilitar o desenvolvimento inicial (permitindo que a chave anon acesse os dados):
+-- ALTER TABLE public.procedures DISABLE ROW LEVEL SECURITY;
+-- ALTER TABLE public.customers DISABLE ROW LEVEL SECURITY;
+-- ALTER TABLE public.appointments DISABLE ROW LEVEL SECURITY;
+-- Lembre-se de configurar políticas de RLS adequadas antes de ir para produção se desabilitá-las.
+-- Se RLS estiver habilitado e você não tiver políticas, as queries da sua aplicação Next.js usando a chave anon falharão.
 
--- Exemplo de política para permitir que usuários autenticados insiram procedimentos:
--- CREATE POLICY "Allow authenticated insert access to procedures"
--- ON procedures FOR INSERT
--- TO authenticated
--- WITH CHECK (true);
-
--- Você precisará de políticas similares para 'customers' e 'appointments'.
--- Por enquanto, para simplificar, o RLS não está sendo ativado por este script.
--- Certifique-se de que o RLS está desabilitado nas configurações da tabela no Supabase UI
--- ou crie as políticas apropriadas se o RLS estiver habilitado.
-
--- Nota: Os nomes de colunas com letras maiúsculas (como "isPromo", "selectedProcedures")
--- são colocados entre aspas duplas para preservar a capitalização no PostgreSQL.
--- Se preferir tudo minúsculo, ajuste no script e no seu código Next.js (definições de tipo).
+-- Se você já tinha a coluna "paymentMethod" e quer removê-la (CUIDADO: isso apaga os dados da coluna):
+-- ALTER TABLE public.appointments
+-- DROP COLUMN IF EXISTS "paymentMethod";

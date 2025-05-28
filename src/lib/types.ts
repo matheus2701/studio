@@ -1,6 +1,6 @@
 
 export type AppointmentStatus = 'CONFIRMED' | 'ATTENDED' | 'CANCELLED';
-export type PaymentMethod = 'pix' | 'dinheiro' | 'cartao_credito' | 'cartao_debito';
+// export type PaymentMethod = 'pix' | 'dinheiro' | 'cartao_credito' | 'cartao_debito'; // Removido
 
 export interface Procedure {
   id: string;
@@ -24,7 +24,7 @@ export interface Appointment {
   notes?: string;
   status: AppointmentStatus;
   sinalPago: boolean;
-  paymentMethod?: PaymentMethod; // Novo campo
+  // paymentMethod?: PaymentMethod; // Removido
 }
 
 export interface NotificationPreferences {
