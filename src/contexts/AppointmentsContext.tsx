@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Appointment, AppointmentStatus } from '@/lib/types';
+import type { Appointment, AppointmentStatus, PaymentMethod } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import {
   getAppointments as getAppointmentsAction,
@@ -33,23 +33,24 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   const fetchInitialAppointments = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log("Fetching appointments from server action...");
+      console.log("[AppointmentsContext] Fetching appointments from server action...");
       const serverAppointments = await getAppointmentsAction();
       const sanitizedAppointments = serverAppointments.map(app => ({
         ...app,
         selectedProcedures: Array.isArray(app.selectedProcedures) ? app.selectedProcedures : [],
         sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false,
+        paymentMethod: app.paymentMethod || undefined, // Garantir que seja undefined se não existir
       }));
       setAppointments(sanitizedAppointments);
-      console.log("Appointments loaded successfully from server action:", sanitizedAppointments.length);
+      console.log("[AppointmentsContext] Appointments loaded successfully from server action:", sanitizedAppointments.length);
     } catch (error) {
-      console.error("Failed to fetch appointments from server action", error);
+      console.error("[AppointmentsContext] Failed to fetch appointments from server action", error);
       toast({ title: "Erro ao Carregar Agendamentos", description: "Não foi possível buscar os dados dos agendamentos.", variant: "destructive" });
       setAppointments([]);
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast]); // toast é estável
 
   useEffect(() => {
     fetchInitialAppointments();
@@ -59,7 +60,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
     try {
       const newAppointment = await addAppointmentAction(appointmentData);
       if (newAppointment) {
-        setAppointments(prev => [...prev, newAppointment].sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()));
+        setAppointments(prev => [...prev, { ...newAppointment, sinalPago: newAppointment.sinalPago || false }].sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()));
         return newAppointment;
       }
       return null;
@@ -132,7 +133,12 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
         const monthAppointments = await getAppointmentsByMonthAction(year, month);
-        return monthAppointments;
+         return monthAppointments.map(app => ({
+          ...app,
+          selectedProcedures: Array.isArray(app.selectedProcedures) ? app.selectedProcedures : [],
+          sinalPago: typeof app.sinalPago === 'boolean' ? app.sinalPago : false,
+          paymentMethod: app.paymentMethod || undefined,
+        }));
     } catch (error) {
         console.error("Failed to fetch appointments by month from server action", error);
         toast({ title: "Erro ao Carregar Agendamentos do Mês", variant: "destructive" });

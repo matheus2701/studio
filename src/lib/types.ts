@@ -1,5 +1,6 @@
 
 export type AppointmentStatus = 'CONFIRMED' | 'ATTENDED' | 'CANCELLED';
+export type PaymentMethod = 'pix' | 'dinheiro' | 'cartao_credito' | 'cartao_debito';
 
 export interface Procedure {
   id: string;
@@ -13,9 +14,9 @@ export interface Procedure {
 
 export interface Appointment {
   id: string;
-  selectedProcedures: Procedure[]; // Lista de procedimentos selecionados com o preço efetivo (pode ser promoPrice)
-  totalPrice: number; // Preço total dos procedimentos selecionados
-  totalDuration: number; // Duração total dos procedimentos selecionados
+  selectedProcedures: Procedure[];
+  totalPrice: number;
+  totalDuration: number;
   customerName: string;
   customerPhone?: string;
   date: string; // YYYY-MM-DD
@@ -23,6 +24,7 @@ export interface Appointment {
   notes?: string;
   status: AppointmentStatus;
   sinalPago: boolean;
+  paymentMethod?: PaymentMethod; // Novo campo
 }
 
 export interface NotificationPreferences {

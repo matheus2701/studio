@@ -7,15 +7,16 @@ import { BookingForm } from '@/components/forms/BookingForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
+import type { Appointment, AppointmentStatus, Procedure, PaymentMethod } from '@/lib/types';
 import { format, addMinutes, parse, set, isEqual, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2 } from 'lucide-react';
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, WalletCards } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useProcedures } from '@/contexts/ProceduresContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,7 +41,14 @@ const statusColors: Record<AppointmentStatus, string> = {
   CANCELLED: "text-rose-600",
 };
 
-const WORK_DAY_START_HOUR = 6; 
+const paymentMethodTranslations: Record<PaymentMethod, string> = {
+  pix: "Pix",
+  dinheiro: "Dinheiro",
+  cartao_credito: "Cartão de Crédito",
+  cartao_debito: "Cartão de Débito",
+};
+
+const WORK_DAY_START_HOUR = 6;
 const WORK_DAY_END_HOUR = 20;
 const SLOT_INTERVAL_MINUTES = 30;
 
@@ -49,14 +57,14 @@ export default function BookingPage() {
   const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
   const [appointmentToEdit, setAppointmentToEdit] = useState<Appointment | null>(null);
-  
-  const { 
-    appointments, 
-    addAppointment, 
-    updateAppointment, 
+
+  const {
+    appointments,
+    addAppointment,
+    updateAppointment,
     updateAppointmentStatus,
     deleteAppointment,
-    isLoading: isLoadingAppointments 
+    isLoading: isLoadingAppointments
   } = useAppointments();
   const { procedures, isLoading: isLoadingProcedures } = useProcedures();
   const { toast } = useToast();
@@ -76,7 +84,7 @@ export default function BookingPage() {
   const handleFormSubmit = async (newAppointmentData: Omit<Appointment, 'id' | 'status'>) => {
     let success = false;
     if (appointmentToEdit) {
-      const result = await updateAppointment({ ...newAppointmentData, id: appointmentToEdit.id, status: appointmentToEdit.status });
+      const result = await updateAppointment({ ...newAppointmentData, id: appointmentToEdit.id, status: appointmentToEdit.status, paymentMethod: appointmentToEdit.paymentMethod });
       if (result) {
          toast({
             title: "Agendamento Atualizado!",
@@ -97,7 +105,7 @@ export default function BookingPage() {
 
     if (success) {
       setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00'));
-      setSelectedProcedureIds([]); 
+      setSelectedProcedureIds([]);
       setSelectedTime(undefined);
       setAppointmentToEdit(null);
     }
@@ -123,12 +131,11 @@ export default function BookingPage() {
 
   const handleDeleteAppointment = async (appointmentId: string) => {
     await deleteAppointment(appointmentId);
-    // Toast is handled by context
     if (appointmentToEdit?.id === appointmentId) {
-        handleCancelEdit(); // Clear form if the edited appointment was deleted
+        handleCancelEdit();
     }
   };
-  
+
   const totalSelectedProceduresDuration = useMemo(() => {
     if (isLoadingProcedures) return 0;
     return selectedProcedureIds.reduce((sum, id) => {
@@ -153,7 +160,7 @@ export default function BookingPage() {
         const isSameDay = isEqual(startOfDay(new Date(app.date + 'T00:00:00')), startOfDay(selectedDate));
         const isRelevantStatus = app.status === 'CONFIRMED' || app.status === 'ATTENDED';
         if (appointmentToEdit && app.id === appointmentToEdit.id) {
-            return false; 
+            return false;
         }
         return isSameDay && isRelevantStatus;
     }).map(app => {
@@ -190,7 +197,7 @@ export default function BookingPage() {
         return prevIds.filter(id => id !== procedureId);
       }
     });
-    setSelectedTime(undefined); 
+    setSelectedTime(undefined);
   };
 
   const handleCancelEdit = () => {
@@ -198,6 +205,25 @@ export default function BookingPage() {
     setSelectedProcedureIds([]);
     setSelectedTime(undefined);
   }
+
+  const handlePaymentMethodChange = async (appointmentId: string, newPaymentMethod: PaymentMethod) => {
+    const appointment = appointments.find(app => app.id === appointmentId);
+    if (!appointment) return;
+
+    const updatedAppointment = { ...appointment, paymentMethod: newPaymentMethod };
+    const result = await updateAppointment(updatedAppointment);
+    if (result) {
+      toast({
+        title: "Forma de Pagamento Atualizada!",
+        description: `Pagamento para ${appointment.customerName} definido como ${paymentMethodTranslations[newPaymentMethod]}.`,
+      });
+    } else {
+      toast({
+        title: "Erro ao Atualizar Pagamento",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -218,7 +244,7 @@ export default function BookingPage() {
               {appointmentToEdit ? "Editar Agendamento" : "Selecione Data e Procedimentos"}
             </CardTitle>
             <CardDescription>
-              {appointmentToEdit 
+              {appointmentToEdit
                 ? `Editando agendamento para ${appointmentToEdit.customerName}. Faça as alterações abaixo.`
                 : "Escolha uma data e os procedimentos desejados para ver os horários."
               }
@@ -230,11 +256,11 @@ export default function BookingPage() {
                 selectedDate={selectedDate}
                 onDateChange={(date) => {
                   setSelectedDate(date);
-                  setSelectedTime(undefined); 
+                  setSelectedTime(undefined);
                 }}
               />
             </div>
-            
+
             <div className="flex-1 space-y-4">
               {selectedDate && (
                 <div>
@@ -252,8 +278,8 @@ export default function BookingPage() {
                             onCheckedChange={(checked) => handleProcedureSelectionChange(proc.id, !!checked)}
                           />
                           <Label htmlFor={`proc-${proc.id}`} className="text-sm font-normal cursor-pointer">
-                            {proc.name} ({proc.duration} min) - R$ 
-                            {proc.isPromo && proc.promoPrice !== undefined 
+                            {proc.name} ({proc.duration} min) - R$
+                            {proc.isPromo && proc.promoPrice !== undefined
                               ? <><span className="line-through text-muted-foreground/80">{proc.price.toFixed(2)}</span> <span className="text-destructive font-semibold">{proc.promoPrice.toFixed(2)}</span></>
                               : proc.price.toFixed(2)
                             }
@@ -279,8 +305,8 @@ export default function BookingPage() {
                             key={slot}
                             onClick={() => setSelectedTime(slot)}
                             className={`p-3 rounded-md text-sm font-medium transition-colors border
-                              ${selectedTime === slot 
-                                ? 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2' 
+                              ${selectedTime === slot
+                                ? 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2'
                                 : 'bg-background hover:bg-accent hover:text-accent-foreground border-input'
                               }`}
                           >
@@ -340,7 +366,7 @@ export default function BookingPage() {
              appointments.length === 0 ? (
               <p className="text-muted-foreground text-sm">Nenhum agendamento ainda.</p>
             ) : (
-              <ScrollArea className="h-[500px] pr-3"> 
+              <ScrollArea className="h-[500px] pr-3">
                 <ul className="space-y-4">
                   {appointments.sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()).map(app => (
                     <li key={app.id} className="p-4 border rounded-lg bg-card shadow-sm space-y-3">
@@ -355,15 +381,42 @@ export default function BookingPage() {
                           {app.customerPhone && <p className="flex items-center gap-1.5"><Phone className="h-4 w-4" /> Whatsapp: {app.customerPhone}</p>}
                           <p className="flex items-center gap-1.5"><DollarSign className="h-4 w-4" /> R$ {app.totalPrice.toFixed(2)}</p>
                            <p className="flex items-center gap-1.5">
-                            <ShieldCheck className={`h-4 w-4 ${statusColors[app.status]}`} /> 
+                            <ShieldCheck className={`h-4 w-4 ${statusColors[app.status]}`} />
                             Status: <span className={`font-medium ${statusColors[app.status]}`}>{statusTranslations[app.status]}</span>
                           </p>
                           <p className="flex items-center gap-1.5">
-                            <CreditCard className={`h-4 w-4 ${app.sinalPago ? 'text-emerald-600' : 'text-amber-500'}`} /> 
+                            <CreditCard className={`h-4 w-4 ${app.sinalPago ? 'text-emerald-600' : 'text-amber-500'}`} />
                             Sinal: {app.sinalPago ? <span className="font-medium text-emerald-600">Pago</span> : <span className="font-medium text-amber-500">Pendente</span>}
                           </p>
+                          {app.paymentMethod && (
+                            <p className="flex items-center gap-1.5">
+                              <WalletCards className="h-4 w-4 text-blue-600" />
+                              Pagamento: <span className="font-medium text-blue-700">{paymentMethodTranslations[app.paymentMethod]}</span>
+                            </p>
+                          )}
                         </div>
                       </div>
+
+                      {(app.status === 'CONFIRMED' || app.status === 'ATTENDED') && (
+                        <div className="space-y-2 pt-2 border-t">
+                           <Label htmlFor={`payment-${app.id}`} className="text-xs text-muted-foreground">Forma de Pagamento:</Label>
+                           <Select
+                            value={app.paymentMethod || ""}
+                            onValueChange={(value) => handlePaymentMethodChange(app.id, value as PaymentMethod)}
+                           >
+                            <SelectTrigger id={`payment-${app.id}`} className="h-9">
+                              <SelectValue placeholder="Selecionar pagamento..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pix">Pix</SelectItem>
+                              <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                              <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                              <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
                       <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
                         <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditClick(app)}>
                           <Edit className="mr-2 h-4 w-4" /> Editar

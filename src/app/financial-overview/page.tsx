@@ -9,15 +9,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, getYear, getMonth, setYear, setMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, CalendarDays, Info, Package, Loader2 } from 'lucide-react';
-import type { Appointment } from '@/lib/types';
+import { DollarSign, CalendarDays, Info, Package, Loader2, WalletCards } from 'lucide-react';
+import type { Appointment, PaymentMethod } from '@/lib/types';
 
 const currentYear = getYear(new Date());
 const years = Array.from({ length: 5 }, (_, i) => currentYear - i); // Last 5 years
 const months = Array.from({ length: 12 }, (_, i) => i); // 0 (Jan) to 11 (Dec)
 
+const paymentMethodTranslations: Record<PaymentMethod, string> = {
+  pix: "Pix",
+  dinheiro: "Dinheiro",
+  cartao_credito: "Cartão de Crédito",
+  cartao_debito: "Cartão de Débito",
+};
+
+
 export default function FinancialOverviewPage() {
-  const { getAppointmentsByMonth, isLoading: isLoadingContext } = useAppointments(); // Usar getAppointmentsByMonth
+  const { getAppointmentsByMonth, isLoading: isLoadingContext } = useAppointments();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()));
   const [monthlyAppointments, setMonthlyAppointments] = useState<Appointment[]>([]);
@@ -31,11 +39,11 @@ export default function FinancialOverviewPage() {
   }, [getAppointmentsByMonth, selectedYear, selectedMonth]);
 
   useEffect(() => {
-    if (!isLoadingContext) { // Só busca quando o contexto terminar de carregar os agendamentos iniciais
+    if (!isLoadingContext) {
       fetchMonthlyData();
     }
   }, [fetchMonthlyData, isLoadingContext]);
-  
+
   const attendedAppointments = useMemo(() => {
     return monthlyAppointments.filter(app => app.status === 'ATTENDED')
       .sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime());
@@ -79,7 +87,7 @@ export default function FinancialOverviewPage() {
               </Select>
             </div>
             <div className="flex w-full sm:w-auto gap-2 items-center">
-              <CalendarDays className="h-5 w-5 text-muted-foreground sm:hidden" />
+              <CalendarDays className="h-5 w-5 text-muted-foreground sm:hidden" /> {/* Hidden on sm and up */}
               <Select
                 value={selectedMonth.toString()}
                 onValueChange={(value) => setSelectedMonth(parseInt(value))}
@@ -135,6 +143,7 @@ export default function FinancialOverviewPage() {
                       <TableHead>Data</TableHead>
                       <TableHead>Cliente</TableHead>
                       <TableHead className="flex items-center gap-1"><Package className="h-4 w-4" />Procedimentos</TableHead>
+                      <TableHead>Forma Pag.</TableHead>
                       <TableHead className="text-right">Valor (R$)</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -144,9 +153,15 @@ export default function FinancialOverviewPage() {
                         <TableCell>{format(new Date(app.date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
                         <TableCell className="font-medium">{app.customerName}</TableCell>
                         <TableCell>
-                          {app.selectedProcedures.length > 0 
+                          {app.selectedProcedures.length > 0
                             ? app.selectedProcedures.map(p => p.name).join(' + ')
                             : <span className="text-muted-foreground italic">N/A</span>
+                          }
+                        </TableCell>
+                        <TableCell>
+                          {app.paymentMethod
+                            ? paymentMethodTranslations[app.paymentMethod]
+                            : <span className="text-xs text-muted-foreground italic">N/D</span>
                           }
                         </TableCell>
                         <TableCell className="text-right font-medium">{app.totalPrice.toFixed(2)}</TableCell>
