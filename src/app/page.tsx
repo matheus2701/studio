@@ -7,16 +7,15 @@ import { BookingForm } from '@/components/forms/BookingForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types'; // Removido PaymentMethod
+import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
 import { format, addMinutes, parse, set, isEqual, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2 } from 'lucide-react'; // Removido WalletCards
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useProcedures } from '@/contexts/ProceduresContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Removido Select para paymentMethod
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,13 +39,6 @@ const statusColors: Record<AppointmentStatus, string> = {
   ATTENDED: "text-emerald-600",
   CANCELLED: "text-rose-600",
 };
-
-// const paymentMethodTranslations: Record<PaymentMethod, string> = { // Removido
-//   pix: "Pix",
-//   dinheiro: "Dinheiro",
-//   cartao_credito: "Cartão de Crédito",
-//   cartao_debito: "Cartão de Débito",
-// };
 
 const WORK_DAY_START_HOUR = 6;
 const WORK_DAY_END_HOUR = 20;
@@ -72,7 +64,7 @@ export default function BookingPage() {
   const isLoading = isLoadingAppointments || isLoadingProcedures;
 
   const selectedProceduresDetail = useMemo(() => {
-    if (isLoadingProcedures || procedures.length === 0) return [];
+    if (isLoadingProcedures || !procedures || procedures.length === 0) return [];
     return selectedProcedureIds.map(id => {
       const proc = procedures.find(p => p.id === id);
       if (!proc) return null;
@@ -84,7 +76,6 @@ export default function BookingPage() {
   const handleFormSubmit = async (newAppointmentData: Omit<Appointment, 'id' | 'status'>) => {
     let success = false;
     if (appointmentToEdit) {
-      // const result = await updateAppointment({ ...newAppointmentData, id: appointmentToEdit.id, status: appointmentToEdit.status, paymentMethod: appointmentToEdit.paymentMethod }); // Removido paymentMethod
       const result = await updateAppointment({ ...newAppointmentData, id: appointmentToEdit.id, status: appointmentToEdit.status });
       if (result) {
          toast({
@@ -144,7 +135,7 @@ export default function BookingPage() {
   };
 
   const totalSelectedProceduresDuration = useMemo(() => {
-    if (isLoadingProcedures) return 0;
+    if (isLoadingProcedures || !procedures) return 0;
     return selectedProcedureIds.reduce((sum, id) => {
       const proc = procedures.find(p => p.id === id);
       return sum + (proc?.duration || 0);
@@ -152,7 +143,7 @@ export default function BookingPage() {
   }, [selectedProcedureIds, procedures, isLoadingProcedures]);
 
   const availableTimeSlots = useMemo(() => {
-    if (!selectedDate || selectedProcedureIds.length === 0 || isLoadingAppointments || isLoadingProcedures) {
+    if (!selectedDate || selectedProcedureIds.length === 0 || isLoadingAppointments || isLoadingProcedures || !procedures) {
       return [];
     }
 
@@ -212,25 +203,6 @@ export default function BookingPage() {
     setSelectedProcedureIds([]);
     setSelectedTime(undefined);
   }
-
-  // const handlePaymentMethodChange = async (appointmentId: string, newPaymentMethod: PaymentMethod) => { // Removido
-  //   const appointment = appointments.find(app => app.id === appointmentId);
-  //   if (!appointment) return;
-
-  //   const updatedAppointment = { ...appointment, paymentMethod: newPaymentMethod };
-  //   const result = await updateAppointment(updatedAppointment);
-  //   if (result) {
-  //     toast({
-  //       title: "Forma de Pagamento Atualizada!",
-  //       description: `Pagamento para ${appointment.customerName} definido como ${paymentMethodTranslations[newPaymentMethod]}.`,
-  //     });
-  //   } else {
-  //     toast({
-  //       title: "Erro ao Atualizar Pagamento",
-  //       variant: "destructive",
-  //     });
-  //   }
-  // };
 
   if (isLoading) {
     return (
@@ -395,11 +367,8 @@ export default function BookingPage() {
                             <CreditCard className={`h-4 w-4 ${app.sinalPago ? 'text-emerald-600' : 'text-amber-500'}`} />
                             Sinal: {app.sinalPago ? <span className="font-medium text-emerald-600">Pago</span> : <span className="font-medium text-amber-500">Pendente</span>}
                           </p>
-                          {/* Seção de forma de pagamento removida */}
                         </div>
                       </div>
-
-                      {/* Seletor de forma de pagamento removido */}
 
                       <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
                         <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditClick(app)}>
