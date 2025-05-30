@@ -32,6 +32,7 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
       console.log("[CustomersContext] Fetching customers from server action...");
       const serverCustomers = await getCustomersAction();
+      // A ação getCustomersAction já deve garantir que customer.tags é um array.
       setCustomers(serverCustomers);
       console.log("[CustomersContext] Customers loaded successfully from server action:", serverCustomers.length);
     } catch (error: any) {
@@ -51,7 +52,9 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
     try {
       const newCustomer = await addCustomerAction(customerData);
       if (newCustomer) {
-        setCustomers(prev => [...prev, newCustomer].sort((a, b) => a.name.localeCompare(b.name)));
+        // Garante que newCustomer.tags é um array antes de atualizar o estado
+        const sanitizedNewCustomer = { ...newCustomer, tags: Array.isArray(newCustomer.tags) ? newCustomer.tags : [] };
+        setCustomers(prev => [...prev, sanitizedNewCustomer].sort((a, b) => a.name.localeCompare(b.name)));
       } else {
         toast({ title: "Erro ao Adicionar", description: "Não foi possível adicionar o cliente.", variant: "destructive" });
       }
@@ -65,8 +68,10 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
     try {
       const result = await updateCustomerAction(updatedCustomer);
       if (result) {
+        // Garante que result.tags é um array antes de atualizar o estado
+        const sanitizedResult = { ...result, tags: Array.isArray(result.tags) ? result.tags : [] };
         setCustomers(prev =>
-          prev.map(c => (c.id === result.id ? result : c))
+          prev.map(c => (c.id === sanitizedResult.id ? sanitizedResult : c))
             .sort((a, b) => a.name.localeCompare(b.name))
         );
       } else {
@@ -96,6 +101,7 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
   const getAllUniqueTags = useCallback((): Tag[] => {
     const allTagsMap = new Map<string, Tag>();
     customers.forEach(customer => {
+      // Adicionada verificação para garantir que customer.tags é um array antes de chamar forEach
       if (customer.tags && Array.isArray(customer.tags)) {
         customer.tags.forEach(tag => {
           if (tag && typeof tag.id === 'string' && typeof tag.name === 'string') {
@@ -124,3 +130,4 @@ export const useCustomers = () => {
   }
   return context;
 };
+
