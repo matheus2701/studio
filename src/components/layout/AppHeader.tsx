@@ -7,15 +7,16 @@ import { Logo } from '@/components/icons/Logo';
 import { NavLink } from './NavLink';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Home, Settings2, Bell, Brain, LinkIcon, LogOut, DollarSign, Users } from 'lucide-react'; // Adicionado Users
+import { Menu, Home, Settings2, Bell, Brain, LinkIcon, LogOut, DollarSign, Users, BarChart3 } from 'lucide-react'; // Adicionado BarChart3
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
   { href: '/', label: 'Agendar', icon: Home },
   { href: '/procedures', label: 'Procedimentos', icon: Settings2 },
-  { href: '/customers', label: 'Clientes', icon: Users }, // Novo item Clientes
+  { href: '/customers', label: 'Clientes', icon: Users },
   { href: '/financial-overview', label: 'Financeiro', icon: DollarSign },
+  { href: '/dashboard', label: 'Dashboard', icon: BarChart3 }, // Novo item Dashboard
   { href: '/notifications', label: 'Notificações', icon: Bell },
   { href: '/ai-scheduler', label: 'Assistente AI', icon: Brain },
   { href: '/settings/integrations', label: 'Integrações', icon: LinkIcon },
@@ -42,7 +43,7 @@ export function AppHeader() {
             <NavLink
               key={item.href}
               href={item.href}
-              active={pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/')}
+              active={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))}
             >
               <item.icon className="mr-2 h-4 w-4" />
               {item.label}
@@ -77,7 +78,7 @@ export function AppHeader() {
                   <NavLink
                     key={item.href}
                     href={item.href}
-                    active={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
+                    active={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))}
                     className="flex items-center px-3 py-2 text-base rounded-md hover:bg-accent hover:text-accent-foreground"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
