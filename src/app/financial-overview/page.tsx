@@ -19,6 +19,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger, // Adicionada importação que faltava
 } from "@/components/ui/alert-dialog";
 import { format, getYear, getMonth, setYear, setMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
