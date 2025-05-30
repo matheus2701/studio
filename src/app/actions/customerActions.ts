@@ -14,14 +14,18 @@ export async function getCustomers(): Promise<Customer[]> {
     console.error('[customerActions] Supabase error fetching customers:', error);
     throw new Error(`Supabase error fetching customers: ${error.message}`);
   }
-  return data || [];
+  // Ensure customer.tags is always an array
+  return (data || []).map(customer => ({
+    ...customer,
+    tags: Array.isArray(customer.tags) ? customer.tags : [],
+  }));
 }
 
 export async function addCustomer(customerData: Omit<Customer, 'id'>): Promise<Customer | null> {
   const newCustomer: Customer = {
     ...customerData,
-    id: Date.now().toString(), // Consider Supabase default UUIDs for future improvements
-    tags: customerData.tags || [],
+    id: Date.now().toString(), 
+    tags: customerData.tags || [], // Ensure tags is an array
   };
 
   const { data, error } = await supabase
@@ -34,13 +38,13 @@ export async function addCustomer(customerData: Omit<Customer, 'id'>): Promise<C
     console.error('[customerActions] Supabase error adding customer:', error);
     throw new Error(`Supabase error adding customer: ${error.message}`);
   }
-  return data;
+  return data ? { ...data, tags: Array.isArray(data.tags) ? data.tags : [] } : null;
 }
 
 export async function updateCustomerData(updatedCustomer: Customer): Promise<Customer | null> {
   const customerToUpdate = {
      ...updatedCustomer,
-     tags: updatedCustomer.tags || []
+     tags: updatedCustomer.tags || [] // Ensure tags is an array
   };
   const { data, error } = await supabase
     .from('customers')
@@ -53,7 +57,7 @@ export async function updateCustomerData(updatedCustomer: Customer): Promise<Cus
     console.error('[customerActions] Supabase error updating customer:', error);
     throw new Error(`Supabase error updating customer: ${error.message}`);
   }
-  return data;
+  return data ? { ...data, tags: Array.isArray(data.tags) ? data.tags : [] } : null;
 }
 
 export async function deleteCustomerData(customerId: string): Promise<boolean> {
@@ -70,21 +74,17 @@ export async function deleteCustomerData(customerId: string): Promise<boolean> {
 }
 
 export async function getAllUniqueTagsData(): Promise<Tag[]> {
-  // This still fetches all customers and processes tags in memory.
-  // For large datasets, consider a more optimized Supabase query or function.
-  const allCustomers = await getCustomers();
+  const allCustomers = await getCustomers(); // getCustomers now sanitizes tags
   const allTagsMap = new Map<string, Tag>();
   allCustomers.forEach(customer => {
-    if (customer.tags && Array.isArray(customer.tags)) {
-      customer.tags.forEach(tag => {
-        // Ensure tag is a valid object with id and name before processing
-        if (tag && typeof tag.id === 'string' && typeof tag.name === 'string') {
-          if (!allTagsMap.has(tag.id)) {
-            allTagsMap.set(tag.id, tag);
-          }
+    // customer.tags is guaranteed to be an array here by getCustomers()
+    customer.tags.forEach(tag => {
+      if (tag && typeof tag.id === 'string' && typeof tag.name === 'string') {
+        if (!allTagsMap.has(tag.id)) {
+          allTagsMap.set(tag.id, tag);
         }
-      });
-    }
+      }
+    });
   });
   return Array.from(allTagsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
