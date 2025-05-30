@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
 import { format, addMinutes, parse, set, isEqual, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2 } from 'lucide-react';
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, ListChecks, CalendarClock } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useProcedures } from '@/contexts/ProceduresContext';
@@ -56,12 +56,12 @@ export default function BookingPage() {
     updateAppointment,
     updateAppointmentStatus,
     deleteAppointment,
-    isLoading: isLoadingAppointments
+    isLoading: isLoadingAppointmentsContext // Renomeado para evitar conflito
   } = useAppointments();
   const { procedures, isLoading: isLoadingProcedures } = useProcedures();
   const { toast } = useToast();
 
-  const isLoading = isLoadingAppointments || isLoadingProcedures;
+  const isLoadingPageData = isLoadingAppointmentsContext || isLoadingProcedures; // Combina os loadings
 
   const selectedProceduresDetail = useMemo(() => {
     if (isLoadingProcedures || !procedures || procedures.length === 0) return [];
@@ -75,32 +75,39 @@ export default function BookingPage() {
 
   const handleFormSubmit = async (newAppointmentData: Omit<Appointment, 'id' | 'status'>) => {
     let success = false;
+    let toastTitle = "";
+    let toastDescription = "";
+
     if (appointmentToEdit) {
       const result = await updateAppointment({ ...newAppointmentData, id: appointmentToEdit.id, status: appointmentToEdit.status });
       if (result) {
-         toast({
-            title: "Agendamento Atualizado!",
-            description: `${newAppointmentData.selectedProcedures.map(p=>p.name).join(' + ')} para ${newAppointmentData.customerName} em ${format(new Date(newAppointmentData.date + 'T00:00:00'), 'dd/MM/yyyy')} às ${newAppointmentData.time}.`,
-         });
+         toastTitle = "Agendamento Atualizado!";
+         toastDescription = `${newAppointmentData.selectedProcedures.map(p=>p.name).join(' + ')} para ${newAppointmentData.customerName} em ${format(new Date(newAppointmentData.date + 'T00:00:00'), 'dd/MM/yyyy')} às ${newAppointmentData.time}.`;
          success = true;
       } else {
-        toast({ title: "Erro ao Atualizar", description: "Não foi possível atualizar o agendamento.", variant: "destructive" });
+        toastTitle = "Erro ao Atualizar";
+        toastDescription = "Não foi possível atualizar o agendamento.";
       }
     } else {
       const result = await addAppointment(newAppointmentData);
       if (result) {
-        toast({
-          title: "Agendamento Confirmado!",
-          description: `${newAppointmentData.selectedProcedures.map(p=>p.name).join(' + ')} para ${newAppointmentData.customerName} em ${format(new Date(newAppointmentData.date + 'T00:00:00'), 'dd/MM/yyyy')} às ${newAppointmentData.time}.`,
-        });
+        toastTitle = "Agendamento Confirmado!";
+        toastDescription = `${newAppointmentData.selectedProcedures.map(p=>p.name).join(' + ')} para ${newAppointmentData.customerName} em ${format(new Date(newAppointmentData.date + 'T00:00:00'), 'dd/MM/yyyy')} às ${newAppointmentData.time}.`;
         success = true;
       } else {
-         toast({ title: "Erro ao Agendar", description: "Não foi possível criar o agendamento.", variant: "destructive" });
+         toastTitle = "Erro ao Agendar";
+         toastDescription = "Não foi possível criar o agendamento.";
       }
     }
 
+    toast({
+      title: toastTitle,
+      description: toastDescription,
+      variant: success ? "default" : "destructive",
+    });
+
     if (success) {
-      setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00'));
+      setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00')); // Mantém a data para facilitar múltiplos agendamentos
       setSelectedProcedureIds([]);
       setSelectedTime(undefined);
       setAppointmentToEdit(null);
@@ -128,7 +135,7 @@ export default function BookingPage() {
   };
 
   const handleDeleteAppointment = async (appointmentId: string) => {
-    await deleteAppointment(appointmentId);
+    await deleteAppointment(appointmentId); // Toast já é tratado no contexto
     if (appointmentToEdit?.id === appointmentId) {
         handleCancelEdit();
     }
@@ -143,7 +150,7 @@ export default function BookingPage() {
   }, [selectedProcedureIds, procedures, isLoadingProcedures]);
 
   const availableTimeSlots = useMemo(() => {
-    if (!selectedDate || selectedProcedureIds.length === 0 || isLoadingAppointments || isLoadingProcedures || !procedures) {
+    if (!selectedDate || selectedProcedureIds.length === 0 || isLoadingAppointmentsContext || isLoadingProcedures || !procedures) {
       return [];
     }
 
@@ -156,9 +163,9 @@ export default function BookingPage() {
 
     const existingAppointmentsOnDate = appointments.filter(app => {
         const isSameDay = isEqual(startOfDay(new Date(app.date + 'T00:00:00')), startOfDay(selectedDate));
-        const isRelevantStatus = app.status === 'CONFIRMED' || app.status === 'ATTENDED';
+        const isRelevantStatus = app.status === 'CONFIRMED' || app.status === 'ATTENDED'; // Considera ATENDIDO para bloqueio de horário
         if (appointmentToEdit && app.id === appointmentToEdit.id) {
-            return false;
+            return false; // Não considera o próprio agendamento sendo editado
         }
         return isSameDay && isRelevantStatus;
     }).map(app => {
@@ -185,7 +192,7 @@ export default function BookingPage() {
       currentTime = addMinutes(currentTime, SLOT_INTERVAL_MINUTES);
     }
     return slots;
-  }, [selectedDate, selectedProcedureIds, appointments, totalSelectedProceduresDuration, appointmentToEdit, procedures, isLoadingAppointments, isLoadingProcedures]);
+  }, [selectedDate, selectedProcedureIds, appointments, totalSelectedProceduresDuration, appointmentToEdit, procedures, isLoadingAppointmentsContext, isLoadingProcedures]);
 
   const handleProcedureSelectionChange = (procedureId: string, checked: boolean) => {
     setSelectedProcedureIds(prevIds => {
@@ -195,16 +202,30 @@ export default function BookingPage() {
         return prevIds.filter(id => id !== procedureId);
       }
     });
-    setSelectedTime(undefined);
+    setSelectedTime(undefined); // Reseta o horário selecionado ao mudar procedimentos
   };
 
   const handleCancelEdit = () => {
     setAppointmentToEdit(null);
     setSelectedProcedureIds([]);
     setSelectedTime(undefined);
+    // Não reseta a data selecionada, para conveniência
   }
 
-  if (isLoading) {
+  const pendingAppointments = useMemo(() => {
+    return appointments
+      .filter(app => app.status === 'CONFIRMED')
+      .sort((a, b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime());
+  }, [appointments]);
+
+  const attendedAppointments = useMemo(() => {
+    return appointments
+      .filter(app => app.status === 'ATTENDED')
+      .sort((a, b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime());
+  }, [appointments]);
+
+
+  if (isLoadingPageData) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -213,6 +234,72 @@ export default function BookingPage() {
     );
   }
 
+  const renderAppointmentItem = (app: Appointment, isPending: boolean) => (
+    <li key={app.id} className="p-4 border rounded-lg bg-card shadow-sm space-y-3">
+      <div>
+        <h4 className="font-semibold text-primary">
+          {app.selectedProcedures.map(p => p.name).join(' + ')}
+        </h4>
+        <div className="text-sm text-muted-foreground space-y-1 mt-1">
+          <p className="flex items-center gap-1.5"><UserCircle className="h-4 w-4" /> {app.customerName}</p>
+          <p className="flex items-center gap-1.5"><CalendarCheck2 className="h-4 w-4" /> {format(new Date(app.date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })}</p>
+          <p className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {app.time} (Duração: {app.totalDuration} min)</p>
+          {app.customerPhone && <p className="flex items-center gap-1.5"><Phone className="h-4 w-4" /> Whatsapp: {app.customerPhone}</p>}
+          <p className="flex items-center gap-1.5"><DollarSign className="h-4 w-4" /> R$ {app.totalPrice.toFixed(2)}</p>
+           <p className="flex items-center gap-1.5">
+            <ShieldCheck className={`h-4 w-4 ${statusColors[app.status]}`} />
+            Status: <span className={`font-medium ${statusColors[app.status]}`}>{statusTranslations[app.status]}</span>
+          </p>
+          <p className="flex items-center gap-1.5">
+            <CreditCard className={`h-4 w-4 ${app.sinalPago ? 'text-emerald-600' : 'text-amber-500'}`} />
+            Sinal: {app.sinalPago ? <span className="font-medium text-emerald-600">Pago</span> : <span className="font-medium text-amber-500">Pendente</span>}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
+        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditClick(app)}>
+          <Edit className="mr-2 h-4 w-4" /> Editar
+        </Button>
+        {isPending && (
+          <>
+            <Button variant="outline" size="sm" className="flex-1 text-emerald-600 border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-600" onClick={() => handleChangeStatus(app.id, 'ATTENDED')}>
+              <CheckCircle className="mr-2 h-4 w-4" /> Atendido
+            </Button>
+            <Button variant="outline" size="sm" className="flex-1 text-rose-600 border-rose-500 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-600" onClick={() => handleChangeStatus(app.id, 'CANCELLED')}>
+              <XCircle className="mr-2 h-4 w-4" /> Cancelar
+            </Button>
+          </>
+        )}
+         <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" size="sm" className="flex-1">
+              <Trash2 className="mr-2 h-4 w-4" /> Excluir
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o agendamento de {app.customerName} para {app.selectedProcedures.map(p=>p.name).join(' + ')} em {format(new Date(app.date + 'T00:00:00'), "dd/MM/yyyy")} às {app.time}? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90"
+                onClick={() => handleDeleteAppointment(app.id)}
+              >
+                Excluir Agendamento
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </li>
+  );
+
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 space-y-8">
@@ -220,12 +307,12 @@ export default function BookingPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CalendarCheck2 className="h-6 w-6 text-primary" />
-              {appointmentToEdit ? "Editar Agendamento" : "Selecione Data e Procedimentos"}
+              {appointmentToEdit ? "Editar Agendamento" : "Novo Agendamento"}
             </CardTitle>
             <CardDescription>
               {appointmentToEdit
                 ? `Editando agendamento para ${appointmentToEdit.customerName}. Faça as alterações abaixo.`
-                : "Escolha uma data e os procedimentos desejados para ver os horários."
+                : "Escolha data, procedimento(s) e horário para um novo agendamento."
               }
             </CardDescription>
           </CardHeader>
@@ -235,7 +322,7 @@ export default function BookingPage() {
                 selectedDate={selectedDate}
                 onDateChange={(date) => {
                   setSelectedDate(date);
-                  setSelectedTime(undefined);
+                  setSelectedTime(undefined); // Reseta horário ao mudar data
                 }}
               />
             </div>
@@ -244,7 +331,7 @@ export default function BookingPage() {
               {selectedDate && (
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
-                    Procedimentos:
+                    Procedimentos (Duração Total: {totalSelectedProceduresDuration} min):
                   </label>
                   <ScrollArea className="h-[150px] border rounded-md p-3 bg-muted/20">
                     {isLoadingProcedures ? <Loader2 className="h-5 w-5 animate-spin" /> : (
@@ -296,7 +383,7 @@ export default function BookingPage() {
                     </ScrollArea>
                   ) : (
                      <p className="text-muted-foreground text-sm p-3 border rounded-md bg-muted/50">
-                      Nenhum horário disponível para os procedimentos e data selecionados com base na duração total. Tente outra data ou combinação de procedimentos.
+                      Nenhum horário disponível para os procedimentos e data selecionados. Tente outra data ou combinação de procedimentos.
                     </p>
                   )}
                 </div>
@@ -308,7 +395,7 @@ export default function BookingPage() {
         {selectedDate && selectedProceduresDetail.length > 0 && selectedTime && (
           <Card>
             <CardHeader>
-              <CardTitle>{appointmentToEdit ? "Editar Detalhes do Agendamento" : "Detalhes do Agendamento"}</CardTitle>
+              <CardTitle>{appointmentToEdit ? "Editar Detalhes do Agendamento" : "Detalhes do Novo Agendamento"}</CardTitle>
               <CardDescription>
                 {appointmentToEdit ? `Atualize os dados para ${selectedProceduresDetail.map(p => p.name).join(' + ')} em ${format(selectedDate, "dd/MM/yyyy")} às ${selectedTime}.`
                                  : `Confirme os dados para ${selectedProceduresDetail.map(p => p.name).join(' + ')} em ${format(selectedDate, "dd/MM/yyyy")} às ${selectedTime}.`}
@@ -336,81 +423,39 @@ export default function BookingPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-6 w-6 text-primary" />
-              Agendamentos
+              <CalendarClock className="h-6 w-6 text-primary" />
+              Próximos Agendamentos
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoadingAppointments ? <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /> :
-             appointments.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhum agendamento ainda.</p>
+            {isLoadingAppointmentsContext ? <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /> :
+             pendingAppointments.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhum agendamento confirmado.</p>
             ) : (
-              <ScrollArea className="h-[500px] pr-3">
+              <ScrollArea className="h-[400px] pr-3">
                 <ul className="space-y-4">
-                  {appointments.sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()).map(app => (
-                    <li key={app.id} className="p-4 border rounded-lg bg-card shadow-sm space-y-3">
-                      <div>
-                        <h4 className="font-semibold text-primary">
-                          {app.selectedProcedures.map(p => p.name).join(' + ')}
-                        </h4>
-                        <div className="text-sm text-muted-foreground space-y-1 mt-1">
-                          <p className="flex items-center gap-1.5"><UserCircle className="h-4 w-4" /> {app.customerName}</p>
-                          <p className="flex items-center gap-1.5"><CalendarCheck2 className="h-4 w-4" /> {format(new Date(app.date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })}</p>
-                          <p className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {app.time} (Duração: {app.totalDuration} min)</p>
-                          {app.customerPhone && <p className="flex items-center gap-1.5"><Phone className="h-4 w-4" /> Whatsapp: {app.customerPhone}</p>}
-                          <p className="flex items-center gap-1.5"><DollarSign className="h-4 w-4" /> R$ {app.totalPrice.toFixed(2)}</p>
-                           <p className="flex items-center gap-1.5">
-                            <ShieldCheck className={`h-4 w-4 ${statusColors[app.status]}`} />
-                            Status: <span className={`font-medium ${statusColors[app.status]}`}>{statusTranslations[app.status]}</span>
-                          </p>
-                          <p className="flex items-center gap-1.5">
-                            <CreditCard className={`h-4 w-4 ${app.sinalPago ? 'text-emerald-600' : 'text-amber-500'}`} />
-                            Sinal: {app.sinalPago ? <span className="font-medium text-emerald-600">Pago</span> : <span className="font-medium text-amber-500">Pendente</span>}
-                          </p>
-                        </div>
-                      </div>
+                  {pendingAppointments.map(app => renderAppointmentItem(app, true))}
+                </ul>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
 
-                      <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
-                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditClick(app)}>
-                          <Edit className="mr-2 h-4 w-4" /> Editar
-                        </Button>
-                        {app.status === 'CONFIRMED' && (
-                          <>
-                            <Button variant="outline" size="sm" className="flex-1 text-emerald-600 border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-600" onClick={() => handleChangeStatus(app.id, 'ATTENDED')}>
-                              <CheckCircle className="mr-2 h-4 w-4" /> Atendido
-                            </Button>
-                            <Button variant="outline" size="sm" className="flex-1 text-rose-600 border-rose-500 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-600" onClick={() => handleChangeStatus(app.id, 'CANCELLED')}>
-                              <XCircle className="mr-2 h-4 w-4" /> Cancelar
-                            </Button>
-                          </>
-                        )}
-                         <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm" className="flex-1">
-                              <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Tem certeza que deseja excluir o agendamento de {app.customerName} para {app.selectedProcedures.map(p=>p.name).join(' + ')} em {format(new Date(app.date + 'T00:00:00'), "dd/MM/yyyy")} às {app.time}? Esta ação não pode ser desfeita.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-destructive hover:bg-destructive/90"
-                                onClick={() => handleDeleteAppointment(app.id)}
-                              >
-                                Excluir Agendamento
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </li>
-                  ))}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ListChecks className="h-6 w-6 text-emerald-600" />
+              Agendamentos Realizados
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingAppointmentsContext ? <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /> :
+             attendedAppointments.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhum agendamento realizado ainda.</p>
+            ) : (
+              <ScrollArea className="h-[400px] pr-3">
+                <ul className="space-y-4">
+                  {attendedAppointments.map(app => renderAppointmentItem(app, false))}
                 </ul>
               </ScrollArea>
             )}
@@ -420,3 +465,5 @@ export default function BookingPage() {
     </div>
   );
 }
+
+    
