@@ -17,7 +17,8 @@ export function BookingCalendar({ selectedDate, onDateChange }: BookingCalendarP
       onSelect={onDateChange}
       className="rounded-md border shadow-sm bg-card"
       locale={ptBR}
-      fromDate={new Date()} // Prevent selecting past dates
+      // fromDate={new Date()} // Restrição removida para permitir datas passadas
     />
   );
 }
+
