@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
 import { format, addMinutes, parse, set, isEqual, startOfDay, getMonth, getYear, setYear as setDateFnsYear, setMonth as setDateFnsMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, ListChecks, CalendarClock, CalendarDays } from 'lucide-react';
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, CalendarClock, CalendarDays, RotateCcw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useProcedures } from '@/contexts/ProceduresContext';
@@ -56,7 +56,6 @@ export default function BookingPage() {
   const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
   const [appointmentToEdit, setAppointmentToEdit] = useState<Appointment | null>(null);
 
-  // State for list filters
   const [filterYear, setFilterYear] = useState<number>(currentYear);
   const [filterMonth, setFilterMonth] = useState<number>(getMonth(new Date()));
 
@@ -224,7 +223,7 @@ export default function BookingPage() {
 
   const filteredAppointmentsForPeriod = useMemo(() => {
     return appointments.filter(app => {
-      const appDate = new Date(app.date + 'T00:00:00'); // Adiciona T00:00:00 para evitar problemas de fuso
+      const appDate = new Date(app.date + 'T00:00:00');
       return getYear(appDate) === filterYear && getMonth(appDate) === filterMonth;
     });
   }, [appointments, filterYear, filterMonth]);
@@ -238,8 +237,18 @@ export default function BookingPage() {
   const attendedAppointments = useMemo(() => {
     return filteredAppointmentsForPeriod
       .filter(app => app.status === 'ATTENDED')
-      .sort((a, b) => new Date(b.date + 'T' + b.time).getTime() - new Date(a.date + 'T' + a.time).getTime()); // Sort descending (most recent first)
+      .sort((a, b) => new Date(b.date + 'T' + b.time).getTime() - new Date(a.date + 'T' + a.time).getTime());
   }, [filteredAppointmentsForPeriod]);
+  
+  const cancelledAppointments = useMemo(() => {
+    return filteredAppointmentsForPeriod
+      .filter(app => app.status === 'CANCELLED')
+      .sort((a, b) => new Date(b.date + 'T' + b.time).getTime() - new Date(a.date + 'T' + a.time).getTime());
+  }, [filteredAppointmentsForPeriod]);
+
+  const selectedPeriodText = useMemo(() => {
+    return format(setDateFnsMonth(setDateFnsYear(new Date(), filterYear), filterMonth), "MMMM 'de' yyyy", { locale: ptBR });
+  }, [filterYear, filterMonth]);
 
 
   if (isLoadingPageData) {
@@ -251,7 +260,7 @@ export default function BookingPage() {
     );
   }
 
-  const renderAppointmentItem = (app: Appointment, isPending: boolean) => (
+  const renderAppointmentItem = (app: Appointment) => (
     <li key={app.id} className="p-4 border rounded-lg bg-card shadow-sm space-y-3">
       <div>
         <h4 className="font-semibold text-primary">
@@ -278,7 +287,8 @@ export default function BookingPage() {
         <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditClick(app)}>
           <Edit className="mr-2 h-4 w-4" /> Editar
         </Button>
-        {isPending && (
+        
+        {app.status === 'CONFIRMED' && (
           <>
             <Button variant="outline" size="sm" className="flex-1 text-emerald-600 border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-600" onClick={() => handleChangeStatus(app.id, 'ATTENDED')}>
               <CheckCircle className="mr-2 h-4 w-4" /> Atendido
@@ -288,6 +298,13 @@ export default function BookingPage() {
             </Button>
           </>
         )}
+        
+        {app.status === 'CANCELLED' && (
+           <Button variant="outline" size="sm" className="flex-1 text-amber-600 border-amber-500 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-600" onClick={() => handleChangeStatus(app.id, 'CONFIRMED')}>
+            <RotateCcw className="mr-2 h-4 w-4" /> Reabrir
+          </Button>
+        )}
+
          <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" size="sm" className="flex-1">
@@ -437,7 +454,6 @@ export default function BookingPage() {
       </div>
 
       <div className="lg:col-span-1 space-y-6">
-        {/* Filtros de Mês e Ano movidos para cá */}
         <div className="flex flex-col sm:flex-row gap-2 items-center p-4 border rounded-lg bg-muted/30">
             <CalendarDays className="h-5 w-5 text-muted-foreground" />
             <Select
@@ -472,48 +488,76 @@ export default function BookingPage() {
             </Select>
         </div>
 
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <CardTitle className="flex items-center gap-2">
-                <CalendarClock className="h-6 w-6 text-primary" />
-                Agendamentos
+        {isLoadingAppointmentsContext ? <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /> :
+        (<>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <CalendarClock className="h-5 w-5 text-sky-600" />
+                Confirmados ({pendingAppointments.length})
               </CardTitle>
-            </div>
-             <CardDescription className="text-xs mt-2">
-              Visualizando agendamentos para {format(setDateFnsMonth(setDateFnsYear(new Date(), filterYear), filterMonth), "MMMM 'de' yyyy", { locale: ptBR })}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingAppointmentsContext ? <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /> :
-            (<>
-              <h3 className="text-sm font-semibold mb-2 text-sky-600">Confirmados ({pendingAppointments.length})</h3>
+              <CardDescription className="text-xs mt-1">
+                Agendamentos para {selectedPeriodText}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               {pendingAppointments.length === 0 ? (
-                <p className="text-muted-foreground text-xs py-2">Nenhum agendamento confirmado para este período.</p>
+                <p className="text-muted-foreground text-xs py-2 text-center">Nenhum agendamento confirmado para este período.</p>
               ) : (
-                <ScrollArea className="h-[250px] pr-3 mb-4">
+                <ScrollArea className="h-[220px] pr-3">
                   <ul className="space-y-4">
-                    {pendingAppointments.map(app => renderAppointmentItem(app, true))}
+                    {pendingAppointments.map(app => renderAppointmentItem(app))}
                   </ul>
                 </ScrollArea>
               )}
+            </CardContent>
+          </Card>
 
-              <h3 className="text-sm font-semibold mt-4 mb-2 text-emerald-600">Realizados ({attendedAppointments.length})</h3>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                 Realizados ({attendedAppointments.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
                {attendedAppointments.length === 0 ? (
-                <p className="text-muted-foreground text-xs py-2">Nenhum agendamento realizado para este período.</p>
+                <p className="text-muted-foreground text-xs py-2 text-center">Nenhum agendamento realizado neste período.</p>
               ) : (
-                <ScrollArea className="h-[250px] pr-3">
+                <ScrollArea className="h-[220px] pr-3">
                   <ul className="space-y-4">
-                    {attendedAppointments.map(app => renderAppointmentItem(app, false))}
+                    {attendedAppointments.map(app => renderAppointmentItem(app))}
                   </ul>
                 </ScrollArea>
               )}
-            </>)
-            }
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <XCircle className="h-5 w-5 text-rose-600" />
+                Cancelados ({cancelledAppointments.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+               {cancelledAppointments.length === 0 ? (
+                <p className="text-muted-foreground text-xs py-2 text-center">Nenhum agendamento cancelado neste período.</p>
+              ) : (
+                <ScrollArea className="h-[220px] pr-3">
+                  <ul className="space-y-4">
+                    {cancelledAppointments.map(app => renderAppointmentItem(app))}
+                  </ul>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+        </>)
+        }
       </div>
     </div>
   );
 }
+    
+
     
