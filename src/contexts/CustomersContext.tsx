@@ -7,16 +7,18 @@ import {
   getCustomers as getCustomersAction,
   addCustomer as addCustomerAction,
   updateCustomerData as updateCustomerAction,
-  deleteCustomerData as deleteCustomerAction
+  deleteCustomerData as deleteCustomerAction,
+  getAllUniqueTagsData // Importar para usar a versão da action
 } from '@/app/actions/customerActions';
 import { useToast } from '@/hooks/use-toast';
+// sanitizeCustomer e sanitizeTag não são mais necessários aqui, pois as actions já retornam dados sanitizados.
 
 interface CustomersContextType {
   customers: Customer[];
   addCustomer: (customerData: Omit<Customer, 'id'>) => Promise<void>;
   updateCustomer: (updatedCustomer: Customer) => Promise<void>;
   deleteCustomer: (customerId: string) => Promise<void>;
-  getAllUniqueTags: () => Tag[];
+  getAllUniqueTags: () => Promise<Tag[]>; // Alterado para Promise<Tag[]> para buscar da action
   isLoading: boolean;
 }
 
@@ -31,8 +33,7 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
     try {
       setIsLoading(true);
       console.log("[CustomersContext] Fetching customers from server action...");
-      const serverCustomers = await getCustomersAction();
-      // A ação getCustomersAction já deve garantir que customer.tags é um array.
+      const serverCustomers = await getCustomersAction(); // Actions já sanitizam
       setCustomers(serverCustomers);
       console.log("[CustomersContext] Customers loaded successfully from server action:", serverCustomers.length);
     } catch (error: any) {
@@ -50,11 +51,9 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
 
   const addCustomer = useCallback(async (customerData: Omit<Customer, 'id'>) => {
     try {
-      const newCustomer = await addCustomerAction(customerData);
+      const newCustomer = await addCustomerAction(customerData); // Actions já sanitizam
       if (newCustomer) {
-        // Garante que newCustomer.tags é um array antes de atualizar o estado
-        const sanitizedNewCustomer = { ...newCustomer, tags: Array.isArray(newCustomer.tags) ? newCustomer.tags : [] };
-        setCustomers(prev => [...prev, sanitizedNewCustomer].sort((a, b) => a.name.localeCompare(b.name)));
+        setCustomers(prev => [...prev, newCustomer].sort((a, b) => a.name.localeCompare(b.name)));
       } else {
         toast({ title: "Erro ao Adicionar", description: "Não foi possível adicionar o cliente.", variant: "destructive" });
       }
@@ -66,12 +65,10 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
 
   const updateCustomer = useCallback(async (updatedCustomer: Customer) => {
     try {
-      const result = await updateCustomerAction(updatedCustomer);
+      const result = await updateCustomerAction(updatedCustomer); // Actions já sanitizam
       if (result) {
-        // Garante que result.tags é um array antes de atualizar o estado
-        const sanitizedResult = { ...result, tags: Array.isArray(result.tags) ? result.tags : [] };
         setCustomers(prev =>
-          prev.map(c => (c.id === sanitizedResult.id ? sanitizedResult : c))
+          prev.map(c => (c.id === result.id ? result : c))
             .sort((a, b) => a.name.localeCompare(b.name))
         );
       } else {
@@ -88,7 +85,6 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
       const success = await deleteCustomerAction(customerId);
       if (success) {
         setCustomers(prev => prev.filter(c => c.id !== customerId));
-        // Toast for success is handled by the calling component (CustomerList)
       } else {
          toast({ title: "Erro ao Remover", description: "Não foi possível remover o cliente.", variant: "destructive" });
       }
@@ -98,22 +94,16 @@ export const CustomersProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [toast]);
 
-  const getAllUniqueTags = useCallback((): Tag[] => {
-    const allTagsMap = new Map<string, Tag>();
-    customers.forEach(customer => {
-      // Adicionada verificação para garantir que customer.tags é um array antes de chamar forEach
-      if (customer.tags && Array.isArray(customer.tags)) {
-        customer.tags.forEach(tag => {
-          if (tag && typeof tag.id === 'string' && typeof tag.name === 'string') {
-            if (!allTagsMap.has(tag.id)) {
-              allTagsMap.set(tag.id, tag);
-            }
-          }
-        });
-      }
-    });
-    return Array.from(allTagsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [customers]);
+  // Agora busca as tags únicas através da server action, que já tem a lógica correta.
+  const getAllUniqueTags = useCallback(async (): Promise<Tag[]> => {
+    try {
+        return await getAllUniqueTagsData();
+    } catch (error: any) {
+        console.error("[CustomersContext] Error fetching unique tags from action:", error);
+        toast({ title: "Erro ao Buscar Tags", description: "Não foi possível buscar as tags únicas.", variant: "destructive" });
+        return [];
+    }
+  }, [toast]);
 
 
   return (
@@ -130,4 +120,3 @@ export const useCustomers = () => {
   }
   return context;
 };
-

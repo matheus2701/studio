@@ -1,9 +1,10 @@
 
 'use server';
 
-import type { ManualFinancialEntry, FinancialEntryType } from '@/lib/types';
+import type { ManualFinancialEntry } from '@/lib/types';
 import { supabase } from '@/lib/supabaseClient';
 import { format } from 'date-fns';
+import { formatSupabaseErrorMessage, sanitizeFinancialEntry } from '@/lib/actionUtils';
 
 export async function getFinancialEntriesByMonthData(year: number, month: number): Promise<ManualFinancialEntry[]> {
   const startDate = format(new Date(year, month, 1), 'yyyy-MM-dd');
@@ -18,26 +19,20 @@ export async function getFinancialEntriesByMonthData(year: number, month: number
     .order('date', { ascending: true });
 
   if (error) {
+    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'fetching financial entries by month');
     console.error('[financialEntryActions] Supabase error fetching financial entries by month:', error);
-    throw new Error(`Supabase error fetching financial entries: ${error.message}`);
+    throw new Error(detailedErrorMessage);
   }
   console.log('[financialEntryActions] Successfully fetched financial entries by month:', data);
-  return (data || []).map(entry => ({
-    ...entry,
-    amount: Number(entry.amount) // Ensure amount is a number
-  }));
+  return (data || []).map(entry => sanitizeFinancialEntry(entry));
 }
 
 export async function addFinancialEntryData(entryData: Omit<ManualFinancialEntry, 'id' | 'created_at'>): Promise<ManualFinancialEntry | null> {
-  const newEntryPayload: Omit<ManualFinancialEntry, 'id' | 'created_at'> & { id?: string } = {
+  const entryToInsert: ManualFinancialEntry = {
     ...entryData,
-    amount: Number(entryData.amount), // Ensure amount is a number
+    id: Date.now().toString(),
+    amount: Number(entryData.amount), 
   };
-
-  const entryToInsert = {
-    ...newEntryPayload,
-    id: Date.now().toString(), // Generate ID
-  }
 
   console.log('[financialEntryActions] Attempting to add financial entry to Supabase:', entryToInsert);
   const { data, error } = await supabase
@@ -47,11 +42,12 @@ export async function addFinancialEntryData(entryData: Omit<ManualFinancialEntry
     .single();
 
   if (error) {
+    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'adding financial entry');
     console.error('[financialEntryActions] Supabase error adding financial entry:', error);
-    throw new Error(`Supabase error adding financial entry: ${error.message}`);
+    throw new Error(detailedErrorMessage);
   }
   console.log('[financialEntryActions] Successfully added financial entry, returned data:', data);
-  return data ? { ...data, amount: Number(data.amount) } : null;
+  return data ? sanitizeFinancialEntry(data) : null;
 }
 
 export async function deleteFinancialEntryData(entryId: string): Promise<boolean> {
@@ -62,9 +58,11 @@ export async function deleteFinancialEntryData(entryId: string): Promise<boolean
     .eq('id', entryId);
 
   if (error) {
+    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'deleting financial entry');
     console.error('[financialEntryActions] Supabase error deleting financial entry:', error);
-    throw new Error(`Supabase error deleting financial entry: ${error.message}`);
+    throw new Error(detailedErrorMessage);
   }
   console.log(`[financialEntryActions] Successfully deleted financial entry ${entryId}`);
   return true;
 }
+

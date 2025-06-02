@@ -6,7 +6,6 @@ import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useFinancialEntries } from '@/contexts/FinancialEntriesContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
@@ -19,17 +18,18 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger, // Adicionada importação que faltava
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { format, getYear, getMonth, setYear, setMonth, parseISO } from 'date-fns';
+import { format, getYear, getMonth, setYear, setMonth as setDateFnsMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, CalendarDays, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Repeat, Loader2 } from 'lucide-react';
+import { DollarSign, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Loader2 } from 'lucide-react';
 import type { Appointment, ManualFinancialEntry } from '@/lib/types';
 import { ManualFinancialEntryForm } from '@/components/forms/ManualFinancialEntryForm';
+import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls'; // Importação do novo componente
 
 const currentYear = getYear(new Date());
-const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
-const months = Array.from({ length: 12 }, (_, i) => i);
+const yearsForFilter = Array.from({ length: 5 }, (_, i) => currentYear - i);
+const monthsForFilter = Array.from({ length: 12 }, (_, i) => i);
 
 const financialEntryTypeTranslations: Record<ManualFinancialEntry['type'], string> = {
   income: "Entrada",
@@ -59,7 +59,6 @@ export default function FinancialOverviewPage() {
   const fetchDataForSelectedPeriod = useCallback(async () => {
     setIsFetchingPageData(true);
     console.log(`[FinancialOverview] Fetching data for ${selectedYear}-${selectedMonth + 1}`);
-    // Ambas as chamadas são async, podemos paralelizar se desejado, mas sequencial é mais simples aqui.
     await fetchFinancialEntriesByMonth(selectedYear, selectedMonth);
     const appointmentData = await getAppointmentsByMonth(selectedYear, selectedMonth);
     setMonthlyAppointments(appointmentData);
@@ -68,7 +67,7 @@ export default function FinancialOverviewPage() {
 
   useEffect(() => {
     fetchDataForSelectedPeriod();
-  }, [fetchDataForSelectedPeriod]); // fetchDataForSelectedPeriod já depende de selectedYear, selectedMonth e das funções de busca dos contextos
+  }, [fetchDataForSelectedPeriod]);
 
 
   const attendedAppointments = useMemo(() => {
@@ -96,8 +95,6 @@ export default function FinancialOverviewPage() {
     return totalAttendedAppointmentsValue + totalManualIncome - totalManualExpenses;
   }, [totalAttendedAppointmentsValue, totalManualIncome, totalManualExpenses]);
 
-  // isLoadingAppointmentsContext e isLoadingEntriesContext são para o carregamento inicial dos contextos.
-  // isFetchingPageData é para o carregamento específico desta página (ao mudar mês/ano).
   const displayIsLoading = isLoadingAppointmentsContext || isLoadingEntriesContext || isFetchingPageData;
 
   const handleRefreshData = () => {
@@ -118,10 +115,6 @@ export default function FinancialOverviewPage() {
             </CardDescription>
           </div>
            <div className="flex flex-col sm:flex-row gap-2 items-center w-full sm:w-auto">
-            <Button onClick={handleRefreshData} variant="outline" className="w-full sm:w-auto" disabled={displayIsLoading}>
-              {isFetchingPageData ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Repeat className="mr-2 h-4 w-4" />}
-              Atualizar Dados
-            </Button>
             <Dialog open={isAddEntryDialogOpen} onOpenChange={setIsAddEntryDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="w-full sm:w-auto">
@@ -137,54 +130,22 @@ export default function FinancialOverviewPage() {
                 </DialogHeader>
                 <ManualFinancialEntryForm onFormSubmit={() => {
                   setIsAddEntryDialogOpen(false);
-                  // A atualização dos dados já é feita pelo FinancialEntriesContext
-                  // ao adicionar uma nova entrada, que por sua vez chama fetchFinancialEntriesByMonth.
                 }} />
               </DialogContent>
             </Dialog>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-center p-4 border rounded-lg bg-muted/30">
-            <div className="flex w-full sm:w-auto gap-2 items-center">
-              <CalendarDays className="h-5 w-5 text-muted-foreground" />
-              <Select
-                value={selectedYear.toString()}
-                onValueChange={(value) => setSelectedYear(parseInt(value))}
-                disabled={displayIsLoading}
-              >
-                <SelectTrigger className="w-full sm:w-[120px]">
-                  <SelectValue placeholder="Ano" />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map(year => (
-                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex w-full sm:w-auto gap-2 items-center">
-              <CalendarDays className="h-5 w-5 text-muted-foreground sm:hidden" />
-              <Select
-                value={selectedMonth.toString()}
-                onValueChange={(value) => setSelectedMonth(parseInt(value))}
-                disabled={displayIsLoading}
-              >
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Mês" />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map(monthIdx => (
-                    <SelectItem key={monthIdx} value={monthIdx.toString()}>
-                      {format(setMonth(new Date(), monthIdx), 'MMMM', { locale: ptBR })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {displayIsLoading && !isFetchingPageData && (isLoadingAppointmentsContext || isLoadingEntriesContext) && <Loader2 className="h-5 w-5 animate-spin text-primary" title="Carregando dados iniciais..." />}
-            {isFetchingPageData && <Loader2 className="h-5 w-5 animate-spin text-primary" title="Buscando dados do período..." />}
-          </div>
+          <PeriodFilterControls
+            selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
+            onYearChange={setSelectedYear}
+            onMonthChange={setSelectedMonth}
+            onRefreshData={handleRefreshData}
+            isLoading={displayIsLoading}
+            years={yearsForFilter}
+            months={monthsForFilter}
+          />
 
           {displayIsLoading ? (
             <div className="text-center py-10">
@@ -197,7 +158,7 @@ export default function FinancialOverviewPage() {
                 <CardHeader>
                   <CardTitle className="text-lg text-primary flex flex-col sm:flex-row items-center justify-between gap-2">
                     <span>
-                      Visão Geral de {format(setMonth(setYear(new Date(), selectedYear), selectedMonth), 'MMMM \'de\' yyyy', { locale: ptBR })}:
+                      Visão Geral de {format(setDateFnsMonth(setYear(new Date(), selectedYear), selectedMonth), 'MMMM \'de\' yyyy', { locale: ptBR })}:
                     </span>
                   </CardTitle>
                 </CardHeader>

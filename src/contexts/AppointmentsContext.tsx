@@ -12,6 +12,7 @@ import {
   getAppointmentsByMonthData as getAppointmentsByMonthAction
 } from '@/app/actions/appointmentActions';
 import { useToast } from '@/hooks/use-toast';
+// sanitizeAppointment não é mais necessário aqui, pois as actions já retornam dados sanitizados.
 
 interface AppointmentsContextType {
   appointments: Appointment[];
@@ -34,7 +35,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
     try {
       setIsLoading(true);
       console.log("[AppointmentsContext] Fetching appointments from server action...");
-      const serverAppointments = await getAppointmentsAction();
+      const serverAppointments = await getAppointmentsAction(); // Actions já sanitizam
       setAppointments(serverAppointments);
       console.log("[AppointmentsContext] Appointments loaded successfully from server action:", serverAppointments.length);
     } catch (error: any) {
@@ -52,10 +53,9 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
 
   const addAppointment = useCallback(async (appointmentData: Omit<Appointment, 'id' | 'status'>): Promise<Appointment | null> => {
     try {
-      const newAppointment = await addAppointmentAction(appointmentData);
+      const newAppointment = await addAppointmentAction(appointmentData); // Actions já sanitizam
       if (newAppointment) {
         setAppointments(prev => [...prev, newAppointment].sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()));
-        // Toast de sucesso geralmente é melhor no local da chamada (BookingPage)
         return newAppointment;
       }
       return null;
@@ -68,13 +68,12 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
 
   const updateAppointment = useCallback(async (updatedAppointment: Appointment): Promise<Appointment | null> => {
     try {
-      const result = await updateAppointmentAction(updatedAppointment);
+      const result = await updateAppointmentAction(updatedAppointment); // Actions já sanitizam
       if (result) {
         setAppointments(prev =>
           prev.map(app => (app.id === result.id ? result : app))
             .sort((a,b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime())
         );
-        // Toast de sucesso geralmente é melhor no local da chamada (BookingPage)
         return result;
       }
       return null;
@@ -87,14 +86,13 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
 
   const updateAppointmentStatus = useCallback(async (appointmentId: string, newStatus: AppointmentStatus): Promise<Appointment | null> => {
     try {
-      const updatedApp = await updateAppointmentStatusAction(appointmentId, newStatus);
+      const updatedApp = await updateAppointmentStatusAction(appointmentId, newStatus); // Actions já sanitizam
       if (updatedApp) {
         setAppointments(prev =>
           prev.map(app =>
-            app.id === updatedApp.id ? { ...app, status: updatedApp.status } : app
+            app.id === updatedApp.id ? updatedApp : app // Usa o objeto atualizado diretamente
           )
         );
-        // Toast de sucesso geralmente é melhor no local da chamada (BookingPage)
         return updatedApp;
       }
       return null;
@@ -119,7 +117,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   const getAppointmentsByMonth = useCallback(async (year: number, month: number): Promise<Appointment[]> => {
     try {
         console.log(`[AppointmentsContext] Calling getAppointmentsByMonthAction for year ${year}, month ${month}`);
-        const monthAppointments = await getAppointmentsByMonthAction(year, month);
+        const monthAppointments = await getAppointmentsByMonthAction(year, month); // Actions já sanitizam
          return monthAppointments;
     } catch (error: any) {
         console.error("[AppointmentsContext] Failed to fetch appointments by month from server action", error);

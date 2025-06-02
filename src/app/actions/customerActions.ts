@@ -3,6 +3,7 @@
 
 import type { Customer, Tag } from '@/lib/types';
 import { supabase } from '@/lib/supabaseClient';
+import { formatSupabaseErrorMessage, sanitizeCustomer, sanitizeTag } from '@/lib/actionUtils';
 
 export async function getCustomers(): Promise<Customer[]> {
   const { data, error } = await supabase
@@ -11,21 +12,18 @@ export async function getCustomers(): Promise<Customer[]> {
     .order('name', { ascending: true });
 
   if (error) {
+    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'fetching customers');
     console.error('[customerActions] Supabase error fetching customers:', error);
-    throw new Error(`Supabase error fetching customers: ${error.message}`);
+    throw new Error(detailedErrorMessage);
   }
-  // Ensure customer.tags is always an array
-  return (data || []).map(customer => ({
-    ...customer,
-    tags: Array.isArray(customer.tags) ? customer.tags : [],
-  }));
+  return (data || []).map(customer => sanitizeCustomer(customer));
 }
 
 export async function addCustomer(customerData: Omit<Customer, 'id'>): Promise<Customer | null> {
-  const newCustomer: Customer = {
+  const newCustomer: Omit<Customer, 'id'> & { id: string } = {
     ...customerData,
     id: Date.now().toString(), 
-    tags: customerData.tags || [], // Ensure tags is an array
+    tags: customerData.tags || [], 
   };
 
   const { data, error } = await supabase
@@ -35,16 +33,17 @@ export async function addCustomer(customerData: Omit<Customer, 'id'>): Promise<C
     .single();
 
   if (error) {
+    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'adding customer');
     console.error('[customerActions] Supabase error adding customer:', error);
-    throw new Error(`Supabase error adding customer: ${error.message}`);
+    throw new Error(detailedErrorMessage);
   }
-  return data ? { ...data, tags: Array.isArray(data.tags) ? data.tags : [] } : null;
+  return data ? sanitizeCustomer(data) : null;
 }
 
 export async function updateCustomerData(updatedCustomer: Customer): Promise<Customer | null> {
   const customerToUpdate = {
      ...updatedCustomer,
-     tags: updatedCustomer.tags || [] // Ensure tags is an array
+     tags: updatedCustomer.tags || [] 
   };
   const { data, error } = await supabase
     .from('customers')
@@ -54,10 +53,11 @@ export async function updateCustomerData(updatedCustomer: Customer): Promise<Cus
     .single();
 
   if (error) {
+    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'updating customer');
     console.error('[customerActions] Supabase error updating customer:', error);
-    throw new Error(`Supabase error updating customer: ${error.message}`);
+    throw new Error(detailedErrorMessage);
   }
-  return data ? { ...data, tags: Array.isArray(data.tags) ? data.tags : [] } : null;
+  return data ? sanitizeCustomer(data) : null;
 }
 
 export async function deleteCustomerData(customerId: string): Promise<boolean> {
@@ -67,24 +67,28 @@ export async function deleteCustomerData(customerId: string): Promise<boolean> {
     .eq('id', customerId);
 
   if (error) {
+    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'deleting customer');
     console.error('[customerActions] Supabase error deleting customer:', error);
-    throw new Error(`Supabase error deleting customer: ${error.message}`);
+    throw new Error(detailedErrorMessage);
   }
   return true;
 }
 
 export async function getAllUniqueTagsData(): Promise<Tag[]> {
-  const allCustomers = await getCustomers(); // getCustomers now sanitizes tags
+  const allCustomers = await getCustomers();
   const allTagsMap = new Map<string, Tag>();
   allCustomers.forEach(customer => {
-    // customer.tags is guaranteed to be an array here by getCustomers()
-    customer.tags.forEach(tag => {
-      if (tag && typeof tag.id === 'string' && typeof tag.name === 'string') {
-        if (!allTagsMap.has(tag.id)) {
-          allTagsMap.set(tag.id, tag);
+    if (customer.tags && Array.isArray(customer.tags)) {
+        customer.tags.forEach(tag => {
+        const sanitized = sanitizeTag(tag); // Sanitize individual tags
+        if (sanitized.id && sanitized.name) { // Ensure basic validity after sanitization
+            if (!allTagsMap.has(sanitized.id)) {
+            allTagsMap.set(sanitized.id, sanitized);
+            }
         }
-      }
-    });
+        });
+    }
   });
   return Array.from(allTagsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
+

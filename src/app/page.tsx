@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
 import { format, addMinutes, parse, set, isEqual, startOfDay, getMonth, getYear, setYear as setDateFnsYear, setMonth as setDateFnsMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, CalendarClock, CalendarDays, RotateCcw } from 'lucide-react';
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, CalendarClock, RotateCcw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useProcedures } from '@/contexts/ProceduresContext';
@@ -27,7 +27,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls'; // Importação do novo componente
 
 const statusTranslations: Record<AppointmentStatus, string> = {
   CONFIRMED: "Confirmado",
@@ -454,39 +454,17 @@ export default function BookingPage() {
       </div>
 
       <div className="lg:col-span-1 space-y-6">
-        <div className="flex flex-col sm:flex-row gap-2 items-center p-4 border rounded-lg bg-muted/30">
-            <CalendarDays className="h-5 w-5 text-muted-foreground" />
-            <Select
-              value={filterYear.toString()}
-              onValueChange={(value) => setFilterYear(parseInt(value))}
-              disabled={isLoadingPageData}
-            >
-              <SelectTrigger className="w-full sm:w-[120px] text-sm h-9">
-                <SelectValue placeholder="Ano" />
-              </SelectTrigger>
-              <SelectContent>
-                {yearsForFilter.map(year => (
-                  <SelectItem key={year} value={year.toString()} className="text-sm">{year}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={filterMonth.toString()}
-              onValueChange={(value) => setFilterMonth(parseInt(value))}
-              disabled={isLoadingPageData}
-            >
-              <SelectTrigger className="w-full sm:w-[150px] text-sm h-9">
-                <SelectValue placeholder="Mês" />
-              </SelectTrigger>
-              <SelectContent>
-                {monthsForFilter.map(monthIdx => (
-                  <SelectItem key={monthIdx} value={monthIdx.toString()} className="text-sm">
-                    {format(setDateFnsMonth(new Date(), monthIdx), 'MMMM', { locale: ptBR })}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-        </div>
+        <PeriodFilterControls
+          selectedYear={filterYear}
+          selectedMonth={filterMonth}
+          onYearChange={setFilterYear}
+          onMonthChange={setFilterMonth}
+          isLoading={isLoadingPageData}
+          years={yearsForFilter}
+          months={monthsForFilter}
+          containerClassName="flex flex-col sm:flex-row gap-2 items-center p-4 border rounded-lg bg-muted/30 sticky top-[calc(theme(spacing.16)+1px)] z-10 backdrop-blur-sm"
+        />
+        
 
         {isLoadingAppointmentsContext ? <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /> :
         (<>
@@ -558,6 +536,4 @@ export default function BookingPage() {
     </div>
   );
 }
-    
-
     

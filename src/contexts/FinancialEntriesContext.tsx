@@ -2,13 +2,14 @@
 "use client";
 
 import type { ManualFinancialEntry } from '@/lib/types';
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import {
   getFinancialEntriesByMonthData,
   addFinancialEntryData,
   deleteFinancialEntryData
 } from '@/app/actions/financialEntryActions';
 import { useToast } from '@/hooks/use-toast';
+// sanitizeFinancialEntry não é mais necessário aqui, pois as actions já retornam dados sanitizados.
 
 interface FinancialEntriesContextType {
   financialEntries: ManualFinancialEntry[];
@@ -22,14 +23,14 @@ const FinancialEntriesContext = createContext<FinancialEntriesContextType | unde
 
 export const FinancialEntriesProvider = ({ children }: { children: ReactNode }) => {
   const [financialEntries, setFinancialEntries] = useState<ManualFinancialEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // Não inicia como true, pois os dados são buscados sob demanda
   const { toast } = useToast();
 
   const fetchFinancialEntriesByMonth = useCallback(async (year: number, month: number) => {
     setIsLoading(true);
     try {
       console.log(`[FinancialEntriesContext] Fetching financial entries for ${year}-${month + 1}`);
-      const serverEntries = await getFinancialEntriesByMonthData(year, month);
+      const serverEntries = await getFinancialEntriesByMonthData(year, month); // Actions já sanitizam
       setFinancialEntries(serverEntries);
       console.log(`[FinancialEntriesContext] Financial entries loaded: ${serverEntries.length}`);
     } catch (error: any) {
@@ -45,11 +46,9 @@ export const FinancialEntriesProvider = ({ children }: { children: ReactNode }) 
     setIsLoading(true);
     let newEntry: ManualFinancialEntry | null = null;
     try {
-      newEntry = await addFinancialEntryData(entryData);
+      newEntry = await addFinancialEntryData(entryData); // Actions já sanitizam
       if (newEntry) {
-        // Para garantir que a lista seja atualizada, vamos buscar novamente as entradas do mês corrente.
-        // Poderia ser mais otimizado, mas isso garante consistência.
-        const entryDate = new Date(newEntry.date + 'T00:00:00'); // Adiciona T00:00:00 para evitar problemas de fuso ao pegar mês/ano
+        const entryDate = new Date(newEntry.date + 'T00:00:00');
         await fetchFinancialEntriesByMonth(entryDate.getFullYear(), entryDate.getMonth());
         toast({ title: "Transação Adicionada!", description: "Nova transação financeira registrada." });
         return newEntry;
@@ -62,18 +61,17 @@ export const FinancialEntriesProvider = ({ children }: { children: ReactNode }) 
     } finally {
       setIsLoading(false);
     }
-  }, [toast, fetchFinancialEntriesByMonth]); // Adiciona fetchFinancialEntriesByMonth como dependência
+  }, [toast, fetchFinancialEntriesByMonth]);
 
   const deleteFinancialEntry = useCallback(async (entryId: string) => {
     setIsLoading(true);
-    // Para obter a data da entrada a ser excluída e buscar novamente as entradas do mês
     const entryToDelete = financialEntries.find(e => e.id === entryId);
     const entryYear = entryToDelete ? new Date(entryToDelete.date + 'T00:00:00').getFullYear() : new Date().getFullYear();
     const entryMonth = entryToDelete ? new Date(entryToDelete.date + 'T00:00:00').getMonth() : new Date().getMonth();
 
     try {
       await deleteFinancialEntryData(entryId);
-      await fetchFinancialEntriesByMonth(entryYear, entryMonth); // Re-fetch
+      await fetchFinancialEntriesByMonth(entryYear, entryMonth); 
       toast({ title: "Transação Removida", description: "A transação financeira foi removida." });
     } catch (error: any) {
       console.error("[FinancialEntriesContext] Error deleting financial entry:", error);
@@ -81,7 +79,7 @@ export const FinancialEntriesProvider = ({ children }: { children: ReactNode }) 
     } finally {
       setIsLoading(false);
     }
-  }, [toast, fetchFinancialEntriesByMonth, financialEntries]); // Adiciona financialEntries como dependência
+  }, [toast, fetchFinancialEntriesByMonth, financialEntries]);
 
   return (
     <FinancialEntriesContext.Provider value={{ financialEntries, addFinancialEntry, deleteFinancialEntry, fetchFinancialEntriesByMonth, isLoading }}>

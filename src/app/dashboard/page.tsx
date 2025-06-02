@@ -4,16 +4,15 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
 import { format, getYear, getMonth, setYear, setMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { BarChart3, CalendarDays, CheckCircle2, XCircle, CalendarClock, Loader2, Repeat } from 'lucide-react';
+import { BarChart3, CheckCircle2, XCircle, CalendarClock, Loader2 } from 'lucide-react';
 import type { Appointment } from '@/lib/types';
+import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls'; // Importação do novo componente
 
 const currentYear = getYear(new Date());
-const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
-const months = Array.from({ length: 12 }, (_, i) => i);
+const yearsForFilter = Array.from({ length: 5 }, (_, i) => currentYear - i);
+const monthsForFilter = Array.from({ length: 12 }, (_, i) => i);
 
 export default function DashboardPage() {
   const { getAppointmentsByMonth, isLoading: isLoadingAppointmentsContext } = useAppointments();
@@ -39,7 +38,7 @@ export default function DashboardPage() {
     const attended = monthlyAppointments.filter(app => app.status === 'ATTENDED').length;
     const cancelled = monthlyAppointments.filter(app => app.status === 'CANCELLED').length;
     const confirmed = monthlyAppointments.filter(app => app.status === 'CONFIRMED').length;
-    const totalBooked = monthlyAppointments.length; // Inclui todos os status do período
+    const totalBooked = monthlyAppointments.length; 
 
     return {
       attended,
@@ -64,55 +63,20 @@ export default function DashboardPage() {
               Acompanhe as métricas de seus agendamentos para o período selecionado.
             </CardDescription>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 items-center w-full sm:w-auto">
-            <Button onClick={fetchDashboardData} variant="outline" className="w-full sm:w-auto" disabled={displayIsLoading}>
-              {isFetchingPageData ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Repeat className="mr-2 h-4 w-4" />}
-              Atualizar Dados
-            </Button>
-          </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-center p-4 border rounded-lg bg-muted/30">
-            <div className="flex w-full sm:w-auto gap-2 items-center">
-              <CalendarDays className="h-5 w-5 text-muted-foreground" />
-              <Select
-                value={selectedYear.toString()}
-                onValueChange={(value) => setSelectedYear(parseInt(value))}
-                disabled={displayIsLoading}
-              >
-                <SelectTrigger className="w-full sm:w-[120px]">
-                  <SelectValue placeholder="Ano" />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map(year => (
-                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex w-full sm:w-auto gap-2 items-center">
-              <CalendarDays className="h-5 w-5 text-muted-foreground sm:hidden" /> {/* Ícone para mobile */}
-              <Select
-                value={selectedMonth.toString()}
-                onValueChange={(value) => setSelectedMonth(parseInt(value))}
-                disabled={displayIsLoading}
-              >
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Mês" />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map(monthIdx => (
-                    <SelectItem key={monthIdx} value={monthIdx.toString()}>
-                      {format(setMonth(new Date(), monthIdx), 'MMMM', { locale: ptBR })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-             {displayIsLoading && <Loader2 className="h-5 w-5 animate-spin text-primary" title="Buscando dados..." />}
-          </div>
+          <PeriodFilterControls
+            selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
+            onYearChange={setSelectedYear}
+            onMonthChange={setSelectedMonth}
+            onRefreshData={fetchDashboardData}
+            isLoading={displayIsLoading}
+            years={yearsForFilter}
+            months={monthsForFilter}
+          />
 
-          {displayIsLoading && !isFetchingPageData ? ( // Mostra loader principal se estiver carregando dados iniciais do contexto
+          {displayIsLoading && !isFetchingPageData ? ( 
              <div className="text-center py-10">
               <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
               <p className="text-muted-foreground">Carregando dados do dashboard...</p>

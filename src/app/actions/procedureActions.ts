@@ -3,6 +3,7 @@
 
 import type { Procedure } from '@/lib/types';
 import { supabase } from '@/lib/supabaseClient';
+import { formatSupabaseErrorMessage, sanitizeProcedure } from '@/lib/actionUtils';
 
 export async function getProcedures(): Promise<Procedure[]> {
   console.log('[procedureActions] Attempting to fetch procedures from Supabase...');
@@ -12,14 +13,11 @@ export async function getProcedures(): Promise<Procedure[]> {
     .order('name', { ascending: true });
 
   if (error) {
-    let detailedErrorMessage = `Supabase error fetching procedures: ${error.message}`;
-    if (error.message?.includes('fetch failed')) {
-      detailedErrorMessage += `\n\n[Debugging "fetch failed"]:\n1. Verify NEXT_PUBLIC_SUPABASE_URL in your .env file is correct (e.g., https://<your-project-ref>.supabase.co).\n2. Ensure NEXT_PUBLIC_SUPABASE_ANON_KEY in .env is correct.\n3. Restart your Next.js development server (Ctrl+C, then 'npm run dev') after any .env changes.\n4. Check your server's network connectivity to the Supabase domain.\n5. Ensure your Supabase project is running and accessible.`;
-    }
+    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'fetching procedures');
     console.error('[procedureActions] Supabase error fetching procedures:', error);
     throw new Error(detailedErrorMessage);
   }
-  return data || [];
+  return (data || []).map(proc => sanitizeProcedure(proc));
 }
 
 export async function addProcedureData(procedureData: Omit<Procedure, 'id'>): Promise<Procedure | null> {
@@ -38,15 +36,12 @@ export async function addProcedureData(procedureData: Omit<Procedure, 'id'>): Pr
     .single();
 
   if (error) {
-    let detailedErrorMessage = `Supabase error adding procedure: ${error.message}`;
-    if (error.message?.includes('fetch failed')) {
-      detailedErrorMessage += `\n\n[Debugging "fetch failed"]:\n1. Verify NEXT_PUBLIC_SUPABASE_URL in your .env file is correct.\n2. Restart your Next.js server.\n3. Check network connectivity.`;
-    }
+    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'adding procedure');
     console.error('[procedureActions] Supabase error adding procedure:', error);
     throw new Error(detailedErrorMessage);
   }
   console.log('[procedureActions] Successfully added procedure, returned data:', data);
-  return data;
+  return data ? sanitizeProcedure(data) : null;
 }
 
 export async function updateProcedureData(updatedProcedure: Procedure): Promise<Procedure | null> {
@@ -67,15 +62,12 @@ export async function updateProcedureData(updatedProcedure: Procedure): Promise<
     .single();
 
   if (error) {
-    let detailedErrorMessage = `Supabase error updating procedure: ${error.message}`;
-    if (error.message?.includes('fetch failed')) {
-      detailedErrorMessage += `\n\n[Debugging "fetch failed"]:\n1. Verify NEXT_PUBLIC_SUPABASE_URL in your .env file is correct.\n2. Restart your Next.js server.\n3. Check network connectivity.`;
-    }
+    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'updating procedure');
     console.error('[procedureActions] Supabase error updating procedure:', error);
     throw new Error(detailedErrorMessage);
   }
   console.log(`[procedureActions] Successfully updated procedure ${id}, returned data:`, data);
-  return data;
+  return data ? sanitizeProcedure(data) : null;
 }
 
 export async function deleteProcedureData(procedureId: string): Promise<boolean> {
@@ -86,13 +78,11 @@ export async function deleteProcedureData(procedureId: string): Promise<boolean>
     .eq('id', procedureId);
 
   if (error) {
-    let detailedErrorMessage = `Supabase error deleting procedure: ${error.message}`;
-    if (error.message?.includes('fetch failed')) {
-      detailedErrorMessage += `\n\n[Debugging "fetch failed"]:\n1. Verify NEXT_PUBLIC_SUPABASE_URL in your .env file is correct.\n2. Restart your Next.js server.\n3. Check network connectivity.`;
-    }
+    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'deleting procedure');
     console.error('[procedureActions] Supabase error deleting procedure:', error);
     throw new Error(detailedErrorMessage);
   }
   console.log(`[procedureActions] Successfully deleted procedure ${procedureId}`);
   return true;
 }
+
