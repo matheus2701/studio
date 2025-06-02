@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
-import { format, addMinutes, parse, set, isEqual, startOfDay } from 'date-fns';
+import { format, addMinutes, parse, set, isEqual, startOfDay, getMonth, getYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, ListChecks, CalendarClock } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -56,12 +56,12 @@ export default function BookingPage() {
     updateAppointment,
     updateAppointmentStatus,
     deleteAppointment,
-    isLoading: isLoadingAppointmentsContext // Renomeado para evitar conflito
+    isLoading: isLoadingAppointmentsContext
   } = useAppointments();
   const { procedures, isLoading: isLoadingProcedures } = useProcedures();
   const { toast } = useToast();
 
-  const isLoadingPageData = isLoadingAppointmentsContext || isLoadingProcedures; // Combina os loadings
+  const isLoadingPageData = isLoadingAppointmentsContext || isLoadingProcedures;
 
   const selectedProceduresDetail = useMemo(() => {
     if (isLoadingProcedures || !procedures || procedures.length === 0) return [];
@@ -107,7 +107,7 @@ export default function BookingPage() {
     });
 
     if (success) {
-      setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00')); // Mantém a data para facilitar múltiplos agendamentos
+      setSelectedDate(new Date(newAppointmentData.date + 'T00:00:00'));
       setSelectedProcedureIds([]);
       setSelectedTime(undefined);
       setAppointmentToEdit(null);
@@ -135,7 +135,7 @@ export default function BookingPage() {
   };
 
   const handleDeleteAppointment = async (appointmentId: string) => {
-    await deleteAppointment(appointmentId); // Toast já é tratado no contexto
+    await deleteAppointment(appointmentId);
     if (appointmentToEdit?.id === appointmentId) {
         handleCancelEdit();
     }
@@ -163,9 +163,9 @@ export default function BookingPage() {
 
     const existingAppointmentsOnDate = appointments.filter(app => {
         const isSameDay = isEqual(startOfDay(new Date(app.date + 'T00:00:00')), startOfDay(selectedDate));
-        const isRelevantStatus = app.status === 'CONFIRMED' || app.status === 'ATTENDED'; // Considera ATENDIDO para bloqueio de horário
+        const isRelevantStatus = app.status === 'CONFIRMED' || app.status === 'ATTENDED';
         if (appointmentToEdit && app.id === appointmentToEdit.id) {
-            return false; // Não considera o próprio agendamento sendo editado
+            return false;
         }
         return isSameDay && isRelevantStatus;
     }).map(app => {
@@ -202,14 +202,13 @@ export default function BookingPage() {
         return prevIds.filter(id => id !== procedureId);
       }
     });
-    setSelectedTime(undefined); // Reseta o horário selecionado ao mudar procedimentos
+    setSelectedTime(undefined);
   };
 
   const handleCancelEdit = () => {
     setAppointmentToEdit(null);
     setSelectedProcedureIds([]);
     setSelectedTime(undefined);
-    // Não reseta a data selecionada, para conveniência
   }
 
   const pendingAppointments = useMemo(() => {
@@ -219,9 +218,25 @@ export default function BookingPage() {
   }, [appointments]);
 
   const attendedAppointments = useMemo(() => {
+    const today = new Date();
+    const currentMonth = getMonth(today);
+    const currentYear = getYear(today);
+    const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const yearForPreviousMonth = currentMonth === 0 ? currentYear - 1 : currentYear;
+
     return appointments
-      .filter(app => app.status === 'ATTENDED')
-      .sort((a, b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime());
+      .filter(app => {
+        if (app.status !== 'ATTENDED') return false;
+        const appDate = new Date(app.date + 'T00:00:00'); // Use T00:00:00 for consistent date parsing
+        const appMonth = getMonth(appDate);
+        const appYear = getYear(appDate);
+        
+        const isInCurrentMonth = appYear === currentYear && appMonth === currentMonth;
+        const isInPreviousMonth = appYear === yearForPreviousMonth && appMonth === previousMonth;
+        
+        return isInCurrentMonth || isInPreviousMonth;
+      })
+      .sort((a, b) => new Date(b.date + 'T' + b.time).getTime() - new Date(a.date + 'T' + a.time).getTime()); // Sort descending (most recent first)
   }, [appointments]);
 
 
@@ -322,7 +337,7 @@ export default function BookingPage() {
                 selectedDate={selectedDate}
                 onDateChange={(date) => {
                   setSelectedDate(date);
-                  setSelectedTime(undefined); // Reseta horário ao mudar data
+                  setSelectedTime(undefined); 
                 }}
               />
             </div>
@@ -445,13 +460,13 @@ export default function BookingPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ListChecks className="h-6 w-6 text-emerald-600" />
-              Agendamentos Realizados
+              Agendamentos Realizados (Mês Atual/Anterior)
             </CardTitle>
           </CardHeader>
           <CardContent>
             {isLoadingAppointmentsContext ? <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /> :
              attendedAppointments.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhum agendamento realizado ainda.</p>
+              <p className="text-muted-foreground text-sm">Nenhum agendamento realizado no mês atual ou anterior.</p>
             ) : (
               <ScrollArea className="h-[400px] pr-3">
                 <ul className="space-y-4">
@@ -465,5 +480,7 @@ export default function BookingPage() {
     </div>
   );
 }
+
+    
 
     
