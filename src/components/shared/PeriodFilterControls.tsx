@@ -6,20 +6,17 @@ import { Button } from "@/components/ui/button";
 import { format, getYear, getMonth, setYear, setMonth as setDateFnsMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarDays, Loader2, Repeat } from 'lucide-react';
-
-const currentYear = getYear(new Date());
-const defaultYears = Array.from({ length: 5 }, (_, i) => currentYear - i);
-const defaultMonths = Array.from({ length: 12 }, (_, i) => i);
+import { DEFAULT_YEARS_FOR_FILTER as defaultYearsConst, DEFAULT_MONTHS_FOR_FILTER as defaultMonthsConst } from '@/lib/constants'; // Importe as constantes centralizadas
 
 interface PeriodFilterControlsProps {
   selectedYear: number;
   selectedMonth: number;
   onYearChange: (year: number) => void;
   onMonthChange: (month: number) => void;
-  onRefreshData?: () => void; // Opcional, se a página tiver um botão de refresh específico
-  isLoading?: boolean; // Opcional, para desabilitar controles durante o carregamento
-  years?: number[]; // Opcional, para permitir lista de anos customizada
-  months?: number[]; // Opcional, para permitir lista de meses customizada (índices 0-11)
+  onRefreshData?: () => void;
+  isLoading?: boolean;
+  years?: number[];
+  months?: number[];
   containerClassName?: string;
   selectTriggerClassName?: string;
   buttonClassName?: string;
@@ -32,8 +29,8 @@ export function PeriodFilterControls({
   onMonthChange,
   onRefreshData,
   isLoading = false,
-  years = defaultYears,
-  months = defaultMonths,
+  years = defaultYearsConst, // Use as constantes importadas como padrão
+  months = defaultMonthsConst, // Use as constantes importadas como padrão
   containerClassName = "flex flex-col sm:flex-row gap-2 items-center p-4 border rounded-lg bg-muted/30",
   selectTriggerClassName = "w-full sm:w-auto text-sm h-9",
   buttonClassName = "w-full sm:w-auto"
@@ -58,7 +55,7 @@ export function PeriodFilterControls({
         </Select>
       </div>
       <div className="flex w-full sm:w-auto gap-2 items-center">
-         <CalendarDays className="h-5 w-5 text-muted-foreground sm:hidden" /> {/* Ícone visível apenas em mobile */}
+         <CalendarDays className="h-5 w-5 text-muted-foreground sm:hidden" />
         <Select
           value={selectedMonth.toString()}
           onValueChange={(value) => onMonthChange(parseInt(value))}
@@ -87,7 +84,6 @@ export function PeriodFilterControls({
   );
 }
 
-// Helper para cn se não estiver globalmente disponível (deveria estar em utils)
 function cn(...inputs: any[]) {
   return inputs.filter(Boolean).join(' ');
 }

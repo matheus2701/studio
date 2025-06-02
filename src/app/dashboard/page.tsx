@@ -8,16 +8,13 @@ import { format, getYear, getMonth, setYear, setMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { BarChart3, CheckCircle2, XCircle, CalendarClock, Loader2 } from 'lucide-react';
 import type { Appointment } from '@/lib/types';
-import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls'; // Importação do novo componente
-
-const currentYear = getYear(new Date());
-const yearsForFilter = Array.from({ length: 5 }, (_, i) => currentYear - i);
-const monthsForFilter = Array.from({ length: 12 }, (_, i) => i);
+import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls';
+import { DEFAULT_YEARS_FOR_FILTER, DEFAULT_MONTHS_FOR_FILTER, CURRENT_YEAR } from '@/lib/constants';
 
 export default function DashboardPage() {
   const { getAppointmentsByMonth, isLoading: isLoadingAppointmentsContext } = useAppointments();
   
-  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
   const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()));
   const [monthlyAppointments, setMonthlyAppointments] = useState<Appointment[]>([]);
   const [isFetchingPageData, setIsFetchingPageData] = useState(false);
@@ -72,8 +69,8 @@ export default function DashboardPage() {
             onMonthChange={setSelectedMonth}
             onRefreshData={fetchDashboardData}
             isLoading={displayIsLoading}
-            years={yearsForFilter}
-            months={monthsForFilter}
+            years={DEFAULT_YEARS_FOR_FILTER}
+            months={DEFAULT_MONTHS_FOR_FILTER}
           />
 
           {displayIsLoading && !isFetchingPageData ? ( 

@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
-import { format, addMinutes, parse, set, isEqual, startOfDay, getMonth, getYear, setYear as setDateFnsYear, setMonth as setDateFnsMonth } from 'date-fns';
+import { format, addMinutes, parse, set, isEqual, startOfDay, getMonth, getYear, setYear as setDateFnsYear, setMonth as setDateFnsMonth, isSameMonth, isSameYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, CalendarClock, RotateCcw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -27,7 +27,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls'; // Importação do novo componente
+import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls';
+import { DEFAULT_YEARS_FOR_FILTER, DEFAULT_MONTHS_FOR_FILTER, CURRENT_YEAR } from '@/lib/constants';
+
 
 const statusTranslations: Record<AppointmentStatus, string> = {
   CONFIRMED: "Confirmado",
@@ -45,10 +47,6 @@ const WORK_DAY_START_HOUR = 6;
 const WORK_DAY_END_HOUR = 20;
 const SLOT_INTERVAL_MINUTES = 30;
 
-const currentYear = getYear(new Date());
-const yearsForFilter = Array.from({ length: 5 }, (_, i) => currentYear - i);
-const monthsForFilter = Array.from({ length: 12 }, (_, i) => i);
-
 
 export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -56,7 +54,7 @@ export default function BookingPage() {
   const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
   const [appointmentToEdit, setAppointmentToEdit] = useState<Appointment | null>(null);
 
-  const [filterYear, setFilterYear] = useState<number>(currentYear);
+  const [filterYear, setFilterYear] = useState<number>(CURRENT_YEAR);
   const [filterMonth, setFilterMonth] = useState<number>(getMonth(new Date()));
 
 
@@ -223,7 +221,7 @@ export default function BookingPage() {
 
   const filteredAppointmentsForPeriod = useMemo(() => {
     return appointments.filter(app => {
-      const appDate = new Date(app.date + 'T00:00:00');
+      const appDate = new Date(app.date + 'T00:00:00'); // Normalize to start of day for comparison
       return getYear(appDate) === filterYear && getMonth(appDate) === filterMonth;
     });
   }, [appointments, filterYear, filterMonth]);
@@ -239,7 +237,7 @@ export default function BookingPage() {
       .filter(app => app.status === 'ATTENDED')
       .sort((a, b) => new Date(b.date + 'T' + b.time).getTime() - new Date(a.date + 'T' + a.time).getTime());
   }, [filteredAppointmentsForPeriod]);
-  
+
   const cancelledAppointments = useMemo(() => {
     return filteredAppointmentsForPeriod
       .filter(app => app.status === 'CANCELLED')
@@ -287,7 +285,7 @@ export default function BookingPage() {
         <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditClick(app)}>
           <Edit className="mr-2 h-4 w-4" /> Editar
         </Button>
-        
+
         {app.status === 'CONFIRMED' && (
           <>
             <Button variant="outline" size="sm" className="flex-1 text-emerald-600 border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-600" onClick={() => handleChangeStatus(app.id, 'ATTENDED')}>
@@ -298,7 +296,7 @@ export default function BookingPage() {
             </Button>
           </>
         )}
-        
+
         {app.status === 'CANCELLED' && (
            <Button variant="outline" size="sm" className="flex-1 text-amber-600 border-amber-500 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-600" onClick={() => handleChangeStatus(app.id, 'CONFIRMED')}>
             <RotateCcw className="mr-2 h-4 w-4" /> Reabrir
@@ -356,7 +354,7 @@ export default function BookingPage() {
                 selectedDate={selectedDate}
                 onDateChange={(date) => {
                   setSelectedDate(date);
-                  setSelectedTime(undefined); 
+                  setSelectedTime(undefined);
                 }}
               />
             </div>
@@ -460,11 +458,11 @@ export default function BookingPage() {
           onYearChange={setFilterYear}
           onMonthChange={setFilterMonth}
           isLoading={isLoadingPageData}
-          years={yearsForFilter}
-          months={monthsForFilter}
+          years={DEFAULT_YEARS_FOR_FILTER}
+          months={DEFAULT_MONTHS_FOR_FILTER}
           containerClassName="flex flex-col sm:flex-row gap-2 items-center p-4 border rounded-lg bg-muted/30 sticky top-[calc(theme(spacing.16)+1px)] z-10 backdrop-blur-sm"
         />
-        
+
 
         {isLoadingAppointmentsContext ? <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /> :
         (<>
@@ -497,6 +495,9 @@ export default function BookingPage() {
                 <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                  Realizados ({attendedAppointments.length})
               </CardTitle>
+               <CardDescription className="text-xs mt-1">
+                Agendamentos para {selectedPeriodText}
+              </CardDescription>
             </CardHeader>
             <CardContent>
                {attendedAppointments.length === 0 ? (
@@ -517,6 +518,9 @@ export default function BookingPage() {
                 <XCircle className="h-5 w-5 text-rose-600" />
                 Cancelados ({cancelledAppointments.length})
               </CardTitle>
+               <CardDescription className="text-xs mt-1">
+                Agendamentos para {selectedPeriodText}
+              </CardDescription>
             </CardHeader>
             <CardContent>
                {cancelledAppointments.length === 0 ? (
@@ -536,4 +540,3 @@ export default function BookingPage() {
     </div>
   );
 }
-    
