@@ -8,9 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
-import { format, addMinutes, parse, set, isEqual, startOfDay, getMonth, getYear } from 'date-fns';
+import { format, addMinutes, parse, set, isEqual, startOfDay, getMonth, getYear, setYear, setMonth as setDateFnsMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, ListChecks, CalendarClock } from 'lucide-react';
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, ListChecks, CalendarClock, CalendarDays } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useProcedures } from '@/contexts/ProceduresContext';
@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const statusTranslations: Record<AppointmentStatus, string> = {
   CONFIRMED: "Confirmado",
@@ -44,11 +45,21 @@ const WORK_DAY_START_HOUR = 6;
 const WORK_DAY_END_HOUR = 20;
 const SLOT_INTERVAL_MINUTES = 30;
 
+const currentYear = getYear(new Date());
+const yearsForFilter = Array.from({ length: 5 }, (_, i) => currentYear - i);
+const monthsForFilter = Array.from({ length: 12 }, (_, i) => i);
+
+
 export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
   const [appointmentToEdit, setAppointmentToEdit] = useState<Appointment | null>(null);
+
+  // State for list filters
+  const [filterYear, setFilterYear] = useState<number>(currentYear);
+  const [filterMonth, setFilterMonth] = useState<number>(getMonth(new Date()));
+
 
   const {
     appointments,
@@ -211,33 +222,24 @@ export default function BookingPage() {
     setSelectedTime(undefined);
   }
 
+  const filteredAppointmentsForPeriod = useMemo(() => {
+    return appointments.filter(app => {
+      const appDate = new Date(app.date + 'T00:00:00');
+      return getYear(appDate) === filterYear && getMonth(appDate) === filterMonth;
+    });
+  }, [appointments, filterYear, filterMonth]);
+
   const pendingAppointments = useMemo(() => {
-    return appointments
+    return filteredAppointmentsForPeriod
       .filter(app => app.status === 'CONFIRMED')
       .sort((a, b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime());
-  }, [appointments]);
+  }, [filteredAppointmentsForPeriod]);
 
   const attendedAppointments = useMemo(() => {
-    const today = new Date();
-    const currentMonth = getMonth(today);
-    const currentYear = getYear(today);
-    const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-    const yearForPreviousMonth = currentMonth === 0 ? currentYear - 1 : currentYear;
-
-    return appointments
-      .filter(app => {
-        if (app.status !== 'ATTENDED') return false;
-        const appDate = new Date(app.date + 'T00:00:00'); // Use T00:00:00 for consistent date parsing
-        const appMonth = getMonth(appDate);
-        const appYear = getYear(appDate);
-        
-        const isInCurrentMonth = appYear === currentYear && appMonth === currentMonth;
-        const isInPreviousMonth = appYear === yearForPreviousMonth && appMonth === previousMonth;
-        
-        return isInCurrentMonth || isInPreviousMonth;
-      })
+    return filteredAppointmentsForPeriod
+      .filter(app => app.status === 'ATTENDED')
       .sort((a, b) => new Date(b.date + 'T' + b.time).getTime() - new Date(a.date + 'T' + a.time).getTime()); // Sort descending (most recent first)
-  }, [appointments]);
+  }, [filteredAppointmentsForPeriod]);
 
 
   if (isLoadingPageData) {
@@ -437,50 +439,78 @@ export default function BookingPage() {
       <div className="lg:col-span-1 space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CalendarClock className="h-6 w-6 text-primary" />
-              Próximos Agendamentos
-            </CardTitle>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <CardTitle className="flex items-center gap-2">
+                <CalendarClock className="h-6 w-6 text-primary" />
+                Agendamentos
+              </CardTitle>
+              <div className="flex gap-2 items-center">
+                <Select
+                  value={filterYear.toString()}
+                  onValueChange={(value) => setFilterYear(parseInt(value))}
+                  disabled={isLoadingPageData}
+                >
+                  <SelectTrigger className="w-[100px] h-9 text-xs">
+                    <SelectValue placeholder="Ano" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yearsForFilter.map(year => (
+                      <SelectItem key={year} value={year.toString()} className="text-xs">{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={filterMonth.toString()}
+                  onValueChange={(value) => setFilterMonth(parseInt(value))}
+                  disabled={isLoadingPageData}
+                >
+                  <SelectTrigger className="w-[130px] h-9 text-xs">
+                    <SelectValue placeholder="Mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {monthsForFilter.map(monthIdx => (
+                      <SelectItem key={monthIdx} value={monthIdx.toString()} className="text-xs">
+                        {format(setDateFnsMonth(new Date(), monthIdx), 'MMMM', { locale: ptBR })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+             <CardDescription className="text-xs mt-2">
+              Visualizando agendamentos para {format(setDateFnsMonth(setYear(new Date(), filterYear), filterMonth), 'MMMM \'de\' yyyy', { locale: ptBR })}.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {isLoadingAppointmentsContext ? <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /> :
-             pendingAppointments.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhum agendamento confirmado.</p>
-            ) : (
-              <ScrollArea className="h-[400px] pr-3">
-                <ul className="space-y-4">
-                  {pendingAppointments.map(app => renderAppointmentItem(app, true))}
-                </ul>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
+            (<>
+              <h3 className="text-sm font-semibold mb-2 text-sky-600">Confirmados ({pendingAppointments.length})</h3>
+              {pendingAppointments.length === 0 ? (
+                <p className="text-muted-foreground text-xs py-2">Nenhum agendamento confirmado para este período.</p>
+              ) : (
+                <ScrollArea className="h-[250px] pr-3 mb-4">
+                  <ul className="space-y-4">
+                    {pendingAppointments.map(app => renderAppointmentItem(app, true))}
+                  </ul>
+                </ScrollArea>
+              )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ListChecks className="h-6 w-6 text-emerald-600" />
-              Agendamentos Realizados (Mês Atual/Anterior)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoadingAppointmentsContext ? <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /> :
-             attendedAppointments.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhum agendamento realizado no mês atual ou anterior.</p>
-            ) : (
-              <ScrollArea className="h-[400px] pr-3">
-                <ul className="space-y-4">
-                  {attendedAppointments.map(app => renderAppointmentItem(app, false))}
-                </ul>
-              </ScrollArea>
-            )}
+              <h3 className="text-sm font-semibold mt-4 mb-2 text-emerald-600">Realizados ({attendedAppointments.length})</h3>
+               {attendedAppointments.length === 0 ? (
+                <p className="text-muted-foreground text-xs py-2">Nenhum agendamento realizado para este período.</p>
+              ) : (
+                <ScrollArea className="h-[250px] pr-3">
+                  <ul className="space-y-4">
+                    {attendedAppointments.map(app => renderAppointmentItem(app, false))}
+                  </ul>
+                </ScrollArea>
+              )}
+            </>)
+            }
           </CardContent>
         </Card>
       </div>
     </div>
   );
 }
-
-    
-
     
