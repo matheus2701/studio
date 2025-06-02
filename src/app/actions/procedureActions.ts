@@ -12,10 +12,13 @@ export async function getProcedures(): Promise<Procedure[]> {
     .order('name', { ascending: true });
 
   if (error) {
+    let detailedErrorMessage = `Supabase error fetching procedures: ${error.message}`;
+    if (error.message?.includes('fetch failed')) {
+      detailedErrorMessage += `\n\n[Debugging "fetch failed"]:\n1. Verify NEXT_PUBLIC_SUPABASE_URL in your .env file is correct (e.g., https://<your-project-ref>.supabase.co).\n2. Ensure NEXT_PUBLIC_SUPABASE_ANON_KEY in .env is correct.\n3. Restart your Next.js development server (Ctrl+C, then 'npm run dev') after any .env changes.\n4. Check your server's network connectivity to the Supabase domain.\n5. Ensure your Supabase project is running and accessible.`;
+    }
     console.error('[procedureActions] Supabase error fetching procedures:', error);
-    throw new Error(`Supabase error fetching procedures: ${error.message}`);
+    throw new Error(detailedErrorMessage);
   }
-  // console.log('[procedureActions] Raw data from Supabase for getProcedures:', data); // Log revertido
   return data || [];
 }
 
@@ -35,8 +38,12 @@ export async function addProcedureData(procedureData: Omit<Procedure, 'id'>): Pr
     .single();
 
   if (error) {
+    let detailedErrorMessage = `Supabase error adding procedure: ${error.message}`;
+    if (error.message?.includes('fetch failed')) {
+      detailedErrorMessage += `\n\n[Debugging "fetch failed"]:\n1. Verify NEXT_PUBLIC_SUPABASE_URL in your .env file is correct.\n2. Restart your Next.js server.\n3. Check network connectivity.`;
+    }
     console.error('[procedureActions] Supabase error adding procedure:', error);
-    throw new Error(`Supabase error adding procedure: ${error.message}`);
+    throw new Error(detailedErrorMessage);
   }
   console.log('[procedureActions] Successfully added procedure, returned data:', data);
   return data;
@@ -60,8 +67,12 @@ export async function updateProcedureData(updatedProcedure: Procedure): Promise<
     .single();
 
   if (error) {
+    let detailedErrorMessage = `Supabase error updating procedure: ${error.message}`;
+    if (error.message?.includes('fetch failed')) {
+      detailedErrorMessage += `\n\n[Debugging "fetch failed"]:\n1. Verify NEXT_PUBLIC_SUPABASE_URL in your .env file is correct.\n2. Restart your Next.js server.\n3. Check network connectivity.`;
+    }
     console.error('[procedureActions] Supabase error updating procedure:', error);
-    throw new Error(`Supabase error updating procedure: ${error.message}`);
+    throw new Error(detailedErrorMessage);
   }
   console.log(`[procedureActions] Successfully updated procedure ${id}, returned data:`, data);
   return data;
@@ -75,8 +86,12 @@ export async function deleteProcedureData(procedureId: string): Promise<boolean>
     .eq('id', procedureId);
 
   if (error) {
+    let detailedErrorMessage = `Supabase error deleting procedure: ${error.message}`;
+    if (error.message?.includes('fetch failed')) {
+      detailedErrorMessage += `\n\n[Debugging "fetch failed"]:\n1. Verify NEXT_PUBLIC_SUPABASE_URL in your .env file is correct.\n2. Restart your Next.js server.\n3. Check network connectivity.`;
+    }
     console.error('[procedureActions] Supabase error deleting procedure:', error);
-    throw new Error(`Supabase error deleting procedure: ${error.message}`);
+    throw new Error(detailedErrorMessage);
   }
   console.log(`[procedureActions] Successfully deleted procedure ${procedureId}`);
   return true;
