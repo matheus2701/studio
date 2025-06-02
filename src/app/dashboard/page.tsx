@@ -89,7 +89,7 @@ export default function DashboardPage() {
 
   const displayIsLoading = isLoadingAppointmentsContext || isFetchingPageData;
   const selectedPeriodText = useMemo(() => {
-    return format(setDateFnsMonth(setDateFnsYear(new Date(), selectedYear), selectedMonth), "MMMM 'de' yyyy", { locale: ptBR });
+    return format(setDateFnsMonth(setYear(new Date(), selectedYear), selectedMonth), "MMMM 'de' yyyy", { locale: ptBR });
   }, [selectedYear, selectedMonth]);
 
   return (
@@ -228,4 +228,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
