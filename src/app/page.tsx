@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
-import { format, addMinutes, parse, set, isEqual, startOfDay, getMonth, getYear, setYear, setMonth as setDateFnsMonth } from 'date-fns';
+import { format, addMinutes, parse, set, isEqual, startOfDay, getMonth, getYear, setYear as setDateFnsYear, setMonth as setDateFnsMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, ListChecks, CalendarClock, CalendarDays } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -224,7 +224,7 @@ export default function BookingPage() {
 
   const filteredAppointmentsForPeriod = useMemo(() => {
     return appointments.filter(app => {
-      const appDate = new Date(app.date + 'T00:00:00');
+      const appDate = new Date(app.date + 'T00:00:00'); // Adiciona T00:00:00 para evitar problemas de fuso
       return getYear(appDate) === filterYear && getMonth(appDate) === filterMonth;
     });
   }, [appointments, filterYear, filterMonth]);
@@ -437,6 +437,41 @@ export default function BookingPage() {
       </div>
 
       <div className="lg:col-span-1 space-y-6">
+        {/* Filtros de Mês e Ano movidos para cá */}
+        <div className="flex flex-col sm:flex-row gap-2 items-center p-4 border rounded-lg bg-muted/30">
+            <CalendarDays className="h-5 w-5 text-muted-foreground" />
+            <Select
+              value={filterYear.toString()}
+              onValueChange={(value) => setFilterYear(parseInt(value))}
+              disabled={isLoadingPageData}
+            >
+              <SelectTrigger className="w-full sm:w-[120px] text-sm h-9">
+                <SelectValue placeholder="Ano" />
+              </SelectTrigger>
+              <SelectContent>
+                {yearsForFilter.map(year => (
+                  <SelectItem key={year} value={year.toString()} className="text-sm">{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={filterMonth.toString()}
+              onValueChange={(value) => setFilterMonth(parseInt(value))}
+              disabled={isLoadingPageData}
+            >
+              <SelectTrigger className="w-full sm:w-[150px] text-sm h-9">
+                <SelectValue placeholder="Mês" />
+              </SelectTrigger>
+              <SelectContent>
+                {monthsForFilter.map(monthIdx => (
+                  <SelectItem key={monthIdx} value={monthIdx.toString()} className="text-sm">
+                    {format(setDateFnsMonth(new Date(), monthIdx), 'MMMM', { locale: ptBR })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+        </div>
+
         <Card>
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -444,41 +479,9 @@ export default function BookingPage() {
                 <CalendarClock className="h-6 w-6 text-primary" />
                 Agendamentos
               </CardTitle>
-              <div className="flex gap-2 items-center">
-                <Select
-                  value={filterYear.toString()}
-                  onValueChange={(value) => setFilterYear(parseInt(value))}
-                  disabled={isLoadingPageData}
-                >
-                  <SelectTrigger className="w-[100px] h-9 text-xs">
-                    <SelectValue placeholder="Ano" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {yearsForFilter.map(year => (
-                      <SelectItem key={year} value={year.toString()} className="text-xs">{year}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={filterMonth.toString()}
-                  onValueChange={(value) => setFilterMonth(parseInt(value))}
-                  disabled={isLoadingPageData}
-                >
-                  <SelectTrigger className="w-[130px] h-9 text-xs">
-                    <SelectValue placeholder="Mês" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {monthsForFilter.map(monthIdx => (
-                      <SelectItem key={monthIdx} value={monthIdx.toString()} className="text-xs">
-                        {format(setDateFnsMonth(new Date(), monthIdx), 'MMMM', { locale: ptBR })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
              <CardDescription className="text-xs mt-2">
-              Visualizando agendamentos para {format(setDateFnsMonth(setYear(new Date(), filterYear), filterMonth), 'MMMM \'de\' yyyy', { locale: ptBR })}.
+              Visualizando agendamentos para {format(setDateFnsMonth(setDateFnsYear(new Date(), filterYear), filterMonth), "MMMM 'de' yyyy", { locale: ptBR })}.
             </CardDescription>
           </CardHeader>
           <CardContent>
