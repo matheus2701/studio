@@ -22,6 +22,24 @@ export async function getAppointments(): Promise<Appointment[]> {
   return (data || []).map(app => sanitizeAppointment(app));
 }
 
+export async function getAllAppointmentsData(): Promise<Appointment[]> {
+  // This function is specifically for fetching ALL data for export, bypassing any potential default limits.
+  // It's good practice to handle pagination for very large datasets, but for now, we fetch all.
+  console.log('[appointmentActions] Attempting to fetch ALL appointments from Supabase for export...');
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('*')
+    .order('date', { ascending: true });
+
+  if (error) {
+    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'fetching all appointments for export');
+    console.error('[appointmentActions] Supabase error fetching all appointments:', error);
+    throw new Error(detailedErrorMessage);
+  }
+  return (data || []).map(app => sanitizeAppointment(app));
+}
+
+
 export async function addAppointmentData(appointmentData: Omit<Appointment, 'id' | 'status'>): Promise<Appointment | null> {
   const newAppointmentPayload: Appointment = {
     ...appointmentData,

@@ -8,16 +8,28 @@ import { Button } from '@/components/ui/button';
 import { format, getYear, getMonth, setYear, setMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { BarChart3, CheckCircle2, XCircle, CalendarClock, Loader2, BarChartHorizontalBig, Download } from 'lucide-react';
-import type { Appointment, Procedure } from '@/lib/types';
+import type { Appointment } from '@/lib/types';
 import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls';
 import { DEFAULT_YEARS_FOR_FILTER, DEFAULT_MONTHS_FOR_FILTER, CURRENT_YEAR } from '@/lib/constants';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell, // Import Cell
+  Cell,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
@@ -28,6 +40,7 @@ import {
   type ChartConfig
 } from '@/components/ui/chart';
 import { useToast } from '@/hooks/use-toast';
+import { getAllAppointmentsData } from '@/app/actions/appointmentActions';
 
 export default function DashboardPage() {
   const { getAppointmentsByMonth, isLoading: isLoadingAppointmentsContext } = useAppointments();
@@ -37,7 +50,13 @@ export default function DashboardPage() {
   const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()));
   const [monthlyAppointments, setMonthlyAppointments] = useState<Appointment[]>([]);
   const [isFetchingPageData, setIsFetchingPageData] = useState(false);
+  
+  // State for export dialog
   const [isExporting, setIsExporting] = useState(false);
+  const [exportYear, setExportYear] = useState<number>(CURRENT_YEAR);
+  const [exportMonth, setExportMonth] = useState<number>(getMonth(new Date()));
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+
 
   const fetchDashboardData = useCallback(async () => {
     setIsFetchingPageData(true);
@@ -70,7 +89,7 @@ export default function DashboardPage() {
       { status: 'Atendidos', total: metrics.attended, fill: "hsl(var(--chart-1))" },
       { status: 'Cancelados', total: metrics.cancelled, fill: "hsl(var(--chart-2))" },
       { status: 'Confirmados', total: metrics.confirmed, fill: "hsl(var(--chart-3))" },
-    ].filter(item => item.total > 0); // Filtrar itens com total 0 para não exibir barras vazias
+    ].filter(item => item.total > 0);
   }, [metrics]);
   
   const chartConfig = {
@@ -92,6 +111,7 @@ export default function DashboardPage() {
   } satisfies ChartConfig;
 
   const convertToCSV = (data: Appointment[]) => {
+    if (data.length === 0) return '';
     const header = [
       'ID', 'Data', 'Hora', 'Nome Cliente', 'Telefone Cliente', 'Procedimentos', 'Duracao Total (min)', 'Preco Total (R$)', 'Status', 'Sinal Pago', 'Observacoes'
     ];
@@ -112,32 +132,63 @@ export default function DashboardPage() {
     return [header.join(','), ...rows].join('\n');
   };
 
-  const handleExport = async () => {
+  const downloadCSV = (csvData: string, filename: string) => {
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const handleExportMonth = async () => {
     setIsExporting(true);
-    toast({ title: "Preparando exportação...", description: `Gerando arquivo para ${selectedPeriodText}.` });
+    const periodText = format(setMonth(setYear(new Date(), exportYear), exportMonth), "MMMM 'de' yyyy", { locale: ptBR });
+    toast({ title: "Preparando exportação...", description: `Gerando arquivo para ${periodText}.` });
     try {
-      if (monthlyAppointments.length === 0) {
-        toast({ title: "Nenhum agendamento", description: "Não há agendamentos no período selecionado para exportar.", variant: "destructive" });
+      const appointmentsToExport = await getAppointmentsByMonth(exportYear, exportMonth);
+      if (appointmentsToExport.length === 0) {
+        toast({ title: "Nenhum agendamento", description: `Não há agendamentos em ${periodText} para exportar.`, variant: "destructive" });
         return;
       }
       
-      const csvData = convertToCSV(monthlyAppointments);
-      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob);
-        const fileName = `agendamentos_${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}.csv`;
-        link.setAttribute('href', url);
-        link.setAttribute('download', fileName);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast({ title: "Exportação Concluída!", description: `${monthlyAppointments.length} agendamentos foram exportados.` });
-      }
+      const csvData = convertToCSV(appointmentsToExport);
+      const fileName = `agendamentos_${exportYear}-${String(exportMonth + 1).padStart(2, '0')}.csv`;
+      downloadCSV(csvData, fileName);
+
+      toast({ title: "Exportação Concluída!", description: `${appointmentsToExport.length} agendamentos de ${periodText} foram exportados.` });
     } catch (error) {
-      console.error("Failed to export data", error);
-      toast({ title: "Erro na Exportação", description: "Não foi possível gerar o arquivo.", variant: "destructive" });
+      console.error("Failed to export monthly data", error);
+      toast({ title: "Erro na Exportação", description: "Não foi possível gerar o arquivo do mês.", variant: "destructive" });
+    } finally {
+      setIsExporting(false);
+      setIsExportDialogOpen(false);
+    }
+  };
+
+  const handleExportAll = async () => {
+    setIsExporting(true);
+    toast({ title: "Preparando exportação...", description: "Buscando todos os agendamentos registrados." });
+    try {
+      const allAppointments = await getAllAppointmentsData();
+      if (allAppointments.length === 0) {
+        toast({ title: "Nenhum agendamento", description: "Não há nenhum agendamento no sistema para exportar.", variant: "destructive" });
+        return;
+      }
+      
+      const csvData = convertToCSV(allAppointments);
+      const fileName = `agendamentos_todos_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      downloadCSV(csvData, fileName);
+
+      toast({ title: "Exportação Concluída!", description: `${allAppointments.length} agendamentos foram exportados.` });
+    } catch (error) {
+      console.error("Failed to export all data", error);
+      toast({ title: "Erro na Exportação", description: "Não foi possível gerar o arquivo com todos os dados.", variant: "destructive" });
     } finally {
       setIsExporting(false);
     }
@@ -159,13 +210,77 @@ export default function DashboardPage() {
               Dashboard de Produtividade
             </CardTitle>
             <CardDescription>
-              Acompanhe as métricas de seus agendamentos para o período selecionado e exporte dados.
+              Acompanhe as métricas de seus agendamentos e exporte relatórios.
             </CardDescription>
           </div>
-          <Button onClick={handleExport} disabled={isExporting || monthlyAppointments.length === 0} className="w-full sm:w-auto">
-            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-            Exportar Mês (CSV)
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <AlertDialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <Download className="mr-2 h-4 w-4" /> Exportar Mês Específico...
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Exportar Agendamentos por Mês</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Selecione o ano e o mês que você deseja exportar para um arquivo CSV.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="export-year" className="text-right">
+                      Ano
+                    </Label>
+                    <Select
+                      value={exportYear.toString()}
+                      onValueChange={(value) => setExportYear(parseInt(value))}
+                    >
+                      <SelectTrigger id="export-year" className="col-span-3">
+                        <SelectValue placeholder="Ano" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEFAULT_YEARS_FOR_FILTER.map(year => (
+                          <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="export-month" className="text-right">
+                      Mês
+                    </Label>
+                     <Select
+                      value={exportMonth.toString()}
+                      onValueChange={(value) => setExportMonth(parseInt(value))}
+                    >
+                      <SelectTrigger id="export-month" className="col-span-3">
+                        <SelectValue placeholder="Mês" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEFAULT_MONTHS_FOR_FILTER.map(monthIdx => (
+                          <SelectItem key={monthIdx} value={monthIdx.toString()}>
+                            {format(setMonth(new Date(), monthIdx), 'MMMM', { locale: ptBR })}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleExportMonth} disabled={isExporting}>
+                     {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                     Exportar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button onClick={handleExportAll} disabled={isExporting} className="w-full sm:w-auto">
+              {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              Exportar Tudo
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <PeriodFilterControls
@@ -289,3 +404,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
