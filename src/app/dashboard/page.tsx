@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { format, getYear, getMonth, setYear, setMonth as setDateFnsMonth } from 'date-fns';
+import { format, getYear, getMonth, setYear, setMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { BarChart3, CheckCircle2, XCircle, CalendarClock, Loader2, BarChartHorizontalBig, Download } from 'lucide-react';
 import type { Appointment, Procedure } from '@/lib/types';
@@ -30,7 +30,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 
 export default function DashboardPage() {
-  const { getAppointmentsByMonth, isLoading: isLoadingAppointmentsContext, appointments: allAppointments } = useAppointments();
+  const { getAppointmentsByMonth, isLoading: isLoadingAppointmentsContext } = useAppointments();
   const { toast } = useToast();
   
   const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
@@ -114,26 +114,26 @@ export default function DashboardPage() {
 
   const handleExport = async () => {
     setIsExporting(true);
-    toast({ title: "Preparando exportação...", description: "Buscando todos os registros de agendamentos." });
+    toast({ title: "Preparando exportação...", description: `Gerando arquivo para ${selectedPeriodText}.` });
     try {
-      // We use the allAppointments from context, which should have all records
-      if (allAppointments.length === 0) {
-        toast({ title: "Nenhum agendamento", description: "Não há agendamentos para exportar.", variant: "destructive" });
+      if (monthlyAppointments.length === 0) {
+        toast({ title: "Nenhum agendamento", description: "Não há agendamentos no período selecionado para exportar.", variant: "destructive" });
         return;
       }
       
-      const csvData = convertToCSV(allAppointments);
+      const csvData = convertToCSV(monthlyAppointments);
       const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       if (link.download !== undefined) {
         const url = URL.createObjectURL(blob);
+        const fileName = `agendamentos_${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}.csv`;
         link.setAttribute('href', url);
-        link.setAttribute('download', 'agendamentos_exportados.csv');
+        link.setAttribute('download', fileName);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        toast({ title: "Exportação Concluída!", description: `${allAppointments.length} agendamentos foram exportados.` });
+        toast({ title: "Exportação Concluída!", description: `${monthlyAppointments.length} agendamentos foram exportados.` });
       }
     } catch (error) {
       console.error("Failed to export data", error);
@@ -146,7 +146,7 @@ export default function DashboardPage() {
 
   const displayIsLoading = isLoadingAppointmentsContext || isFetchingPageData;
   const selectedPeriodText = useMemo(() => {
-    return format(setDateFnsMonth(setYear(new Date(), selectedYear), selectedMonth), "MMMM 'de' yyyy", { locale: ptBR });
+    return format(setMonth(setYear(new Date(), selectedYear), selectedMonth), "MMMM 'de' yyyy", { locale: ptBR });
   }, [selectedYear, selectedMonth]);
 
   return (
@@ -162,9 +162,9 @@ export default function DashboardPage() {
               Acompanhe as métricas de seus agendamentos para o período selecionado e exporte dados.
             </CardDescription>
           </div>
-          <Button onClick={handleExport} disabled={isExporting} className="w-full sm:w-auto">
+          <Button onClick={handleExport} disabled={isExporting || monthlyAppointments.length === 0} className="w-full sm:w-auto">
             {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-            Exportar Tudo (CSV)
+            Exportar Mês (CSV)
           </Button>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -289,5 +289,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
