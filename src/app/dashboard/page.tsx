@@ -4,10 +4,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { format, getYear, getMonth, setYear, setMonth as setDateFnsMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { BarChart3, CheckCircle2, XCircle, CalendarClock, Loader2, BarChartHorizontalBig } from 'lucide-react';
-import type { Appointment } from '@/lib/types';
+import { BarChart3, CheckCircle2, XCircle, CalendarClock, Loader2, BarChartHorizontalBig, Download } from 'lucide-react';
+import type { Appointment, Procedure } from '@/lib/types';
 import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls';
 import { DEFAULT_YEARS_FOR_FILTER, DEFAULT_MONTHS_FOR_FILTER, CURRENT_YEAR } from '@/lib/constants';
 import {
@@ -26,14 +27,17 @@ import {
   ChartTooltipContent,
   type ChartConfig
 } from '@/components/ui/chart';
+import { useToast } from '@/hooks/use-toast';
 
 export default function DashboardPage() {
-  const { getAppointmentsByMonth, isLoading: isLoadingAppointmentsContext } = useAppointments();
+  const { getAppointmentsByMonth, isLoading: isLoadingAppointmentsContext, appointments: allAppointments } = useAppointments();
+  const { toast } = useToast();
   
   const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
   const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()));
   const [monthlyAppointments, setMonthlyAppointments] = useState<Appointment[]>([]);
   const [isFetchingPageData, setIsFetchingPageData] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     setIsFetchingPageData(true);
@@ -87,6 +91,59 @@ export default function DashboardPage() {
     },
   } satisfies ChartConfig;
 
+  const convertToCSV = (data: Appointment[]) => {
+    const header = [
+      'ID', 'Data', 'Hora', 'Nome Cliente', 'Telefone Cliente', 'Procedimentos', 'Duracao Total (min)', 'Preco Total (R$)', 'Status', 'Sinal Pago', 'Observacoes'
+    ];
+    const rows = data.map(app => [
+      `"${app.id}"`,
+      `"${app.date}"`,
+      `"${app.time}"`,
+      `"${app.customerName.replace(/"/g, '""')}"`,
+      `"${app.customerPhone || ''}"`,
+      `"${app.selectedProcedures.map(p => p.name).join(', ').replace(/"/g, '""')}"`,
+      app.totalDuration,
+      app.totalPrice.toFixed(2),
+      `"${app.status}"`,
+      app.sinalPago ? 'Sim' : 'Nao',
+      `"${(app.notes || '').replace(/"/g, '""')}"`
+    ].join(','));
+    
+    return [header.join(','), ...rows].join('\n');
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    toast({ title: "Preparando exportação...", description: "Buscando todos os registros de agendamentos." });
+    try {
+      // We use the allAppointments from context, which should have all records
+      if (allAppointments.length === 0) {
+        toast({ title: "Nenhum agendamento", description: "Não há agendamentos para exportar.", variant: "destructive" });
+        return;
+      }
+      
+      const csvData = convertToCSV(allAppointments);
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'agendamentos_exportados.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: "Exportação Concluída!", description: `${allAppointments.length} agendamentos foram exportados.` });
+      }
+    } catch (error) {
+      console.error("Failed to export data", error);
+      toast({ title: "Erro na Exportação", description: "Não foi possível gerar o arquivo.", variant: "destructive" });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+
   const displayIsLoading = isLoadingAppointmentsContext || isFetchingPageData;
   const selectedPeriodText = useMemo(() => {
     return format(setDateFnsMonth(setYear(new Date(), selectedYear), selectedMonth), "MMMM 'de' yyyy", { locale: ptBR });
@@ -102,9 +159,13 @@ export default function DashboardPage() {
               Dashboard de Produtividade
             </CardTitle>
             <CardDescription>
-              Acompanhe as métricas de seus agendamentos para o período selecionado.
+              Acompanhe as métricas de seus agendamentos para o período selecionado e exporte dados.
             </CardDescription>
           </div>
+          <Button onClick={handleExport} disabled={isExporting} className="w-full sm:w-auto">
+            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            Exportar Tudo (CSV)
+          </Button>
         </CardHeader>
         <CardContent className="space-y-6">
           <PeriodFilterControls
@@ -228,3 +289,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
