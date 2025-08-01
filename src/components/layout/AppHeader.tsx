@@ -18,7 +18,6 @@ const navItems = [
   { href: '/financial-overview', label: 'Financeiro', icon: DollarSign },
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 }, // Novo item Dashboard
   { href: '/notifications', label: 'Notificações', icon: Bell },
-  { href: '/ai-scheduler', label: 'Assistente AI', icon: Brain },
   { href: '/settings/integrations', label: 'Integrações', icon: LinkIcon },
 ];
 
