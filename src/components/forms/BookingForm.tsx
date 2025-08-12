@@ -19,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import type { Appointment, Procedure } from "@/lib/types";
 import { format } from 'date-fns';
-// import { syncToGoogleCalendar } from "@/app/actions/scheduleActions"; // Google Sync Desativado
+import { syncToGoogleCalendar } from "@/app/actions/scheduleActions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardTitle } from "@/components/ui/card";
 import { useEffect } from "react";
@@ -37,7 +37,7 @@ interface BookingFormProps {
   selectedDate: Date;
   selectedTime: string;
   selectedProcedures: Procedure[];
-  onFormSubmit: (appointmentData: Omit<Appointment, 'id' | 'status'>) => void;
+  onFormSubmit: (appointmentData: Omit<Appointment, 'id' | 'status'>, updatedAppointment?: Appointment) => Promise<Appointment | null>;
   appointmentToEdit?: Appointment | null;
 }
 
@@ -95,9 +95,29 @@ export function BookingForm({
       sinalPago: data.sinalPago || false,
     };
 
-    onFormSubmit(appointmentDataPayload); // Let parent handle add/update and toast
-    
-    // Form reset is handled by parent by clearing appointmentToEdit or changing key
+    const finalAppointmentData = appointmentToEdit 
+      ? { ...appointmentDataPayload, id: appointmentToEdit.id, status: appointmentToEdit.status }
+      : null;
+
+    const savedAppointment = await onFormSubmit(appointmentDataPayload, finalAppointmentData || undefined);
+
+    if (savedAppointment) {
+      // Tenta sincronizar com Google Agenda após o sucesso
+      const syncResult = await syncToGoogleCalendar(savedAppointment, savedAppointment.selectedProcedures);
+      if (syncResult.success) {
+        toast({
+          title: "Sincronizado com Google Agenda!",
+          description: syncResult.message,
+        });
+      } else if (syncResult.message && !syncResult.message.includes('não autenticado')) { 
+        // Mostra o erro apenas se não for um erro de "não autenticado" (que é esperado se o usuário não conectou a conta)
+        toast({
+          title: "Sincronização com Google Agenda falhou",
+          description: syncResult.message,
+          variant: "destructive",
+        });
+      }
+    }
   }
 
   return (

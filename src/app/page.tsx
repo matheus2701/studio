@@ -81,14 +81,15 @@ export default function BookingPage() {
     }).filter(Boolean) as Procedure[];
   }, [selectedProcedureIds, procedures, isLoadingProcedures]);
 
-  const handleFormSubmit = async (newAppointmentData: Omit<Appointment, 'id' | 'status'>) => {
+  const handleFormSubmit = async (newAppointmentData: Omit<Appointment, 'id' | 'status'>, updatedAppointmentData?: Appointment): Promise<Appointment | null> => {
     let success = false;
     let toastTitle = "";
     let toastDescription = "";
+    let savedAppointment: Appointment | null = null;
 
-    if (appointmentToEdit) {
-      const result = await updateAppointment({ ...newAppointmentData, id: appointmentToEdit.id, status: appointmentToEdit.status });
-      if (result) {
+    if (appointmentToEdit && updatedAppointmentData) {
+      savedAppointment = await updateAppointment(updatedAppointmentData);
+      if (savedAppointment) {
          toastTitle = "Agendamento Atualizado!";
          toastDescription = `${newAppointmentData.selectedProcedures.map(p=>p.name).join(' + ')} para ${newAppointmentData.customerName} em ${format(new Date(newAppointmentData.date + 'T00:00:00'), 'dd/MM/yyyy')} às ${newAppointmentData.time}.`;
          success = true;
@@ -97,8 +98,8 @@ export default function BookingPage() {
         toastDescription = "Não foi possível atualizar o agendamento.";
       }
     } else {
-      const result = await addAppointment(newAppointmentData);
-      if (result) {
+      savedAppointment = await addAppointment(newAppointmentData);
+      if (savedAppointment) {
         toastTitle = "Agendamento Confirmado!";
         toastDescription = `${newAppointmentData.selectedProcedures.map(p=>p.name).join(' + ')} para ${newAppointmentData.customerName} em ${format(new Date(newAppointmentData.date + 'T00:00:00'), 'dd/MM/yyyy')} às ${newAppointmentData.time}.`;
         success = true;
@@ -120,6 +121,7 @@ export default function BookingPage() {
       setSelectedTime(undefined);
       setAppointmentToEdit(null);
     }
+    return savedAppointment;
   };
 
   const handleChangeStatus = async (appointmentId: string, newStatus: AppointmentStatus) => {
