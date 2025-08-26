@@ -460,8 +460,8 @@ export default function BookingPage() {
           onYearChange={setFilterYear}
           onMonthChange={setFilterMonth}
           isLoading={isLoadingPageData}
-          years={DEFAULT_YEARS_for_FILTER}
-          months={DEFAULT_MONTHS_for_FILTER}
+          years={DEFAULT_YEARS_FOR_FILTER}
+          months={DEFAULT_MONTHS_FOR_FILTER}
           containerClassName="flex flex-col sm:flex-row gap-2 items-center p-4 border rounded-lg bg-muted/30 sticky top-[calc(theme(spacing.16)+1px)] z-10 backdrop-blur-sm"
         />
 
