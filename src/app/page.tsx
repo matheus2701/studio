@@ -44,7 +44,7 @@ const statusColors: Record<AppointmentStatus, string> = {
 };
 
 const WORK_DAY_START_HOUR = 6;
-const WORK_DAY_END_HOUR = 20;
+const WORK_DAY_END_HOUR = 23;
 const SLOT_INTERVAL_MINUTES = 30;
 
 
@@ -460,8 +460,8 @@ export default function BookingPage() {
           onYearChange={setFilterYear}
           onMonthChange={setFilterMonth}
           isLoading={isLoadingPageData}
-          years={DEFAULT_YEARS_FOR_FILTER}
-          months={DEFAULT_MONTHS_FOR_FILTER}
+          years={DEFAULT_YEARS_for_FILTER}
+          months={DEFAULT_MONTHS_for_FILTER}
           containerClassName="flex flex-col sm:flex-row gap-2 items-center p-4 border rounded-lg bg-muted/30 sticky top-[calc(theme(spacing.16)+1px)] z-10 backdrop-blur-sm"
         />
 
@@ -526,7 +526,7 @@ export default function BookingPage() {
             </CardHeader>
             <CardContent>
                {cancelledAppointments.length === 0 ? (
-                <p className="text-muted-foreground text-xs py-2 text-center">Nenhum agendamento cancelado neste período.</p>
+                <p className="text-muted-foreground text-xs py-2 text-center">Nenhum agendamento cancelado para este período.</p>
               ) : (
                 <ScrollArea className="h-[220px] pr-3">
                   <ul className="space-y-4">
