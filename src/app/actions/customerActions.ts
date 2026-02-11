@@ -5,18 +5,28 @@ import type { Customer, Tag } from '@/lib/types';
 import { supabase } from '@/lib/supabaseClient';
 import { formatSupabaseErrorMessage, sanitizeCustomer, sanitizeTag } from '@/lib/actionUtils';
 
-export async function getCustomers(): Promise<Customer[]> {
-  const { data, error } = await supabase
-    .from('customers')
-    .select('*')
-    .order('name', { ascending: true });
+const connectionErrorMsg = "Falha na conexão com o banco de dados. Verifique se as variáveis de ambiente NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY estão corretas no arquivo .env e reinicie o servidor.";
 
-  if (error) {
-    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'fetching customers');
-    console.error('[customerActions] Supabase error fetching customers:', error);
-    throw new Error(detailedErrorMessage);
+export async function getCustomers(): Promise<Customer[]> {
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) {
+      const detailedErrorMessage = formatSupabaseErrorMessage(error, 'fetching customers');
+      console.error('[customerActions] Supabase error fetching customers:', error);
+      throw new Error(detailedErrorMessage);
+    }
+    return (data || []).map(customer => sanitizeCustomer(customer));
+  } catch (e: any) {
+    if (e.message?.includes('fetch failed')) {
+      throw new Error(connectionErrorMsg);
+    }
+    console.error('[customerActions] Supabase error fetching customers:', e);
+    throw e;
   }
-  return (data || []).map(customer => sanitizeCustomer(customer));
 }
 
 export async function addCustomer(customerData: Omit<Customer, 'id'>): Promise<Customer | null> {
@@ -26,18 +36,26 @@ export async function addCustomer(customerData: Omit<Customer, 'id'>): Promise<C
     tags: customerData.tags || [], 
   };
 
-  const { data, error } = await supabase
-    .from('customers')
-    .insert(newCustomer)
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .insert(newCustomer)
+      .select()
+      .single();
 
-  if (error) {
-    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'adding customer');
-    console.error('[customerActions] Supabase error adding customer:', error);
-    throw new Error(detailedErrorMessage);
+    if (error) {
+      const detailedErrorMessage = formatSupabaseErrorMessage(error, 'adding customer');
+      console.error('[customerActions] Supabase error adding customer:', error);
+      throw new Error(detailedErrorMessage);
+    }
+    return data ? sanitizeCustomer(data) : null;
+  } catch (e: any) {
+    if (e.message?.includes('fetch failed')) {
+      throw new Error(connectionErrorMsg);
+    }
+    console.error('[customerActions] Supabase error adding customer:', e);
+    throw e;
   }
-  return data ? sanitizeCustomer(data) : null;
 }
 
 export async function updateCustomerData(updatedCustomer: Customer): Promise<Customer | null> {
@@ -45,33 +63,49 @@ export async function updateCustomerData(updatedCustomer: Customer): Promise<Cus
      ...updatedCustomer,
      tags: updatedCustomer.tags || [] 
   };
-  const { data, error } = await supabase
-    .from('customers')
-    .update(customerToUpdate)
-    .eq('id', updatedCustomer.id)
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .update(customerToUpdate)
+      .eq('id', updatedCustomer.id)
+      .select()
+      .single();
 
-  if (error) {
-    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'updating customer');
-    console.error('[customerActions] Supabase error updating customer:', error);
-    throw new Error(detailedErrorMessage);
+    if (error) {
+      const detailedErrorMessage = formatSupabaseErrorMessage(error, 'updating customer');
+      console.error('[customerActions] Supabase error updating customer:', error);
+      throw new Error(detailedErrorMessage);
+    }
+    return data ? sanitizeCustomer(data) : null;
+  } catch (e: any) {
+    if (e.message?.includes('fetch failed')) {
+      throw new Error(connectionErrorMsg);
+    }
+    console.error('[customerActions] Supabase error updating customer:', e);
+    throw e;
   }
-  return data ? sanitizeCustomer(data) : null;
 }
 
 export async function deleteCustomerData(customerId: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('customers')
-    .delete()
-    .eq('id', customerId);
+  try {
+    const { error } = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', customerId);
 
-  if (error) {
-    const detailedErrorMessage = formatSupabaseErrorMessage(error, 'deleting customer');
-    console.error('[customerActions] Supabase error deleting customer:', error);
-    throw new Error(detailedErrorMessage);
+    if (error) {
+      const detailedErrorMessage = formatSupabaseErrorMessage(error, 'deleting customer');
+      console.error('[customerActions] Supabase error deleting customer:', error);
+      throw new Error(detailedErrorMessage);
+    }
+    return true;
+  } catch (e: any) {
+    if (e.message?.includes('fetch failed')) {
+      throw new Error(connectionErrorMsg);
+    }
+    console.error('[customerActions] Supabase error deleting customer:', e);
+    throw e;
   }
-  return true;
 }
 
 export async function getAllUniqueTagsData(): Promise<Tag[]> {
@@ -91,4 +125,3 @@ export async function getAllUniqueTagsData(): Promise<Tag[]> {
   });
   return Array.from(allTagsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
-
