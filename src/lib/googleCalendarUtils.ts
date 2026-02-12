@@ -2,8 +2,8 @@
 'use server';
 import type { calendar_v3 } from 'googleapis';
 import type { OAuth2Client } from 'google-auth-library';
-import type { Appointment, Procedure } from '@/lib/types'; // Adicionado Procedure
-import { addMinutes } from 'date-fns';
+import type { Appointment, Procedure } from '@/lib/types';
+import { addMinutes, parseISO, format } from 'date-fns';
 
 /**
  * Creates a Google Calendar event object from appointment details.
@@ -17,8 +17,18 @@ export async function createCalendarEventObject(
   totalDuration: number, // Agora é a duração total
   selectedProcedures: Procedure[] // Lista de procedimentos
 ): Promise<calendar_v3.Schema$Event> {
-  const startDateTime = new Date(`${appointment.date}T${appointment.time}`);
-  const endDateTime = addMinutes(startDateTime, totalDuration);
+  const appointmentTimeZone = 'America/Sao_Paulo';
+
+  // Crie strings de data/hora que representam a hora local do agendamento (no fuso horário do negócio).
+  // Exemplo: '2024-07-27T22:00:00'
+  const startDateTimeString = `${appointment.date}T${appointment.time}:00`;
+
+  // Use date-fns para calcular corretamente a hora de término.
+  // parseISO trata a string como hora local (que é UTC na Vercel),
+  // o que não tem problema, pois só precisamos adicionar os minutos corretamente para gerar a string final.
+  const startDateTimeObj = parseISO(startDateTimeString);
+  const endDateTimeObj = addMinutes(startDateTimeObj, totalDuration);
+  const endDateTimeString = format(endDateTimeObj, "yyyy-MM-dd'T'HH:mm:ss");
 
   const procedureNames = selectedProcedures.map(p => p.name).join(' + ');
   const totalPrice = selectedProcedures.reduce((sum, p) => sum + p.price, 0);
@@ -29,14 +39,14 @@ export async function createCalendarEventObject(
       appointment.customerPhone || 'Não informado'
     }\nProcedimentos: ${procedureNames}\nDuração Total: ${totalDuration} min\nValor Total: R$ ${totalPrice.toFixed(2)}\n\nObservações: ${appointment.notes || 'Nenhuma'}`,
     start: {
-      dateTime: startDateTime.toISOString(),
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, 
+      dateTime: startDateTimeString,
+      timeZone: appointmentTimeZone,
     },
     end: {
-      dateTime: endDateTime.toISOString(),
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      dateTime: endDateTimeString,
+      timeZone: appointmentTimeZone,
     },
-    reminders: { 
+    reminders: {
       useDefault: false,
       overrides: [
         { method: 'popup', minutes: 60 },
