@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 
 export async function GET(_req: NextRequest) {
   const cookieStore = cookies();
-  const appBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002';
+  const appBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9003';
 
   // Limpar cookies relacionados ao Google Auth
   cookieStore.delete('google_access_token');

@@ -4,6 +4,9 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
+// Aumenta o tempo limite da função na Vercel para 60 segundos para evitar timeouts
+export const maxDuration = 60;
+
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
   const code = searchParams.get('code');
@@ -12,7 +15,7 @@ export async function GET(req: NextRequest) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI;
-  const appBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002';
+  const appBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9003';
 
   if (error) {
     console.error('Google OAuth callback error:', error);
