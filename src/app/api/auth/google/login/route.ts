@@ -24,7 +24,8 @@ export async function GET(_req: NextRequest) {
   const authorizeUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline', // Solicita refresh_token
     scope: OAUTH_SCOPES,
-    prompt: 'consent', // Força a tela de consentimento para obter refresh_token na primeira vez
+    // A opção 'prompt: consent' foi removida para melhorar a experiência em logins subsequentes.
+    // O consentimento será solicitado pelo Google apenas na primeira vez ou se as permissões forem revogadas.
   });
 
   return NextResponse.redirect(authorizeUrl);
