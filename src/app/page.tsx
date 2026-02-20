@@ -1,16 +1,17 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { BookingCalendar } from '@/components/BookingCalendar';
 import { BookingForm } from '@/components/forms/BookingForm';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
-import { format, addMinutes, parse, set, isEqual, startOfDay, getMonth, getYear, setYear as setDateFnsYear, setMonth as setDateFnsMonth, isSameMonth, isSameYear } from 'date-fns';
+import { format, getMonth, getYear, setYear as setDateFnsYear, setMonth as setDateFnsMonth, parse, addMinutes, isEqual, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CheckCircle2, Clock, UserCircle, Phone, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, CalendarClock, RotateCcw } from 'lucide-react';
+import { CalendarCheck2, CheckCircle2, Clock, UserCircle, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, CalendarClock, RotateCcw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useProcedures } from '@/contexts/ProceduresContext';
@@ -30,23 +31,15 @@ import {
 import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls';
 import { DEFAULT_YEARS_FOR_FILTER, DEFAULT_MONTHS_FOR_FILTER, CURRENT_YEAR } from '@/lib/constants';
 
-
 const statusTranslations: Record<AppointmentStatus, string> = {
   CONFIRMED: "Confirmado",
-  ATTENDED: "Atendido",
+  ATTENDED: "Realizado",
   CANCELLED: "Cancelado",
-};
-
-const statusColors: Record<AppointmentStatus, string> = {
-  CONFIRMED: "text-sky-600",
-  ATTENDED: "text-emerald-600",
-  CANCELLED: "text-rose-600",
 };
 
 const WORK_DAY_START_HOUR = 6;
 const WORK_DAY_END_HOUR = 23;
 const SLOT_INTERVAL_MINUTES = 30;
-
 
 export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -56,7 +49,6 @@ export default function BookingPage() {
 
   const [filterYear, setFilterYear] = useState<number>(CURRENT_YEAR);
   const [filterMonth, setFilterMonth] = useState<number>(getMonth(new Date()));
-
 
   const {
     appointments,
@@ -160,7 +152,7 @@ export default function BookingPage() {
   }, [selectedProcedureIds, procedures, isLoadingProcedures]);
 
   const availableTimeSlots = useMemo(() => {
-    if (!selectedDate || selectedProcedureIds.length === 0 || isLoadingAppointmentsContext || isLoadingProcedures || !procedures) {
+    if (!selectedDate || selectedProceduresDetail.length === 0 || isLoadingAppointmentsContext || isLoadingProcedures || !procedures) {
       return [];
     }
 
@@ -202,7 +194,7 @@ export default function BookingPage() {
       currentTime = addMinutes(currentTime, SLOT_INTERVAL_MINUTES);
     }
     return slots;
-  }, [selectedDate, selectedProcedureIds, appointments, totalSelectedProceduresDuration, appointmentToEdit, procedures, isLoadingAppointmentsContext, isLoadingProcedures]);
+  }, [selectedDate, selectedProceduresDetail, appointments, totalSelectedProceduresDuration, appointmentToEdit, procedures, isLoadingAppointmentsContext, isLoadingProcedures]);
 
   const handleProcedureSelectionChange = (procedureId: string, checked: boolean) => {
     setSelectedProcedureIds(prevIds => {
@@ -250,7 +242,6 @@ export default function BookingPage() {
     return format(setDateFnsMonth(setDateFnsYear(new Date(), filterYear), filterMonth), "MMMM 'de' yyyy", { locale: ptBR });
   }, [filterYear, filterMonth]);
 
-
   if (isLoadingPageData) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
@@ -260,79 +251,110 @@ export default function BookingPage() {
     );
   }
 
-  const renderAppointmentItem = (app: Appointment) => (
-    <li key={app.id} className="p-4 border rounded-lg bg-card shadow-sm space-y-3">
-      <div>
-        <h4 className="font-semibold text-primary">
-          {app.selectedProcedures.map(p => p.name).join(' + ')}
-        </h4>
-        <div className="text-sm text-muted-foreground space-y-1 mt-1">
-          <p className="flex items-center gap-1.5"><UserCircle className="h-4 w-4" /> {app.customerName}</p>
-          <p className="flex items-center gap-1.5"><CalendarCheck2 className="h-4 w-4" /> {format(new Date(app.date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })}</p>
-          <p className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {app.time} (Duração: {app.totalDuration} min)</p>
-          {app.customerPhone && <p className="flex items-center gap-1.5"><Phone className="h-4 w-4" /> Whatsapp: {app.customerPhone}</p>}
-          <p className="flex items-center gap-1.5"><DollarSign className="h-4 w-4" /> R$ {app.totalPrice.toFixed(2)}</p>
-           <p className="flex items-center gap-1.5">
-            <ShieldCheck className={`h-4 w-4 ${statusColors[app.status]}`} />
-            Status: <span className={`font-medium ${statusColors[app.status]}`}>{statusTranslations[app.status]}</span>
-          </p>
-          <p className="flex items-center gap-1.5">
-            <CreditCard className={`h-4 w-4 ${app.sinalPago ? 'text-emerald-600' : 'text-amber-500'}`} />
-            Sinal: {app.sinalPago ? <span className="font-medium text-emerald-600">Pago</span> : <span className="font-medium text-amber-500">Pendente</span>}
-          </p>
-        </div>
-      </div>
+  const renderAppointmentItem = (app: Appointment) => {
+    const statusBadgeClasses: Record<AppointmentStatus, string> = {
+        CONFIRMED: "border-status-confirmed text-status-confirmed bg-status-confirmed/10",
+        ATTENDED: "border-status-attended text-status-attended bg-status-attended/10",
+        CANCELLED: "border-status-cancelled text-status-cancelled bg-status-cancelled/10",
+    };
+    const statusIcon: Record<AppointmentStatus, React.ReactNode> = {
+        CONFIRMED: <CalendarClock className="h-3.5 w-3.5" />,
+        ATTENDED: <CheckCircle2 className="h-3.5 w-3.5" />,
+        CANCELLED: <XCircle className="h-3.5 w-3.5" />,
+    };
 
-      <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
-        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditClick(app)}>
-          <Edit className="mr-2 h-4 w-4" /> Editar
-        </Button>
-
-        {app.status === 'CONFIRMED' && (
-          <>
-            <Button variant="outline" size="sm" className="flex-1 text-emerald-600 border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-600" onClick={() => handleChangeStatus(app.id, 'ATTENDED')}>
-              <CheckCircle className="mr-2 h-4 w-4" /> Atendido
-            </Button>
-            <Button variant="outline" size="sm" className="flex-1 text-rose-600 border-rose-500 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-600" onClick={() => handleChangeStatus(app.id, 'CANCELLED')}>
-              <XCircle className="mr-2 h-4 w-4" /> Cancelar
-            </Button>
-          </>
-        )}
-
-        {app.status === 'CANCELLED' && (
-           <Button variant="outline" size="sm" className="flex-1 text-amber-600 border-amber-500 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-600" onClick={() => handleChangeStatus(app.id, 'CONFIRMED')}>
-            <RotateCcw className="mr-2 h-4 w-4" /> Reabrir
-          </Button>
-        )}
-
-         <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" size="sm" className="flex-1">
-              <Trash2 className="mr-2 h-4 w-4" /> Excluir
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-              <AlertDialogDescription>
-                Tem certeza que deseja excluir o agendamento de {app.customerName} para {app.selectedProcedures.map(p=>p.name).join(' + ')} em {format(new Date(app.date + 'T00:00:00'), "dd/MM/yyyy")} às {app.time}? Esta ação não pode ser desfeita.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive hover:bg-destructive/90"
-                onClick={() => handleDeleteAppointment(app.id)}
-              >
-                Excluir Agendamento
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    </li>
-  );
-
+    return (
+        <li key={app.id}>
+        <Card className="shadow-md transition-all hover:shadow-lg">
+            <CardHeader className="flex flex-row items-start justify-between p-4 space-y-0">
+                <div className="space-y-1 overflow-hidden pr-2">
+                    <CardTitle className="text-base font-bold leading-tight line-clamp-2">
+                        {app.selectedProcedures.map(p => p.name).join(' + ')}
+                    </CardTitle>
+                    <CardDescription className="text-xs flex items-center pt-1">
+                        <UserCircle className="mr-1.5 h-4 w-4 flex-shrink-0" /> <span className="truncate">{app.customerName}</span>
+                    </CardDescription>
+                </div>
+                <Badge variant="outline" className={`shrink-0 ${statusBadgeClasses[app.status]}`}>
+                    {statusIcon[app.status]}
+                    <span className="ml-1.5">{statusTranslations[app.status]}</span>
+                </Badge>
+            </CardHeader>
+            <CardContent className="p-4 pt-2 space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                    <CalendarCheck2 className="h-4 w-4" />
+                    <span>{format(new Date(app.date + 'T00:00:00'), "EEEE, dd 'de' MMMM", { locale: ptBR })}</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>{app.time} (Duração: {app.totalDuration} min)</span>
+                </div>
+                <div className="border-t my-2" />
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2 font-semibold">
+                        <DollarSign className="h-4 w-4 text-primary" />
+                        <span>R$ {app.totalPrice.toFixed(2)}</span>
+                    </div>
+                    {app.sinalPago && (
+                        <div className="flex items-center gap-1.5 text-status-attended text-xs font-medium">
+                            <ShieldCheck className="h-4 w-4" /> Sinal Pago
+                        </div>
+                    )}
+                </div>
+                {app.notes && (
+                    <div className="text-xs text-muted-foreground italic pt-1">
+                        <strong>Obs:</strong> {app.notes}
+                    </div>
+                )}
+            </CardContent>
+            <CardFooter className="flex flex-wrap gap-2 p-4 border-t bg-muted/30">
+                {app.status === 'CONFIRMED' && (
+                    <>
+                        <Button size="sm" className="flex-1 min-w-[calc(50%-0.25rem)] bg-status-attended hover:bg-status-attended/90" onClick={() => handleChangeStatus(app.id, 'ATTENDED')}>
+                            <CheckCircle className="mr-2 h-4 w-4" /> Atendido
+                        </Button>
+                        <Button variant="destructive" size="sm" className="flex-1 min-w-[calc(50%-0.25rem)]" onClick={() => handleChangeStatus(app.id, 'CANCELLED')}>
+                            <XCircle className="mr-2 h-4 w-4" /> Cancelar
+                        </Button>
+                    </>
+                )}
+                {app.status === 'CANCELLED' && (
+                    <Button size="sm" className="flex-1 bg-status-reopen text-white hover:bg-status-reopen/90" onClick={() => handleChangeStatus(app.id, 'CONFIRMED')}>
+                        <RotateCcw className="mr-2 h-4 w-4" /> Reabrir
+                    </Button>
+                )}
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditClick(app)}>
+                    <Edit className="mr-2 h-4 w-4" /> Editar
+                </Button>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="flex-1 text-destructive hover:text-destructive hover:bg-destructive/10">
+                            <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Tem certeza que deseja excluir o agendamento de {app.customerName} para {app.selectedProcedures.map(p=>p.name).join(' + ')} em {format(new Date(app.date + 'T00:00:00'), "dd/MM/yyyy")} às {app.time}? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                                className="bg-destructive hover:bg-destructive/90"
+                                onClick={() => handleDeleteAppointment(app.id)}
+                            >
+                                Excluir Agendamento
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </CardFooter>
+        </Card>
+        </li>
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -465,13 +487,12 @@ export default function BookingPage() {
           containerClassName="flex flex-col sm:flex-row gap-2 items-center p-4 border rounded-lg bg-muted/30 sticky top-[calc(theme(spacing.16)+1px)] z-10 backdrop-blur-sm"
         />
 
-
         {isLoadingAppointmentsContext ? <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /> :
         (<>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <CalendarClock className="h-5 w-5 text-sky-600" />
+                <CalendarClock className="h-5 w-5 text-status-confirmed" />
                 Confirmados ({pendingAppointments.length})
               </CardTitle>
               <CardDescription className="text-xs mt-1">
@@ -482,7 +503,7 @@ export default function BookingPage() {
               {pendingAppointments.length === 0 ? (
                 <p className="text-muted-foreground text-xs py-2 text-center">Nenhum agendamento confirmado para este período.</p>
               ) : (
-                <ScrollArea className="h-[220px] pr-3">
+                <ScrollArea className="h-[220px] sm:h-auto sm:max-h-[60vh] pr-3">
                   <ul className="space-y-4">
                     {pendingAppointments.map(app => renderAppointmentItem(app))}
                   </ul>
@@ -494,7 +515,7 @@ export default function BookingPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                <CheckCircle2 className="h-5 w-5 text-status-attended" />
                  Realizados ({attendedAppointments.length})
               </CardTitle>
                <CardDescription className="text-xs mt-1">
@@ -505,7 +526,7 @@ export default function BookingPage() {
                {attendedAppointments.length === 0 ? (
                 <p className="text-muted-foreground text-xs py-2 text-center">Nenhum agendamento realizado neste período.</p>
               ) : (
-                <ScrollArea className="h-[220px] pr-3">
+                <ScrollArea className="h-[220px] sm:h-auto sm:max-h-[60vh] pr-3">
                   <ul className="space-y-4">
                     {attendedAppointments.map(app => renderAppointmentItem(app))}
                   </ul>
@@ -517,7 +538,7 @@ export default function BookingPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <XCircle className="h-5 w-5 text-rose-600" />
+                <XCircle className="h-5 w-5 text-status-cancelled" />
                 Cancelados ({cancelledAppointments.length})
               </CardTitle>
                <CardDescription className="text-xs mt-1">
@@ -528,7 +549,7 @@ export default function BookingPage() {
                {cancelledAppointments.length === 0 ? (
                 <p className="text-muted-foreground text-xs py-2 text-center">Nenhum agendamento cancelado para este período.</p>
               ) : (
-                <ScrollArea className="h-[220px] pr-3">
+                <ScrollArea className="h-[220px] sm:h-auto sm:max-h-[60vh] pr-3">
                   <ul className="space-y-4">
                     {cancelledAppointments.map(app => renderAppointmentItem(app))}
                   </ul>

@@ -50,6 +50,12 @@ export default {
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			},
+            status: {
+  				confirmed: 'hsl(var(--status-confirmed))',
+  				attended: 'hsl(var(--status-attended))',
+  				cancelled: 'hsl(var(--status-cancelled))',
+                reopen: 'hsl(var(--status-reopen))'
+  			},
   			sidebar: {
   				DEFAULT: 'hsl(var(--sidebar-background))',
   				foreground: 'hsl(var(--sidebar-foreground))',
