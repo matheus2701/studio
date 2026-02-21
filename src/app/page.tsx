@@ -323,33 +323,35 @@ export default function BookingPage() {
                         <RotateCcw className="mr-2 h-4 w-4" /> Reabrir
                     </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={() => handleEditClick(app)}>
-                    <Edit className="mr-2 h-4 w-4" /> Editar
-                </Button>
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Tem certeza que deseja excluir o agendamento de {app.customerName} para {app.selectedProcedures.map(p=>p.name).join(' + ')} em {format(new Date(app.date + 'T00:00:00'), "dd/MM/yyyy")} às {app.time}? Esta ação não pode ser desfeita.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                                className="bg-destructive hover:bg-destructive/90"
-                                onClick={() => handleDeleteAppointment(app.id)}
-                            >
-                                Excluir Agendamento
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                <div className="flex-grow flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditClick(app)}>
+                        <Edit className="mr-2 h-4 w-4" /> Editar
+                    </Button>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="flex-1 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Tem certeza que deseja excluir o agendamento de {app.customerName} para {app.selectedProcedures.map(p=>p.name).join(' + ')} em {format(new Date(app.date + 'T00:00:00'), "dd/MM/yyyy")} às {app.time}? Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                    className="bg-destructive hover:bg-destructive/90"
+                                    onClick={() => handleDeleteAppointment(app.id)}
+                                >
+                                    Excluir Agendamento
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
             </CardFooter>
         </Card>
         </li>
@@ -503,7 +505,7 @@ export default function BookingPage() {
               {pendingAppointments.length === 0 ? (
                 <p className="text-muted-foreground text-xs py-2 text-center">Nenhum agendamento confirmado para este período.</p>
               ) : (
-                <ScrollArea className="h-[220px] sm:h-auto sm:max-h-[60vh] pr-3">
+                <ScrollArea className="h-[220px] sm:h-[400px] pr-3">
                   <ul className="space-y-4">
                     {pendingAppointments.map(app => renderAppointmentItem(app))}
                   </ul>
@@ -526,7 +528,7 @@ export default function BookingPage() {
                {attendedAppointments.length === 0 ? (
                 <p className="text-muted-foreground text-xs py-2 text-center">Nenhum agendamento realizado neste período.</p>
               ) : (
-                <ScrollArea className="h-[220px] sm:h-auto sm:max-h-[60vh] pr-3">
+                <ScrollArea className="h-[220px] sm:h-[400px] pr-3">
                   <ul className="space-y-4">
                     {attendedAppointments.map(app => renderAppointmentItem(app))}
                   </ul>
@@ -549,7 +551,7 @@ export default function BookingPage() {
                {cancelledAppointments.length === 0 ? (
                 <p className="text-muted-foreground text-xs py-2 text-center">Nenhum agendamento cancelado para este período.</p>
               ) : (
-                <ScrollArea className="h-[220px] sm:h-auto sm:max-h-[60vh] pr-3">
+                <ScrollArea className="h-[220px] sm:h-[400px] pr-3">
                   <ul className="space-y-4">
                     {cancelledAppointments.map(app => renderAppointmentItem(app))}
                   </ul>
@@ -563,3 +565,5 @@ export default function BookingPage() {
     </div>
   );
 }
+
+    
