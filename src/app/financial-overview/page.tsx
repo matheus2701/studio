@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -113,20 +112,22 @@ export default function FinancialOverviewPage() {
   };
 
   const convertFinancialDataToCSV = (appointments: Appointment[], entries: ManualFinancialEntry[]) => {
-    const header = ['Data', 'Tipo', 'Descrição', 'Valor (R$)'];
+    const header = ['Data', 'Descrição', 'Entrada (R$)', 'Saída (R$)', 'Origem'];
 
     const appointmentRows = appointments.filter(app => app.status === 'ATTENDED').map(app => ({
         date: app.date,
-        type: 'Receita (Atendimento)',
         description: `${app.customerName} - ${app.selectedProcedures.map(p => p.name).join(', ')}`,
-        amount: app.totalPrice,
+        income: app.totalPrice,
+        expense: 0,
+        origin: 'Atendimento',
     }));
 
     const entryRows = entries.map(entry => ({
         date: entry.date,
-        type: entry.type === 'income' ? 'Receita (Manual)' : 'Despesa (Manual)',
         description: entry.description,
-        amount: entry.type === 'expense' ? -entry.amount : entry.amount,
+        income: entry.type === 'income' ? entry.amount : 0,
+        expense: entry.type === 'expense' ? entry.amount : 0,
+        origin: 'Manual',
     }));
 
     const allRows = [...appointmentRows, ...entryRows].sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
@@ -135,9 +136,10 @@ export default function FinancialOverviewPage() {
 
     const csvRows = allRows.map(row => [
         `"${format(parseISO(row.date), 'dd/MM/yyyy')}"`,
-        `"${row.type}"`,
         `"${row.description.replace(/"/g, '""')}"`,
-        row.amount.toFixed(2)
+        row.income.toFixed(2),
+        row.expense.toFixed(2),
+        `"${row.origin}"`,
     ].join(','));
     
     return [header.join(','), ...csvRows].join('\n');
@@ -462,3 +464,5 @@ export default function FinancialOverviewPage() {
     </div>
   );
 }
+
+    
