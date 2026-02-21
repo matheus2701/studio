@@ -318,17 +318,17 @@ export default function BookingPage() {
                         </Button>
                     </>
                 )}
-                {app.status === 'CANCELLED' && (
+                {(app.status === 'CANCELLED' || app.status === 'ATTENDED') && (
                     <Button size="sm" className="flex-1 bg-status-reopen text-white hover:bg-status-reopen/90" onClick={() => handleChangeStatus(app.id, 'CONFIRMED')}>
                         <RotateCcw className="mr-2 h-4 w-4" /> Reabrir
                     </Button>
                 )}
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditClick(app)}>
+                <Button variant="outline" size="sm" onClick={() => handleEditClick(app)}>
                     <Edit className="mr-2 h-4 w-4" /> Editar
                 </Button>
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm" className="flex-1 text-destructive hover:text-destructive hover:bg-destructive/10">
+                        <Button variant="outline" size="sm" className="text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
                             <Trash2 className="mr-2 h-4 w-4" /> Excluir
                         </Button>
                     </AlertDialogTrigger>
@@ -563,5 +563,3 @@ export default function BookingPage() {
     </div>
   );
 }
-
-    
