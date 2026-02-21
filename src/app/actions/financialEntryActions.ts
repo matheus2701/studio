@@ -85,3 +85,25 @@ export async function deleteFinancialEntryData(entryId: string): Promise<boolean
     throw e;
   }
 }
+
+export async function getAllFinancialEntriesData(): Promise<ManualFinancialEntry[]> {
+  console.log('[financialEntryActions] Attempting to fetch ALL financial entries from Supabase for export...');
+  try {
+    const { data, error } = await supabase
+      .from('financial_entries')
+      .select('*')
+      .order('date', { ascending: true });
+
+    if (error) {
+      throw new Error(formatSupabaseErrorMessage(error, 'fetching all financial entries for export'));
+    }
+    console.log('[financialEntryActions] Successfully fetched all financial entries for export:', data?.length);
+    return (data || []).map(entry => sanitizeFinancialEntry(entry));
+  } catch (e: any) {
+    if (e.message?.includes('fetch failed')) {
+      throw new Error(connectionErrorMsg);
+    }
+    console.error('[financialEntryActions] Supabase error fetching all financial entries for export:', e);
+    throw e;
+  }
+}

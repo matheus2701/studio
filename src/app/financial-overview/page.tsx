@@ -22,11 +22,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format, getYear, getMonth, setYear, setMonth as setDateFnsMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Loader2 } from 'lucide-react';
+import { DollarSign, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Loader2, Download } from 'lucide-react';
 import type { Appointment, ManualFinancialEntry } from '@/lib/types';
 import { ManualFinancialEntryForm } from '@/components/forms/ManualFinancialEntryForm';
 import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls';
 import { DEFAULT_YEARS_FOR_FILTER, DEFAULT_MONTHS_FOR_FILTER, CURRENT_YEAR } from '@/lib/constants';
+import { getAllAppointmentsData } from '@/app/actions/appointmentActions';
+import { getAllFinancialEntriesData, getFinancialEntriesByMonthData } from '@/app/actions/financialEntryActions';
+import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+
 
 const financialEntryTypeTranslations: Record<ManualFinancialEntry['type'], string> = {
   income: "Entrada",
@@ -52,6 +58,14 @@ export default function FinancialOverviewPage() {
   const [monthlyAppointments, setMonthlyAppointments] = useState<Appointment[]>([]);
   const [isFetchingPageData, setIsFetchingPageData] = useState(false);
   const [isAddEntryDialogOpen, setIsAddEntryDialogOpen] = useState(false);
+
+  // Export states
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportYear, setExportYear] = useState<number>(CURRENT_YEAR);
+  const [exportMonth, setExportMonth] = useState<number>(getMonth(new Date()));
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const { toast } = useToast();
+
 
   const fetchDataForSelectedPeriod = useCallback(async () => {
     setIsFetchingPageData(true);
@@ -98,6 +112,104 @@ export default function FinancialOverviewPage() {
     fetchDataForSelectedPeriod();
   };
 
+  const convertFinancialDataToCSV = (appointments: Appointment[], entries: ManualFinancialEntry[]) => {
+    const header = ['Data', 'Tipo', 'Descrição', 'Valor (R$)'];
+
+    const appointmentRows = appointments.filter(app => app.status === 'ATTENDED').map(app => ({
+        date: app.date,
+        type: 'Receita (Atendimento)',
+        description: `${app.customerName} - ${app.selectedProcedures.map(p => p.name).join(', ')}`,
+        amount: app.totalPrice,
+    }));
+
+    const entryRows = entries.map(entry => ({
+        date: entry.date,
+        type: entry.type === 'income' ? 'Receita (Manual)' : 'Despesa (Manual)',
+        description: entry.description,
+        amount: entry.type === 'expense' ? -entry.amount : entry.amount,
+    }));
+
+    const allRows = [...appointmentRows, ...entryRows].sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
+    
+    if (allRows.length === 0) return '';
+
+    const csvRows = allRows.map(row => [
+        `"${format(parseISO(row.date), 'dd/MM/yyyy')}"`,
+        `"${row.type}"`,
+        `"${row.description.replace(/"/g, '""')}"`,
+        row.amount.toFixed(2)
+    ].join(','));
+    
+    return [header.join(','), ...csvRows].join('\n');
+  };
+
+  const downloadCSV = (csvData: string, filename: string) => {
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const handleExportMonth = async () => {
+    setIsExporting(true);
+    const periodText = format(setDateFnsMonth(setYear(new Date(), exportYear), exportMonth), "MMMM 'de' yyyy", { locale: ptBR });
+    toast({ title: "Preparando exportação...", description: `Gerando relatório financeiro para ${periodText}.` });
+
+    try {
+        const appointmentsToExport = await getAppointmentsByMonth(exportYear, exportMonth);
+        const entriesToExport = await getFinancialEntriesByMonthData(exportYear, exportMonth);
+
+        if (appointmentsToExport.filter(a => a.status === 'ATTENDED').length === 0 && entriesToExport.length === 0) {
+            toast({ title: "Nenhuma transação", description: `Não há dados financeiros em ${periodText} para exportar.`, variant: "destructive" });
+            return;
+        }
+        
+        const csvData = convertFinancialDataToCSV(appointmentsToExport, entriesToExport);
+        const fileName = `relatorio_financeiro_${exportYear}-${String(exportMonth + 1).padStart(2, '0')}.csv`;
+        downloadCSV(csvData, fileName);
+
+        toast({ title: "Exportação Concluída!", description: `Relatório financeiro de ${periodText} foi exportado.` });
+    } catch (error: any) {
+        console.error("Failed to export monthly financial data", error);
+        toast({ title: "Erro na Exportação", description: "Não foi possível gerar o arquivo do mês.", variant: "destructive" });
+    } finally {
+        setIsExporting(false);
+        setIsExportDialogOpen(false);
+    }
+  };
+
+  const handleExportAll = async () => {
+      setIsExporting(true);
+      toast({ title: "Preparando exportação...", description: "Buscando todas as transações registradas." });
+      try {
+          const allAppointments = await getAllAppointmentsData();
+          const allEntries = await getAllFinancialEntriesData();
+
+          if (allAppointments.filter(a => a.status === 'ATTENDED').length === 0 && allEntries.length === 0) {
+              toast({ title: "Nenhuma transação", description: "Não há nenhum dado financeiro no sistema para exportar.", variant: "destructive" });
+              return;
+          }
+          
+          const csvData = convertFinancialDataToCSV(allAppointments, allEntries);
+          const fileName = `relatorio_financeiro_completo_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+          downloadCSV(csvData, fileName);
+
+          toast({ title: "Exportação Concluída!", description: `Relatório financeiro completo foi exportado.` });
+      } catch (error: any) {
+          console.error("Failed to export all financial data", error);
+          toast({ title: "Erro na Exportação", description: "Não foi possível gerar o arquivo com todos os dados.", variant: "destructive" });
+      } finally {
+          setIsExporting(false);
+      }
+  };
+
   return (
     <div className="space-y-8">
       <Card>
@@ -130,6 +242,72 @@ export default function FinancialOverviewPage() {
                 }} />
               </DialogContent>
             </Dialog>
+            <AlertDialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <Download className="mr-2 h-4 w-4" /> Exportar Mês...
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Exportar Relatório Financeiro</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Selecione o ano e o mês para exportar o relatório financeiro consolidado em CSV.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="export-year" className="text-right">
+                      Ano
+                    </Label>
+                    <Select
+                      value={exportYear.toString()}
+                      onValueChange={(value) => setExportYear(parseInt(value))}
+                    >
+                      <SelectTrigger id="export-year" className="col-span-3">
+                        <SelectValue placeholder="Ano" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEFAULT_YEARS_FOR_FILTER.map(year => (
+                          <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="export-month" className="text-right">
+                      Mês
+                    </Label>
+                     <Select
+                      value={exportMonth.toString()}
+                      onValueChange={(value) => setExportMonth(parseInt(value))}
+                    >
+                      <SelectTrigger id="export-month" className="col-span-3">
+                        <SelectValue placeholder="Mês" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEFAULT_MONTHS_FOR_FILTER.map(monthIdx => (
+                          <SelectItem key={monthIdx} value={monthIdx.toString()}>
+                            {format(setDateFnsMonth(new Date(), monthIdx), 'MMMM', { locale: ptBR })}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleExportMonth} disabled={isExporting}>
+                     {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                     Exportar Mês
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button onClick={handleExportAll} disabled={isExporting} variant="outline" className="w-full sm:w-auto">
+              {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              Exportar Tudo
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
