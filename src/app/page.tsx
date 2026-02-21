@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Appointment, AppointmentStatus, Procedure } from '@/lib/types';
-import { format, getMonth, getYear, setYear as setDateFnsYear, setMonth as setDateFnsMonth, parse, addMinutes, isEqual, startOfDay } from 'date-fns';
+import { format, getMonth, getYear, setYear as setDateFnsYear, setMonth as setDateFnsMonth, parse, addMinutes, isEqual, startOfDay, set } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarCheck2, CheckCircle2, Clock, UserCircle, ShieldCheck, XCircle, CheckCircle, DollarSign, CreditCard, Edit, Loader2, Trash2, CalendarClock, RotateCcw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -563,3 +563,5 @@ export default function BookingPage() {
     </div>
   );
 }
+
+    
