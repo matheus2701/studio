@@ -23,6 +23,7 @@ import { syncToGoogleCalendar } from "@/app/actions/scheduleActions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardTitle } from "@/components/ui/card";
 import { useEffect } from "react";
+import { useCustomers } from "@/contexts/CustomersContext";
 
 const bookingFormSchema = z.object({
   customerName: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
@@ -49,6 +50,7 @@ export function BookingForm({
     appointmentToEdit 
 }: BookingFormProps) {
   const { toast } = useToast();
+  const { customers, addCustomer } = useCustomers();
 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingFormSchema),
@@ -83,11 +85,33 @@ export function BookingForm({
   const totalDuration = selectedProcedures.reduce((sum, proc) => sum + proc.duration, 0);
   
   async function onSubmit(data: BookingFormValues) {
+    const customerNameTrimmed = data.customerName.trim();
+    // Find if customer exists, ignoring case
+    const customerExists = customers.some(c => c.name.toLowerCase() === customerNameTrimmed.toLowerCase());
+
+    // Only create a new customer if this is a new appointment AND the customer doesn't exist yet.
+    if (!appointmentToEdit && !customerExists && customerNameTrimmed) {
+      try {
+        await addCustomer({
+          name: customerNameTrimmed,
+          phone: data.customerPhone,
+          tags: [], // No tags are added automatically
+        });
+        toast({
+          title: "Novo Cliente Criado",
+          description: `${customerNameTrimmed} foi salvo na sua lista de clientes.`,
+        });
+      } catch (error) {
+        console.error("Falha ao criar cliente automaticamente:", error);
+        // The context will show its own error toast if something goes wrong with the action.
+      }
+    }
+
     const appointmentDataPayload: Omit<Appointment, 'id' | 'status'> = {
       selectedProcedures: selectedProcedures,
       totalPrice: totalPrice,
       totalDuration: totalDuration,
-      customerName: data.customerName,
+      customerName: customerNameTrimmed, // Use the trimmed name
       customerPhone: data.customerPhone,
       date: format(selectedDate, 'yyyy-MM-dd'),
       time: selectedTime,
