@@ -69,6 +69,30 @@ const initialProceduresData: Omit<Procedure, 'id'>[] = [ // Omit 'id' as it will
     isPromo: false,
     promoPrice: undefined,
   },
+  {
+    name: 'Extensão de Cílios (Fio a Fio)',
+    duration: 120,
+    price: 180.00,
+    description: 'Aplicação de cílios sintéticos, um a um, para um olhar mais volumoso e expressivo.',
+    isPromo: false,
+    promoPrice: undefined,
+  },
+  {
+    name: 'Lash Lifting',
+    duration: 75,
+    price: 120.00,
+    description: 'Procedimento que curva e tinge os cílios naturais, proporcionando um efeito de "rímel" natural.',
+    isPromo: false,
+    promoPrice: undefined,
+  },
+  {
+    name: 'Combo: Lash Lifting + Brow Lamination',
+    duration: 90,
+    price: 200.00,
+    description: 'Combo perfeito para um olhar renovado, alinhando os fios das sobrancelhas e curvando os cílios.',
+    isPromo: true,
+    promoPrice: 179.90,
+  }
 ];
 
 
