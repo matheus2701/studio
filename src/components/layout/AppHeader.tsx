@@ -7,7 +7,7 @@ import { Logo } from '@/components/icons/Logo';
 import { NavLink } from './NavLink';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Home, Settings2, Bell, Brain, LinkIcon, LogOut, DollarSign, Users, BarChart3 } from 'lucide-react'; // Adicionado BarChart3
+import { Menu, Home, Settings2, Bell, LogOut, DollarSign, Users, BarChart3 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -16,9 +16,8 @@ const navItems = [
   { href: '/procedures', label: 'Procedimentos', icon: Settings2 },
   { href: '/customers', label: 'Clientes', icon: Users },
   { href: '/financial-overview', label: 'Financeiro', icon: DollarSign },
-  { href: '/dashboard', label: 'Dashboard', icon: BarChart3 }, // Novo item Dashboard
+  { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   { href: '/notifications', label: 'Notificações', icon: Bell },
-  { href: '/settings/integrations', label: 'Integrações', icon: LinkIcon },
 ];
 
 export function AppHeader() {

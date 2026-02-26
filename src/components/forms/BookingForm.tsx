@@ -19,7 +19,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import type { Appointment, Procedure } from "@/lib/types";
 import { format } from 'date-fns';
-import { syncToGoogleCalendar } from "@/app/actions/scheduleActions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardTitle } from "@/components/ui/card";
 import { useEffect } from "react";
@@ -71,7 +70,6 @@ export function BookingForm({
         sinalPago: appointmentToEdit.sinalPago,
       });
     } else {
-      // Reset to defaults when it's a new booking or edit is cancelled
       form.reset({
         customerName: "",
         customerPhone: "",
@@ -86,16 +84,14 @@ export function BookingForm({
   
   async function onSubmit(data: BookingFormValues) {
     const customerNameTrimmed = data.customerName.trim();
-    // Find if customer exists, ignoring case
     const customerExists = customers.some(c => c.name.toLowerCase() === customerNameTrimmed.toLowerCase());
 
-    // Only create a new customer if this is a new appointment AND the customer doesn't exist yet.
     if (!appointmentToEdit && !customerExists && customerNameTrimmed) {
       try {
         await addCustomer({
           name: customerNameTrimmed,
           phone: data.customerPhone,
-          tags: [], // No tags are added automatically
+          tags: [],
         });
         toast({
           title: "Novo Cliente Criado",
@@ -103,7 +99,6 @@ export function BookingForm({
         });
       } catch (error) {
         console.error("Falha ao criar cliente automaticamente:", error);
-        // The context will show its own error toast if something goes wrong with the action.
       }
     }
 
@@ -111,7 +106,7 @@ export function BookingForm({
       selectedProcedures: selectedProcedures,
       totalPrice: totalPrice,
       totalDuration: totalDuration,
-      customerName: customerNameTrimmed, // Use the trimmed name
+      customerName: customerNameTrimmed,
       customerPhone: data.customerPhone,
       date: format(selectedDate, 'yyyy-MM-dd'),
       time: selectedTime,
@@ -123,25 +118,9 @@ export function BookingForm({
       ? { ...appointmentDataPayload, id: appointmentToEdit.id, status: appointmentToEdit.status }
       : null;
 
-    const savedAppointment = await onFormSubmit(appointmentDataPayload, finalAppointmentData || undefined);
-
-    if (savedAppointment) {
-      // Tenta sincronizar com Google Agenda após o sucesso
-      const syncResult = await syncToGoogleCalendar(savedAppointment, savedAppointment.selectedProcedures);
-      if (syncResult.success) {
-        toast({
-          title: "Sincronizado com Google Agenda!",
-          description: syncResult.message,
-        });
-      } else if (syncResult.message && !syncResult.message.includes('não autenticado')) { 
-        // Mostra o erro apenas se não for um erro de "não autenticado" (que é esperado se o usuário não conectou a conta)
-        toast({
-          title: "Sincronização com Google Agenda falhou",
-          description: syncResult.message,
-          variant: "destructive",
-        });
-      }
-    }
+    await onFormSubmit(appointmentDataPayload, finalAppointmentData || undefined);
+    
+    // Integração com Google Agenda desativada temporariamente para estabilidade
   }
 
   return (
