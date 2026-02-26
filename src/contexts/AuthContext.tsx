@@ -18,7 +18,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Lê as credenciais das variáveis de ambiente
 const ADMIN_USERNAME_ENV = process.env.NEXT_PUBLIC_ADMIN_USERNAME;
 const ADMIN_PASSWORD_ENV = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
 
@@ -29,18 +28,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
 
   useEffect(() => {
+    console.log("[AuthContext] Iniciando verificação de sessão...");
     let initialUser = null;
     if (typeof window !== 'undefined') {
-      if (!ADMIN_USERNAME_ENV || !ADMIN_PASSWORD_ENV) {
-        console.error("Variáveis de ambiente NEXT_PUBLIC_ADMIN_USERNAME ou NEXT_PUBLIC_ADMIN_PASSWORD não configuradas!");
-      }
       try {
         const storedUser = localStorage.getItem('agendeUser');
         if (storedUser) {
           initialUser = JSON.parse(storedUser);
+          console.log("[AuthContext] Sessão restaurada para:", initialUser.username);
+        } else {
+          console.log("[AuthContext] Nenhuma sessão encontrada no localStorage.");
         }
       } catch (error) {
-        console.error("Failed to parse user from localStorage", error);
+        console.error("[AuthContext] Erro ao ler sessão do localStorage:", error);
         localStorage.removeItem('agendeUser');
       }
     }
@@ -50,10 +50,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = useCallback(async (usernameInput: string, passwordInput: string): Promise<boolean> => {
     setIsLoading(true);
+    console.log("[AuthContext] Tentando login para:", usernameInput);
+    
+    // Simula um pequeno atraso de rede
     await new Promise(resolve => setTimeout(resolve, 500)); 
 
     if (!ADMIN_USERNAME_ENV || !ADMIN_PASSWORD_ENV) {
-      console.error("Login attempt failed: Admin credentials not set in environment variables.");
+      console.error("[AuthContext] Erro Crítico: Credenciais administrativas não configuradas no .env");
       setIsLoading(false);
       return false;
     }
@@ -64,11 +67,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (typeof window !== 'undefined') {
         localStorage.setItem('agendeUser', JSON.stringify(userData));
       }
+      console.log("[AuthContext] Login bem-sucedido.");
       setIsLoading(false);
       router.push('/');
       return true;
     }
 
+    console.warn("[AuthContext] Falha no login: credenciais incorretas.");
     setUser(null);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('agendeUser');
@@ -78,6 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [router]);
 
   const logout = useCallback(() => {
+    console.log("[AuthContext] Executando logout...");
     setUser(null);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('agendeUser');
@@ -85,20 +91,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     router.push('/login'); 
   }, [router]);
 
-  // Descomentando o useEffect que redireciona da página de login
   useEffect(() => {
     if (!isLoading) {
       const isLoginPage = pathname === '/login';
-      // Se o login não é obrigatório, esta lógica de redirecionamento não é necessária
-      // if (!user && !isLoginPage) {
-      //   router.push('/login');
-      // } else 
       if (user && isLoginPage) {
+         console.log("[AuthContext] Usuário logado tentando acessar login, redirecionando para home.");
          router.push('/'); 
       }
     }
   }, [user, isLoading, pathname, router]);
-
 
   return (
     <AuthContext.Provider value={{ user, isLoading, login, logout }}>

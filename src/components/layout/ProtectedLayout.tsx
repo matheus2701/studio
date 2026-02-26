@@ -15,44 +15,51 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
   const router = useRouter(); 
 
   useEffect(() => { 
-    if (isLoading) return; // Don't do anything while loading
+    if (isLoading) return;
 
     const isLoginPage = pathname === '/login';
 
     if (!user && !isLoginPage) {
+      console.log("[ProtectedLayout] Usuário não autenticado, redirecionando para /login");
       router.replace('/login');
     }
-    // No need to redirect if user is logged in and on login page, AuthProvider handles this
   }, [user, isLoading, pathname, router]); 
 
   if (isLoading) {
-    // Skeleton UI while checking auth state
     return (
-      <div className="flex flex-col min-h-screen">
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex flex-col min-h-screen bg-background">
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
           <div className="container flex h-16 items-center justify-between">
             <Skeleton className="h-8 w-48" />
             <Skeleton className="h-8 w-24" />
           </div>
         </header>
         <main className="flex-grow container mx-auto px-4 py-8">
-          <div className="space-y-4">
-            <Skeleton className="h-12 w-full" />
+          <div className="space-y-6">
+            <div className="flex justify-between">
+               <Skeleton className="h-10 w-64" />
+               <Skeleton className="h-10 w-32" />
+            </div>
             <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-32 w-full" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+               <Skeleton className="h-32 w-full" />
+               <Skeleton className="h-32 w-full" />
+               <Skeleton className="h-32 w-full" />
+            </div>
           </div>
         </main>
       </div>
     );
   }
   
-  // If not loading and not logged in, and not on login page, effectively render nothing until redirect happens
-  // This prevents a flash of an unauthenticated page or AppHeader
   if (!user && pathname !== '/login') {
-    return null; 
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-muted-foreground animate-pulse">Redirecionando para o login...</p>
+      </div>
+    ); 
   }
 
-  // If on login page, render only children (which is the LoginPage content) and Toaster
   if (pathname === '/login') {
     return (
       <>
@@ -62,10 +69,9 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // If logged in (and not on login page), render the full protected layout
   return (
     <>
-      <AppHeader /> {/* AppHeader is only rendered for authenticated users on protected pages */}
+      <AppHeader />
       <main className="flex-grow container mx-auto px-4 py-8">
         {children}
       </main>
