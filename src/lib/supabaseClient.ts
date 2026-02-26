@@ -20,7 +20,6 @@ if (isPlaceholder(supabaseUrl) || isPlaceholder(supabaseAnonKey)) {
   console.warn('[SupabaseClient] Alerta: Variáveis de ambiente do Supabase não configuradas ou com valores padrão. Verifique seu arquivo .env ou as configurações da Vercel.');
 }
 
-// Criamos o cliente com uma configuração de timeout para evitar travamentos infinitos
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder-url.supabase.co',
   supabaseAnonKey || 'placeholder-key',
@@ -30,7 +29,11 @@ export const supabase = createClient(
     },
     global: {
       fetch: (url, options) => {
-        return fetch(url, { ...options, signal: AbortSignal.timeout(10000) }); // Timeout de 10 segundos
+        // Adiciona um AbortSignal para garantir que requisições demoradas não travem o servidor
+        return fetch(url, { 
+          ...options, 
+          signal: AbortSignal.timeout(8000) // 8 segundos de timeout
+        });
       }
     }
   }
