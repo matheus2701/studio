@@ -16,13 +16,22 @@ const isPlaceholder = (val: string | undefined) => {
   return placeholders.some(p => val.includes(p));
 };
 
-// Em vez de lançar erro fatal no topo do arquivo (que mata o processo na Vercel),
-// apenas logamos e permitimos que o cliente seja criado (as chamadas falharão depois com erro claro).
 if (isPlaceholder(supabaseUrl) || isPlaceholder(supabaseAnonKey)) {
   console.warn('[SupabaseClient] Alerta: Variáveis de ambiente do Supabase não configuradas ou com valores padrão. Verifique seu arquivo .env ou as configurações da Vercel.');
 }
 
+// Criamos o cliente com uma configuração de timeout para evitar travamentos infinitos
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder-url.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: false
+    },
+    global: {
+      fetch: (url, options) => {
+        return fetch(url, { ...options, signal: AbortSignal.timeout(10000) }); // Timeout de 10 segundos
+      }
+    }
+  }
 );

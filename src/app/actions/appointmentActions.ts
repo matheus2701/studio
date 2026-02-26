@@ -22,7 +22,7 @@ export async function getAppointments(): Promise<Appointment[]> {
     }
     return (data || []).map(app => sanitizeAppointment(app));
   } catch (e: any) {
-    if (e.message?.includes('fetch failed')) {
+    if (e.message?.includes('fetch failed') || e.name === 'TimeoutError') {
       throw new Error(connectionErrorMsg);
     }
     console.error('[appointmentActions] Supabase error fetching appointments:', e);
@@ -43,7 +43,7 @@ export async function getAllAppointmentsData(): Promise<Appointment[]> {
     }
     return (data || []).map(app => sanitizeAppointment(app));
   } catch (e: any) {
-    if (e.message?.includes('fetch failed')) {
+    if (e.message?.includes('fetch failed') || e.name === 'TimeoutError') {
       throw new Error(connectionErrorMsg);
     }
     console.error('[appointmentActions] Supabase error fetching all appointments:', e);
@@ -76,7 +76,7 @@ export async function addAppointmentData(appointmentData: Omit<Appointment, 'id'
     console.log('[appointmentActions] Successfully added appointment, returned data:', data);
     return data ? sanitizeAppointment(data) : null;
   } catch (e: any) {
-    if (e.message?.includes('fetch failed')) {
+    if (e.message?.includes('fetch failed') || e.name === 'TimeoutError') {
       throw new Error(connectionErrorMsg);
     }
     console.error('[appointmentActions] Supabase error adding appointment:', e);
@@ -105,7 +105,7 @@ export async function updateAppointmentData(updatedAppointment: Appointment): Pr
     console.log('[appointmentActions] Successfully updated appointment, returned data:', data);
     return data ? sanitizeAppointment(data) : null;
   } catch (e: any) {
-    if (e.message?.includes('fetch failed')) {
+    if (e.message?.includes('fetch failed') || e.name === 'TimeoutError') {
       throw new Error(connectionErrorMsg);
     }
     console.error('[appointmentActions] Supabase error updating appointment:', e);
@@ -129,7 +129,7 @@ export async function updateAppointmentStatusData(appointmentId: string, newStat
     console.log('[appointmentActions] Successfully updated appointment status, returned data:', data);
     return data ? sanitizeAppointment(data) : null;
   } catch (e: any) {
-    if (e.message?.includes('fetch failed')) {
+    if (e.message?.includes('fetch failed') || e.name === 'TimeoutError') {
       throw new Error(connectionErrorMsg);
     }
     console.error('[appointmentActions] Supabase error updating appointment status:', e);
@@ -151,7 +151,7 @@ export async function deleteAppointmentData(appointmentId: string): Promise<bool
     console.log(`[appointmentActions] Successfully deleted appointment ${appointmentId}`);
     return true;
   } catch (e: any) {
-    if (e.message?.includes('fetch failed')) {
+    if (e.message?.includes('fetch failed') || e.name === 'TimeoutError') {
       throw new Error(connectionErrorMsg);
     }
     console.error('[appointmentActions] Supabase error deleting appointment:', e);
@@ -178,11 +178,10 @@ export async function getAppointmentsByMonthData(year: number, month: number): P
     }
     return (data || []).map(app => sanitizeAppointment(app));
   } catch (e: any) {
-    if (e.message?.includes('fetch failed')) {
+    if (e.message?.includes('fetch failed') || e.name === 'TimeoutError') {
       throw new Error(connectionErrorMsg);
     }
     console.error('[appointmentActions] Supabase error fetching appointments by month:', e);
     throw e;
   }
 }
-    
