@@ -4,29 +4,20 @@ import type { Appointment, AppointmentStatus, Customer, ManualFinancialEntry, Pr
 
 /**
  * Formats a detailed Supabase error message.
- * @param error The PostgrestError from Supabase.
- * @param operationDesc A description of the failed operation (e.g., "fetching appointments").
- * @returns A detailed error message string.
  */
 export function formatSupabaseErrorMessage(error: PostgrestError, operationDesc: string): string {
-  let detailedErrorMessage = `Supabase error ${operationDesc}: ${error.message} (Code: ${error.code})`;
-  if (error.details) {
-    detailedErrorMessage += ` Details: ${error.details}`;
-  }
-  if (error.hint) {
-    detailedErrorMessage += ` Hint: ${error.hint}`;
+  let detailedErrorMessage = `Erro ao ${operationDesc}: ${error.message}`;
+  
+  if (error.message?.includes('fetch failed') || error.message?.includes('expirou')) {
+    return "Falha de conexão: O servidor do banco de dados não respondeu a tempo. Verifique sua conexão com a internet ou as chaves de API no .env.";
   }
 
-  if (error.message?.includes('fetch failed')) {
-    detailedErrorMessage += `\n\n[Debugging "fetch failed"]:\n1. Verify NEXT_PUBLIC_SUPABASE_URL in your .env file is correct (e.g., https://<your-project-ref>.supabase.co).\n2. Ensure NEXT_PUBLIC_SUPABASE_ANON_KEY in .env is correct.\n3. Restart your Next.js development server (Ctrl+C, then 'npm run dev') after any .env changes.\n4. Check your server's network connectivity to the Supabase domain.\n5. Ensure your Supabase project is running and accessible.`;
-  }
+  console.error(`[Supabase Detail] ${operationDesc}`, error);
   return detailedErrorMessage;
 }
 
 /**
  * Sanitizes an appointment object.
- * @param app Raw appointment data.
- * @returns A sanitized Appointment object.
  */
 export function sanitizeAppointment(app: any): Appointment {
   return {
@@ -46,8 +37,6 @@ export function sanitizeAppointment(app: any): Appointment {
 
 /**
  * Sanitizes a customer object.
- * @param customer Raw customer data.
- * @returns A sanitized Customer object.
  */
 export function sanitizeCustomer(customer: any): Customer {
   return {
@@ -61,8 +50,6 @@ export function sanitizeCustomer(customer: any): Customer {
 
 /**
  * Sanitizes a Tag object.
- * @param tag Raw tag data.
- * @returns A sanitized Tag object.
  */
 export function sanitizeTag(tag: any): Tag {
     return {
@@ -73,8 +60,6 @@ export function sanitizeTag(tag: any): Tag {
 
 /**
  * Sanitizes a procedure object.
- * @param procedure Raw procedure data.
- * @returns A sanitized Procedure object.
  */
 export function sanitizeProcedure(procedure: any): Procedure {
   return {
@@ -90,8 +75,6 @@ export function sanitizeProcedure(procedure: any): Procedure {
 
 /**
  * Sanitizes a manual financial entry object.
- * @param entry Raw financial entry data.
- * @returns A sanitized ManualFinancialEntry object.
  */
 export function sanitizeFinancialEntry(entry: any): ManualFinancialEntry {
   return {
