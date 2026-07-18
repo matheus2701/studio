@@ -1,3 +1,4 @@
+
 # Documentação Completa: Agenda Valery Studio
 
 Este documento contém todas as especificações técnicas, funcionais e de infraestrutura necessárias para operar e manter o sistema.
@@ -84,12 +85,16 @@ CREATE TABLE financial_entries (
 - **Resiliência**: O sistema verifica conflitos de horário em tempo real antes de mostrar as opções disponíveis.
 
 ### 👥 Clientes
-- **Criação Automática**: Se você agendar um nome que não está na lista, o sistema cria o cadastro automaticamente.
+- **Criação Automática**: Se você agendar um nome que não está na lista, o sistema cria o cadastro automaticamente durante o agendamento.
 - **Tags**: Organize clientes por preferências (ex: "VIP", "Prefere Henna").
 
 ### 💰 Financeiro
 - **Consolidação**: O sistema soma automaticamente os atendimentos "Realizados" com as entradas manuais e subtrai as despesas.
-- **Exportação**: Botões para baixar relatórios CSV prontos para abrir no Excel.
+- **Exportação**: Botões para baixar relatórios CSV (Excel) ou backup completo em JSON.
+
+### 💾 Backup e Importação
+- **Backup JSON**: Localizado em Configurações > Dados, permite baixar toda a base de dados (procedimentos, clientes, agendamentos e financeiro) em um arquivo estruturado.
+- **Importação**: Permite restaurar dados de um arquivo JSON. O sistema possui inteligência para evitar duplicar clientes e procedimentos que já existem pelo nome.
 
 ---
 
@@ -97,11 +102,11 @@ CREATE TABLE financial_entries (
 
 ### Erro: ERR_CONNECTION_TIMED_OUT
 - **Causa**: Geralmente falha na conexão com o Supabase ou latência de DNS.
-- **Solução**: Verifique se a URL do Supabase no seu `.env` está correta e se a sua internet não está bloqueando o domínio `supabase.co`.
+- **Solução**: Verifique se a URL do Supabase no seu `.env` está correta. O sistema agora possui timeouts de 7s para evitar travamentos longos.
 
 ### Login Não Funciona
 - **Causa**: Variáveis `NEXT_PUBLIC_ADMIN_USERNAME` ou `PASSWORD` ausentes no `.env`.
-- **Solução**: Verifique o arquivo `.env` e certifique-se de que ele foi lido pelo servidor (reinicie o processo `npm run dev`).
+- **Solução**: Verifique o arquivo `.env` e certifique-se de que ele foi lido pelo servidor.
 
 ---
 
@@ -109,6 +114,5 @@ CREATE TABLE financial_entries (
 - **Framework**: Next.js 15 (App Router)
 - **Estilização**: Tailwind CSS + Shadcn UI
 - **Banco**: PostgreSQL (via Supabase)
-- **IA**: Google Gemini (via Genkit - Desativado para manutenção)
+- **IA**: Genkit (Desativado temporariamente)
 - **Gráficos**: Recharts
-```
