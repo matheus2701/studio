@@ -7,11 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Database, Download, Upload, AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react';
+import { Database, Download, Upload, AlertTriangle, Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { useProcedures } from '@/contexts/ProceduresContext';
 import { useCustomers } from '@/contexts/CustomersContext';
-import { useAppointments } from '@/contexts/AppointmentsContext';
-import { useFinancialEntries } from '@/contexts/FinancialEntriesContext';
 import { 
   bulkImportProcedures, 
   bulkImportCustomers, 
@@ -36,7 +34,7 @@ export default function DataManagementPage() {
       const allFinancial = await getAllFinancialEntriesData();
 
       const backupData = {
-        version: "1.0",
+        version: "1.1",
         timestamp: new Date().toISOString(),
         data: {
           procedures,
@@ -100,8 +98,8 @@ export default function DataManagementPage() {
         }
 
         toast({ 
-          title: "Importação Concluída", 
-          description: `Foram importados: ${summary.join(', ')}.` 
+          title: "Sincronização Concluída", 
+          description: `Os dados foram atualizados com sucesso: ${summary.join(', ')}.` 
         });
         
         // Refresh page to reload contexts
@@ -161,18 +159,18 @@ export default function DataManagementPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5 text-sky-600" />
-              Restaurar Dados
+              Restaurar / Sincronizar
             </CardTitle>
             <CardDescription>
-              Importe dados de um arquivo de backup anterior para o sistema.
+              Importe dados de um backup. O sistema atualizará registros existentes e adicionará novos.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-col gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-xs">
+            <div className="flex flex-col gap-2 p-3 bg-sky-50 border border-sky-200 rounded-md text-sky-800 text-xs">
               <div className="flex items-center gap-2 font-bold">
-                <AlertTriangle className="h-4 w-4" /> ATENÇÃO
+                <ShieldCheck className="h-4 w-4" /> PROTEÇÃO ATIVA
               </div>
-              <p>A importação de agendamentos e financeiro não verifica duplicatas. Use com cautela para evitar dados repetidos.</p>
+              <p>O sistema agora detecta duplicatas pelo nome. Se um cliente ou procedimento já existir, ele será atualizado em vez de duplicado.</p>
             </div>
             
             <div className="space-y-2">
@@ -192,7 +190,7 @@ export default function DataManagementPage() {
             {isImporting && (
               <div className="flex items-center justify-center p-4 gap-2 text-sm text-primary animate-pulse">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Processando importação...
+                Processando sincronização...
               </div>
             )}
           </CardContent>
@@ -203,13 +201,13 @@ export default function DataManagementPage() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-primary" />
-            Integridade dos Dados
+            Inteligência de Importação
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm space-y-2 text-muted-foreground">
-          <p>• <strong>Procedimentos e Clientes</strong>: O sistema verifica o nome durante a importação. Se o nome já existir, o registro será ignorado para evitar duplicidade.</p>
-          <p>• <strong>Agendamentos</strong>: São importados como novos registros. Recomenda-se realizar a importação apenas em bancos de dados limpos ou para restaurar períodos perdidos.</p>
-          <p>• <strong>Segurança</strong>: Nenhum dado existente é apagado durante a importação, apenas novos dados são adicionados.</p>
+          <p>• <strong>Procedimentos e Clientes</strong>: A validação é feita pelo <strong>nome</strong>. Se o nome for idêntico (independente de maiúsculas/minúsculas), os dados existentes serão sobrescritos com as novas informações.</p>
+          <p>• <strong>Agendamentos</strong>: O sistema tenta identificar agendamentos idênticos para evitar duplicar o mesmo horário para o mesmo cliente.</p>
+          <p>• <strong>Segurança</strong>: Esta operação de "Upsert" é mais segura para manter seu banco de dados limpo e atualizado com backups externos.</p>
         </CardContent>
       </Card>
     </div>
