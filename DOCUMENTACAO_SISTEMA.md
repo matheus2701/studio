@@ -1,4 +1,3 @@
-
 # Documentação Completa: Agenda Valery Studio
 
 Este documento contém todas as especificações técnicas, funcionais e de infraestrutura necessárias para operar e manter o sistema.
@@ -9,7 +8,7 @@ O **Agenda Valery Studio** é um sistema de gestão especializado para profissio
 ---
 
 ## 2. Requisitos de Ambiente (.env)
-Para o sistema funcionar, crie um arquivo `.env` na raiz ou configure no painel da Vercel:
+Para o sistema funcionar, configure no painel da Vercel (Settings > Environment Variables) ou no seu arquivo local:
 
 ```env
 # Supabase (Banco de Dados)
@@ -60,15 +59,15 @@ CREATE TABLE appointments (
   selected_procedures JSONB NOT NULL,
   total_price NUMERIC(10,2) NOT NULL,
   total_duration INTEGER NOT NULL,
-  status TEXT DEFAULT 'CONFIRMED', -- CONFIRMED, ATTENDED, CANCELLED
+  status TEXT DEFAULT 'CONFIRMED', 
   sinal_pago BOOLEAN DEFAULT FALSE,
   notes TEXT
 );
 
--- 4. Tabela de Lançamentos Financeiros (Manual)
+-- 4. Tabela de Lançamentos Financeiros
 CREATE TABLE financial_entries (
   id TEXT PRIMARY KEY,
-  type TEXT NOT NULL, -- income, expense
+  type TEXT NOT NULL, 
   description TEXT NOT NULL,
   amount NUMERIC(10,2) NOT NULL,
   date DATE NOT NULL,
@@ -78,35 +77,37 @@ CREATE TABLE financial_entries (
 
 ---
 
-## 4. Guia de Deploy e Versionamento
+## 4. Guia de Deploy (Comandos para rodar)
 
-### Enviar para o GitHub
-1. Abra o terminal na raiz do projeto.
-2. Inicie o git (se não tiver feito): `git init`
-3. Adicione os arquivos: `git add .`
-4. Comite: `git commit -m "feat: sistema completo com backup e upsert"`
-5. Conecte ao seu repositório remoto e faça o push.
+Copie e cole os comandos abaixo no seu terminal para subir a nova versão:
 
-### Publicar na Vercel
-1. Conecte seu repositório do GitHub à Vercel.
-2. **Importante**: Adicione as variáveis de ambiente listadas no item 2 deste documento no painel da Vercel (Settings > Environment Variables).
-3. O deploy será realizado automaticamente.
+### Passo 1: Enviar para o GitHub
+```bash
+git init
+git add .
+git commit -m "feat: backup inteligente e correções de estabilidade"
+git branch -M main
+# Se ainda não conectou o repositório remoto:
+# git remote add origin https://github.com/seu-usuario/seu-repositorio.git
+git push -u origin main
+```
 
----
-
-## 5. Resolução de Problemas (Troubleshooting)
-
-### Erro: ERR_CONNECTION_TIMED_OUT
-- **Causa**: Falha na conexão com o Supabase ou bloqueio de rede local.
-- **Solução**: Verifique se as chaves no `.env` estão corretas. O sistema possui timeout de 7s para evitar travamentos.
-
-### Backup e Importação (Upsert)
-- O sistema agora protege contra duplicatas. Ao importar, se um cliente ou procedimento com o mesmo nome for detectado, o sistema apenas atualizará os dados existentes em vez de criar um novo.
+### Passo 2: Publicar na Vercel
+Se você já tem o projeto conectado na Vercel, o deploy será automático após o push acima. Caso queira fazer via terminal:
+```bash
+npm install -g vercel
+vercel --prod
+```
 
 ---
 
-## 6. Stack Tecnológica
-- **Framework**: Next.js 15 (App Router)
-- **Estilização**: Tailwind CSS + Shadcn UI
-- **Banco**: PostgreSQL (via Supabase)
-- **Segurança**: ProtectedLayout com AuthContext.
+## 5. Backup e Sincronização
+O sistema possui uma ferramenta de backup em **JSON**.
+- **Backup**: Gera um arquivo único com todos os dados.
+- **Importação (Upsert)**: Se você importar um backup, o sistema não criará duplicatas de clientes ou procedimentos com o mesmo nome; ele apenas atualizará os dados existentes.
+
+---
+
+## 6. Resolução de Problemas
+- **Timeout**: O sistema agora tem um limite de 7s para conexões com o banco, evitando que o navegador trave.
+- **IA/Agenda**: Desativados temporariamente para maximizar a estabilidade do servidor em conexões lentas.
