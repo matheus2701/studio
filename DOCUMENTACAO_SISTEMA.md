@@ -26,11 +26,11 @@ NEXT_PUBLIC_BASE_URL=https://seu-app.vercel.app
 ---
 
 ## 3. Configuração do Banco de Dados (SQL)
-Execute o script abaixo no **SQL Editor** do seu painel Supabase:
+Execute o script abaixo no **SQL Editor** do seu painel Supabase para criar as tabelas necessárias:
 
 ```sql
 -- 1. Tabela de Procedimentos
-CREATE TABLE procedures (
+CREATE TABLE IF NOT EXISTS procedures (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   duration INTEGER NOT NULL,
@@ -41,7 +41,7 @@ CREATE TABLE procedures (
 );
 
 -- 2. Tabela de Clientes
-CREATE TABLE customers (
+CREATE TABLE IF NOT EXISTS customers (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   phone TEXT,
@@ -50,7 +50,7 @@ CREATE TABLE customers (
 );
 
 -- 3. Tabela de Agendamentos
-CREATE TABLE appointments (
+CREATE TABLE IF NOT EXISTS appointments (
   id TEXT PRIMARY KEY,
   date DATE NOT NULL,
   time TEXT NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE appointments (
 );
 
 -- 4. Tabela de Lançamentos Financeiros
-CREATE TABLE financial_entries (
+CREATE TABLE IF NOT EXISTS financial_entries (
   id TEXT PRIMARY KEY,
   type TEXT NOT NULL, 
   description TEXT NOT NULL,
@@ -77,37 +77,35 @@ CREATE TABLE financial_entries (
 
 ---
 
-## 4. Guia de Deploy (Comandos para rodar)
+## 4. Guia de Deploy (Como subir para a Internet)
 
-Copie e cole os comandos abaixo no seu terminal para subir a nova versão:
+Se você estiver usando o terminal, siga estes passos:
 
 ### Passo 1: Enviar para o GitHub
 ```bash
-git init
 git add .
-git commit -m "feat: backup inteligente e correções de estabilidade"
-git branch -M main
-# Se ainda não conectou o repositório remoto:
-# git remote add origin https://github.com/seu-usuario/seu-repositorio.git
-git push -u origin main
+git commit -m "feat: sistema de backup e melhorias de estabilidade"
+git push origin main
 ```
 
 ### Passo 2: Publicar na Vercel
-Se você já tem o projeto conectado na Vercel, o deploy será automático após o push acima. Caso queira fazer via terminal:
+Se o seu projeto já está conectado, a Vercel fará o resto. Caso queira forçar um novo deploy:
 ```bash
-npm install -g vercel
 vercel --prod
 ```
 
 ---
 
-## 5. Backup e Sincronização
+## 5. Backup e Sincronização (Upsert)
 O sistema possui uma ferramenta de backup em **JSON**.
-- **Backup**: Gera um arquivo único com todos os dados.
-- **Importação (Upsert)**: Se você importar um backup, o sistema não criará duplicatas de clientes ou procedimentos com o mesmo nome; ele apenas atualizará os dados existentes.
+- **Backup**: Gera um arquivo único com todos os dados (Clientes, Procedimentos, Agendamentos e Financeiro).
+- **Importação Inteligente**: Ao importar, o sistema verifica se o cliente ou procedimento já existe pelo **Nome**. Se existir, ele apenas atualiza os dados, evitando duplicatas.
 
 ---
 
-## 6. Resolução de Problemas
-- **Timeout**: O sistema agora tem um limite de 7s para conexões com o banco, evitando que o navegador trave.
-- **IA/Agenda**: Desativados temporariamente para maximizar a estabilidade do servidor em conexões lentas.
+## 6. Recursos Desativados
+Para garantir a estabilidade contra erros de `TIMEOUT`, os seguintes recursos foram pausados:
+- Sincronização automática com Google Agenda.
+- Assistente de IA para sugestão de horários.
+
+Estes podem ser reativados futuramente conforme a estabilidade do servidor aumentar.
