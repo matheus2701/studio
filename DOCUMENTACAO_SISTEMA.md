@@ -9,7 +9,7 @@ O **Agenda Valery Studio** é um sistema de gestão especializado para profissio
 ---
 
 ## 2. Requisitos de Ambiente (.env)
-Para o sistema funcionar, crie um arquivo `.env` na raiz com as seguintes chaves (substitua pelos seus valores reais):
+Para o sistema funcionar, crie um arquivo `.env` na raiz ou configure no painel da Vercel:
 
 ```env
 # Supabase (Banco de Dados)
@@ -21,13 +21,13 @@ NEXT_PUBLIC_ADMIN_USERNAME=admin
 NEXT_PUBLIC_ADMIN_PASSWORD=senha_segura_aqui
 
 # Configurações do App
-NEXT_PUBLIC_BASE_URL=http://localhost:3000
+NEXT_PUBLIC_BASE_URL=https://seu-app.vercel.app
 ```
 
 ---
 
 ## 3. Configuração do Banco de Dados (SQL)
-Execute o script abaixo no **SQL Editor** do seu painel Supabase para criar a estrutura correta:
+Execute o script abaixo no **SQL Editor** do seu painel Supabase:
 
 ```sql
 -- 1. Tabela de Procedimentos
@@ -78,35 +78,30 @@ CREATE TABLE financial_entries (
 
 ---
 
-## 4. Estrutura de Funcionalidades
+## 4. Guia de Deploy e Versionamento
 
-### 📅 Agendamento
-- **Fluxo**: Seleção de Data -> Seleção de Múltiplos Procedimentos -> Seleção de Horário Livre -> Preenchimento de Dados do Cliente.
-- **Resiliência**: O sistema verifica conflitos de horário em tempo real antes de mostrar as opções disponíveis.
+### Enviar para o GitHub
+1. Abra o terminal na raiz do projeto.
+2. Inicie o git (se não tiver feito): `git init`
+3. Adicione os arquivos: `git add .`
+4. Comite: `git commit -m "feat: sistema completo com backup e upsert"`
+5. Conecte ao seu repositório remoto e faça o push.
 
-### 👥 Clientes
-- **Criação Automática**: Se você agendar um nome que não está na lista, o sistema cria o cadastro automaticamente durante o agendamento.
-- **Tags**: Organize clientes por preferências (ex: "VIP", "Prefere Henna").
-
-### 💰 Financeiro
-- **Consolidação**: O sistema soma automaticamente os atendimentos "Realizados" com as entradas manuais e subtrai as despesas.
-- **Exportação**: Botões para baixar relatórios CSV (Excel) ou backup completo em JSON.
-
-### 💾 Backup e Importação
-- **Backup JSON**: Localizado em Configurações > Dados, permite baixar toda a base de dados (procedimentos, clientes, agendamentos e financeiro) em um arquivo estruturado.
-- **Importação**: Permite restaurar dados de um arquivo JSON. O sistema possui inteligência para evitar duplicar clientes e procedimentos que já existem pelo nome.
+### Publicar na Vercel
+1. Conecte seu repositório do GitHub à Vercel.
+2. **Importante**: Adicione as variáveis de ambiente listadas no item 2 deste documento no painel da Vercel (Settings > Environment Variables).
+3. O deploy será realizado automaticamente.
 
 ---
 
 ## 5. Resolução de Problemas (Troubleshooting)
 
 ### Erro: ERR_CONNECTION_TIMED_OUT
-- **Causa**: Geralmente falha na conexão com o Supabase ou latência de DNS.
-- **Solução**: Verifique se a URL do Supabase no seu `.env` está correta. O sistema agora possui timeouts de 7s para evitar travamentos longos.
+- **Causa**: Falha na conexão com o Supabase ou bloqueio de rede local.
+- **Solução**: Verifique se as chaves no `.env` estão corretas. O sistema possui timeout de 7s para evitar travamentos.
 
-### Login Não Funciona
-- **Causa**: Variáveis `NEXT_PUBLIC_ADMIN_USERNAME` ou `PASSWORD` ausentes no `.env`.
-- **Solução**: Verifique o arquivo `.env` e certifique-se de que ele foi lido pelo servidor.
+### Backup e Importação (Upsert)
+- O sistema agora protege contra duplicatas. Ao importar, se um cliente ou procedimento com o mesmo nome for detectado, o sistema apenas atualizará os dados existentes em vez de criar um novo.
 
 ---
 
@@ -114,5 +109,4 @@ CREATE TABLE financial_entries (
 - **Framework**: Next.js 15 (App Router)
 - **Estilização**: Tailwind CSS + Shadcn UI
 - **Banco**: PostgreSQL (via Supabase)
-- **IA**: Genkit (Desativado temporariamente)
-- **Gráficos**: Recharts
+- **Segurança**: ProtectedLayout com AuthContext.
