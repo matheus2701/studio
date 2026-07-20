@@ -80,11 +80,12 @@ CREATE TABLE IF NOT EXISTS financial_entries (
 ## 4. Guia de Deploy (Como subir para a Internet)
 
 ### Passo 1: Configurar a Autenticação (IMPORTANTE)
-Como o GitHub não aceita mais sua senha comum no terminal, você deve usar o seu Personal Access Token (PAT). No terminal, execute o comando substituindo pelo seu token:
+O GitHub não aceita sua senha comum. Você deve usar um Personal Access Token (PAT). Para configurar o seu projeto com o token, execute o seguinte comando no seu terminal:
 
 ```bash
-git remote set-url origin https://<SEU_TOKEN_AQUI>@github.com/matheus2701/studio.git
+git remote set-url origin https://SEU_TOKEN_AQUI@github.com/matheus2701/studio.git
 ```
+*(Substitua `SEU_TOKEN_AQUI` pelo token que você gerou).*
 
 ### Passo 2: Enviar as alterações
 ```bash
@@ -105,7 +106,15 @@ O sistema possui uma ferramenta de backup em **JSON**.
 
 ---
 
-## 6. Recursos Atualmente Desativados
+## 6. Solução de Problemas de Push (Authentication Failed)
+Se você receber erro de "Invalid username or password" ou "Secret Scanning", siga estes passos:
+1. Gere um novo Token em: Settings > Developer Settings > Personal Access Tokens > Tokens (classic).
+2. Não salve o token no código. Use o comando do **Passo 1** acima diretamente no seu terminal.
+3. Se o erro de "Secret Scanning" persistir, execute: `git commit --amend --no-edit` e depois tente o push novamente.
+
+---
+
+## 7. Recursos Atualmente Desativados
 Para garantir a estabilidade máxima, os seguintes recursos foram pausados:
 - Sincronização automática com Google Agenda.
 - Assistente de IA para otimização automática.
