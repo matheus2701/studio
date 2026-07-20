@@ -94,9 +94,6 @@ git commit -m "feat: nova visualização de agenda e backup inteligente"
 git push origin master
 ```
 
-### Passo 3: Publicar na Vercel
-Se o seu projeto já está conectado, a Vercel fará o resto automaticamente após o push.
-
 ---
 
 ## 5. Backup e Sincronização (Upsert)
@@ -106,11 +103,22 @@ O sistema possui uma ferramenta de backup em **JSON**.
 
 ---
 
-## 6. Solução de Problemas de Push (Authentication Failed)
-Se você receber erro de "Invalid username or password" ou "Secret Scanning", siga estes passos:
-1. Gere um novo Token em: Settings > Developer Settings > Personal Access Tokens > Tokens (classic).
-2. Não salve o token no código. Use o comando do **Passo 1** acima diretamente no seu terminal.
-3. Se o erro de "Secret Scanning" persistir, execute: `git commit --amend --no-edit` e depois tente o push novamente.
+## 6. Solução de Problemas de Push (Authentication/Secret Failed)
+
+Se o GitHub bloquear seu push com a mensagem "Push Protection" ou "Secret Scanning", siga estes passos no terminal:
+
+1. **Remova o segredo do histórico**:
+   ```bash
+   git add DOCUMENTACAO_SISTEMA.md
+   git commit --amend --no-edit
+   ```
+
+2. **Tente o push novamente**:
+   ```bash
+   git push origin master
+   ```
+
+3. **Se o erro persistir**: Clique no link enviado pelo GitHub no terminal (URL de "unblock") para autorizar manualmente o envio daquele commit específico.
 
 ---
 
