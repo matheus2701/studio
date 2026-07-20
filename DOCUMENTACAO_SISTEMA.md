@@ -8,7 +8,7 @@ O **Agenda Valery Studio** é um sistema de gestão especializado para profissio
 ---
 
 ## 2. Requisitos de Ambiente (.env)
-Para o sistema funcionar, configure no painel da Vercel (Settings > Environment Variables) ou no seu arquivo local:
+Para o sistema funcionar, configure no painel da Vercel (Settings > Environment Variables):
 
 ```env
 # Supabase (Banco de Dados)
@@ -80,17 +80,16 @@ CREATE TABLE IF NOT EXISTS financial_entries (
 ## 4. Guia de Deploy (Como subir para a Internet)
 
 ### Passo 1: Configurar a Autenticação (IMPORTANTE)
-O GitHub não aceita sua senha comum. Você deve usar um Personal Access Token (PAT). Para configurar o seu projeto com o token, execute o seguinte comando no seu terminal:
+O GitHub não aceita sua senha comum. Você deve usar um Personal Access Token (PAT). Para configurar o seu projeto no terminal, use o comando abaixo substituindo `<TOKEN>` pela sua chave gerada no GitHub:
 
 ```bash
-git remote set-url origin https://SEU_TOKEN_AQUI@github.com/matheus2701/studio.git
+git remote set-url origin https://<TOKEN>@github.com/matheus2701/studio.git
 ```
-*(Substitua `SEU_TOKEN_AQUI` pelo token que você gerou).*
 
 ### Passo 2: Enviar as alterações
 ```bash
 git add .
-git commit -m "feat: nova visualização de agenda e backup inteligente"
+git commit -m "feat: agenda e backup inteligente"
 git push origin master
 ```
 
@@ -105,24 +104,14 @@ O sistema possui uma ferramenta de backup em **JSON**.
 
 ## 6. Solução de Problemas de Push (Authentication/Secret Failed)
 
-Se o GitHub bloquear seu push com a mensagem "Push Protection" ou "Secret Scanning", siga estes passos no terminal:
+Se o GitHub bloquear seu push com a mensagem "Push Protection":
 
-1. **Remova o segredo do histórico**:
+1. **Autorize o Push**: Clique no link de "unblock" enviado pelo GitHub no seu terminal (URL que começa com github.com/.../unblock-secret/...).
+2. **Limpe o histórico local**:
    ```bash
    git add DOCUMENTACAO_SISTEMA.md
    git commit --amend --no-edit
-   ```
-
-2. **Tente o push novamente**:
-   ```bash
    git push origin master
    ```
 
-3. **Se o erro persistir**: Clique no link enviado pelo GitHub no terminal (URL de "unblock") para autorizar manualmente o envio daquele commit específico.
-
----
-
-## 7. Recursos Atualmente Desativados
-Para garantir a estabilidade máxima, os seguintes recursos foram pausados:
-- Sincronização automática com Google Agenda.
-- Assistente de IA para otimização automática.
+**Nota de Segurança**: NUNCA escreva o seu token real dentro deste arquivo ou de qualquer outro arquivo que será enviado para o GitHub.
