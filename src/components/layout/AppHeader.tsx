@@ -7,12 +7,13 @@ import { Logo } from '@/components/icons/Logo';
 import { NavLink } from './NavLink';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Home, Settings2, Bell, LogOut, DollarSign, Users, BarChart3, Database } from 'lucide-react';
+import { Menu, Home, CalendarDays, Settings2, Bell, LogOut, DollarSign, Users, BarChart3, Database } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
   { href: '/', label: 'Agendar', icon: Home },
+  { href: '/schedule', label: 'Agenda', icon: CalendarDays },
   { href: '/procedures', label: 'Procedimentos', icon: Settings2 },
   { href: '/customers', label: 'Clientes', icon: Users },
   { href: '/financial-overview', label: 'Financeiro', icon: DollarSign },
