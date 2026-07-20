@@ -80,10 +80,10 @@ CREATE TABLE IF NOT EXISTS financial_entries (
 ## 4. Guia de Deploy (Como subir para a Internet)
 
 ### Passo 1: Configurar a Autenticação (IMPORTANTE)
-Como o GitHub não aceita mais sua senha, você precisa rodar este comando no terminal para usar o seu Token:
+Como o GitHub não aceita mais sua senha comum no terminal, você deve usar o seu Personal Access Token (PAT). No terminal, execute o comando substituindo pelo seu token:
 
 ```bash
-git remote set-url origin https://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@github.com/matheus2701/studio.git
+git remote set-url origin https://<SEU_TOKEN_AQUI>@github.com/matheus2701/studio.git
 ```
 
 ### Passo 2: Enviar as alterações
@@ -94,10 +94,7 @@ git push origin master
 ```
 
 ### Passo 3: Publicar na Vercel
-Se o seu projeto já está conectado, a Vercel fará o resto. Caso queira forçar um novo deploy:
-```bash
-vercel --prod
-```
+Se o seu projeto já está conectado, a Vercel fará o resto automaticamente após o push.
 
 ---
 
@@ -112,4 +109,3 @@ O sistema possui uma ferramenta de backup em **JSON**.
 Para garantir a estabilidade máxima, os seguintes recursos foram pausados:
 - Sincronização automática com Google Agenda.
 - Assistente de IA para otimização automática.
-```
