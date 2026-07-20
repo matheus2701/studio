@@ -79,15 +79,21 @@ CREATE TABLE IF NOT EXISTS financial_entries (
 
 ## 4. Guia de Deploy (Como subir para a Internet)
 
-### Passo 1: Enviar para o GitHub
-Se você estiver recebendo erro de autenticação, veja a **Seção 6** abaixo.
+### Passo 1: Configurar a Autenticação (IMPORTANTE)
+Como o GitHub não aceita mais sua senha, você precisa rodar este comando no terminal para usar o seu Token:
+
+```bash
+git remote set-url origin https://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@github.com/matheus2701/studio.git
+```
+
+### Passo 2: Enviar as alterações
 ```bash
 git add .
 git commit -m "feat: nova visualização de agenda e backup inteligente"
 git push origin master
 ```
 
-### Passo 2: Publicar na Vercel
+### Passo 3: Publicar na Vercel
 Se o seu projeto já está conectado, a Vercel fará o resto. Caso queira forçar um novo deploy:
 ```bash
 vercel --prod
@@ -102,30 +108,7 @@ O sistema possui uma ferramenta de backup em **JSON**.
 
 ---
 
-## 6. Solução de Erro: "Failed to authenticate to git remote"
-
-Se o Git pedir senha e falhar, siga estes passos:
-
-1. **Gere um Token no GitHub**:
-   - Vá em **Settings** (do seu perfil) -> **Developer Settings** -> **Personal access tokens** -> **Tokens (classic)**.
-   - Clique em **Generate new token (classic)**.
-   - Dê um nome (ex: "Studio-Deploy"), selecione a validade e marque a caixinha **repo**.
-   - Clique em **Generate token** e **COPIE** o código gerado.
-
-2. **Atualize o seu projeto local**:
-   - No terminal, execute o comando abaixo substituindo `<SEU_TOKEN>` pelo código que você copiou:
-   ```bash
-   git remote set-url origin https://<SEU_TOKEN>@github.com/matheus2701/studio.git
-   ```
-
-3. **Tente enviar novamente**:
-   ```bash
-   git push origin master
-   ```
-
----
-
-## 7. Recursos Atualmente Desativados
+## 6. Recursos Atualmente Desativados
 Para garantir a estabilidade máxima, os seguintes recursos foram pausados:
 - Sincronização automática com Google Agenda.
 - Assistente de IA para otimização automática.
