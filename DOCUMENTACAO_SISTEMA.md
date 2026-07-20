@@ -79,13 +79,12 @@ CREATE TABLE IF NOT EXISTS financial_entries (
 
 ## 4. Guia de Deploy (Como subir para a Internet)
 
-Se você estiver usando o terminal, siga estes passos:
-
 ### Passo 1: Enviar para o GitHub
+Se você estiver recebendo erro de autenticação, veja a **Seção 6** abaixo.
 ```bash
 git add .
-git commit -m "feat: sistema de backup e melhorias de estabilidade"
-git push origin main
+git commit -m "feat: nova visualização de agenda e backup inteligente"
+git push origin master
 ```
 
 ### Passo 2: Publicar na Vercel
@@ -98,14 +97,36 @@ vercel --prod
 
 ## 5. Backup e Sincronização (Upsert)
 O sistema possui uma ferramenta de backup em **JSON**.
-- **Backup**: Gera um arquivo único com todos os dados (Clientes, Procedimentos, Agendamentos e Financeiro).
-- **Importação Inteligente**: Ao importar, o sistema verifica se o cliente ou procedimento já existe pelo **Nome**. Se existir, ele apenas atualiza os dados, evitando duplicatas.
+- **Backup**: Gera um arquivo único com todos os dados.
+- **Importação Inteligente (Upsert)**: Ao importar, o sistema verifica se o cliente ou procedimento já existe pelo **Nome**. Se existir, ele apenas atualiza os dados, evitando duplicatas.
 
 ---
 
-## 6. Recursos Desativados
-Para garantir a estabilidade contra erros de `TIMEOUT`, os seguintes recursos foram pausados:
-- Sincronização automática com Google Agenda.
-- Assistente de IA para sugestão de horários.
+## 6. Solução de Erro: "Failed to authenticate to git remote"
 
-Estes podem ser reativados futuramente conforme a estabilidade do servidor aumentar.
+Se o Git pedir senha e falhar, siga estes passos:
+
+1. **Gere um Token no GitHub**:
+   - Vá em **Settings** (do seu perfil) -> **Developer Settings** -> **Personal access tokens** -> **Tokens (classic)**.
+   - Clique em **Generate new token (classic)**.
+   - Dê um nome (ex: "Studio-Deploy"), selecione a validade e marque a caixinha **repo**.
+   - Clique em **Generate token** e **COPIE** o código gerado.
+
+2. **Atualize o seu projeto local**:
+   - No terminal, execute o comando abaixo substituindo `<SEU_TOKEN>` pelo código que você copiou:
+   ```bash
+   git remote set-url origin https://<SEU_TOKEN>@github.com/matheus2701/studio.git
+   ```
+
+3. **Tente enviar novamente**:
+   ```bash
+   git push origin master
+   ```
+
+---
+
+## 7. Recursos Atualmente Desativados
+Para garantir a estabilidade máxima, os seguintes recursos foram pausados:
+- Sincronização automática com Google Agenda.
+- Assistente de IA para otimização automática.
+```
