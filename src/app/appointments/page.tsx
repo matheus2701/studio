@@ -16,9 +16,8 @@ import {
   Trash2, 
   Phone, 
   Calendar as CalendarIcon,
-  Filter,
-  ChevronRight,
-  Clock
+  Clock,
+  RotateCcw
 } from 'lucide-react';
 import { format, parseISO, isToday, isTomorrow, isYesterday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -52,7 +51,7 @@ export default function AppointmentsListPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   const filteredAndGroupedAppointments = useMemo(() => {
-    // 1. Filtrar
+    // 1. Filtrar os dados
     const filtered = appointments.filter(app => {
       const matchesSearch = 
         app.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -63,11 +62,11 @@ export default function AppointmentsListPage() {
       return matchesSearch && matchesStatus;
     });
 
-    // 2. Ordenar por data e hora
+    // 2. Ordenar por data e hora (os mais recentes primeiro ou conforme preferência)
     const sorted = [...filtered].sort((a, b) => {
       const dateTimeA = new Date(`${a.date}T${a.time}`).getTime();
       const dateTimeB = new Date(`${b.date}T${b.time}`).getTime();
-      return dateTimeB - dateTimeA; // Mais recentes primeiro
+      return dateTimeB - dateTimeA;
     });
 
     // 3. Agrupar por dia
@@ -81,10 +80,6 @@ export default function AppointmentsListPage() {
 
     return groups;
   }, [appointments, searchTerm, statusFilter]);
-
-  const handleStatusChange = async (id: string, status: AppointmentStatus) => {
-    await updateAppointmentStatus(id, status);
-  };
 
   const getDateLabel = (dateStr: string) => {
     const date = parseISO(dateStr);
@@ -101,16 +96,16 @@ export default function AppointmentsListPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <CalendarClock className="h-6 w-6 text-primary" />
-            Menu de Agendamentos
+            Agenda de Atendimentos
           </h1>
-          <p className="text-muted-foreground text-sm">Visualize e gerencie sua agenda por dia.</p>
+          <p className="text-muted-foreground text-sm">Gerencie seu fluxo de trabalho diário.</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar cliente ou serviço..."
+              placeholder="Buscar por cliente ou serviço..."
               className="pl-9 h-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -119,8 +114,8 @@ export default function AppointmentsListPage() {
           <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full sm:w-auto">
             <TabsList className="grid grid-cols-4 w-full h-10">
               <TabsTrigger value="ALL" className="text-xs">Todos</TabsTrigger>
-              <TabsTrigger value="CONFIRMED" className="text-xs">Pends.</TabsTrigger>
-              <TabsTrigger value="ATTENDED" className="text-xs">Reals.</TabsTrigger>
+              <TabsTrigger value="CONFIRMED" className="text-xs">Pend.</TabsTrigger>
+              <TabsTrigger value="ATTENDED" className="text-xs">Realiz.</TabsTrigger>
               <TabsTrigger value="CANCELLED" className="text-xs">Canc.</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -131,12 +126,12 @@ export default function AppointmentsListPage() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mb-4" />
-            Carregando agendamentos...
+            Carregando agenda...
           </div>
         ) : Object.keys(filteredAndGroupedAppointments).length === 0 ? (
-          <div className="text-center py-20 text-muted-foreground border border-dashed rounded-lg">
+          <div className="text-center py-20 text-muted-foreground border border-dashed rounded-lg bg-muted/10">
             <CalendarClock className="h-12 w-12 mx-auto mb-4 opacity-20" />
-            <p>Nenhum agendamento encontrado.</p>
+            <p>Nenhum agendamento para este filtro.</p>
           </div>
         ) : (
           <div className="space-y-8">
@@ -146,26 +141,26 @@ export default function AppointmentsListPage() {
                   <h3 className="text-sm font-bold text-primary flex items-center gap-2 uppercase tracking-wider">
                     <CalendarIcon className="h-4 w-4" />
                     {getDateLabel(date)}
-                    <span className="ml-auto text-xs font-normal text-muted-foreground">
-                      {dayAppointments.length} agendamento(s)
+                    <span className="ml-auto text-[10px] font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                      {dayAppointments.length} registro(s)
                     </span>
                   </h3>
                 </div>
 
                 <div className="grid gap-3">
                   {dayAppointments.map((app) => (
-                    <Card key={app.id} className="overflow-hidden border-l-4 border-l-primary hover:shadow-md transition-shadow">
+                    <Card key={app.id} className="overflow-hidden border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-2">
                           <div className="space-y-1 flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-lg">{app.time}</span>
-                              <Badge variant="outline" className={`text-[10px] h-5 ${statusColors[app.status]}`}>
+                              <span className="font-bold text-lg text-foreground">{app.time}</span>
+                              <Badge variant="outline" className={`text-[9px] h-4 uppercase tracking-tighter ${statusColors[app.status]}`}>
                                 {statusTranslations[app.status]}
                               </Badge>
                             </div>
-                            <h4 className="font-semibold text-base truncate">{app.customerName}</h4>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                            <h4 className="font-bold text-base text-foreground truncate">{app.customerName}</h4>
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                               <div className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" /> {app.totalDuration} min
                               </div>
@@ -175,30 +170,33 @@ export default function AppointmentsListPage() {
                                 </div>
                               )}
                             </div>
-                            <p className="text-xs text-primary font-medium mt-1">
-                              {app.selectedProcedures.map(p => p.name).join(', ')}
+                            <p className="text-xs text-primary font-semibold mt-1">
+                              {app.selectedProcedures.map(p => p.name).join(' + ')}
                             </p>
                           </div>
 
-                          <div className="flex flex-col items-end gap-2">
-                            <span className="font-bold text-sm">R$ {app.totalPrice.toFixed(2)}</span>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="font-bold text-sm text-primary">R$ {app.totalPrice.toFixed(2)}</span>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuLabel>Ações Rápidas</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleStatusChange(app.id, 'ATTENDED')}>
+                              <DropdownMenuContent align="end" className="w-52">
+                                <DropdownMenuLabel>Gerenciar Status</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'ATTENDED')}>
                                   <CheckCircle2 className="mr-2 h-4 w-4 text-status-attended" /> Marcar como Realizado
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusChange(app.id, 'CANCELLED')}>
-                                  <XCircle className="mr-2 h-4 w-4 text-status-cancelled" /> Cancelar Agendamento
+                                <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CONFIRMED')}>
+                                  <RotateCcw className="mr-2 h-4 w-4 text-status-confirmed" /> Reabrir / Pendente
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CANCELLED')}>
+                                  <XCircle className="mr-2 h-4 w-4 text-status-cancelled" /> Cancelar Atendimento
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => deleteAppointment(app.id)} className="text-destructive focus:bg-destructive/10">
-                                  <Trash2 className="mr-2 h-4 w-4" /> Excluir Registro
+                                  <Trash2 className="mr-2 h-4 w-4" /> Excluir permanentemente
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
