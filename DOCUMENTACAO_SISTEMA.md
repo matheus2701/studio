@@ -1,3 +1,4 @@
+
 # Documentação do Sistema - Agenda Valery Studio
 
 ## 1. Visão Geral
@@ -18,16 +19,16 @@ Certifique-se de configurar as seguintes variáveis no arquivo `.env`:
 
 ## 4. Como Sincronizar com GitHub (Segurança)
 
-O GitHub bloqueia o envio de códigos que contenham senhas ou tokens dentro dos arquivos. Nunca escreva seu token aqui.
+O GitHub bloqueia o envio de códigos que contenham senhas ou tokens dentro dos arquivos. Nunca escreva seu token em arquivos versionados.
 
 ### Passo 1: Atualizar a URL do Repositório
-No terminal, execute o comando abaixo substituindo pelo seu NOVO token gerado no GitHub:
+No terminal, execute o comando abaixo substituindo pelo seu token gerado no GitHub:
 ```bash
-git remote set-url origin https://<SEU_NOVO_TOKEN>@github.com/matheus2701/studio.git
+git remote set-url origin https://<SEU_TOKEN_AQUI>@github.com/matheus2701/studio.git
 ```
 
 ### Passo 2: Limpar o Histórico Bloqueado
-Se o GitHub bloqueou seu "push", você precisa rodar estes comandos para "reescrever" o commit e remover o rastro do token antigo:
+Se o GitHub bloqueou seu "push", você precisa rodar estes comandos para remover o rastro de tokens antigos:
 ```bash
 git add .
 git commit --amend --no-edit
@@ -35,7 +36,13 @@ git push origin master
 ```
 
 ## 5. Estrutura de Arquivos
-- `/src/app`: Rotas e páginas
-- `/src/components`: Componentes de interface
+- `/src/app`: Rotas e páginas (Agendamentos, Backup, Importação, etc.)
+- `/src/components`: Componentes de interface e formulários
 - `/src/contexts`: Gerenciamento de estado (Clientes, Agendamentos, Financeiro)
 - `/src/ai`: Fluxos de Inteligência Artificial
+
+## 6. Funcionalidades Principais
+- **Agenda**: Visualização em calendário e agendamento rápido.
+- **Menu de Agendamentos**: Lista completa e filtrável de todos os serviços.
+- **Financeiro**: Controle de entradas e saídas com faturamento automático.
+- **Backup & Importação**: Central de exportação JSON/CSV e importação de clientes.
