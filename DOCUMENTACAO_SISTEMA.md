@@ -18,7 +18,7 @@ As credenciais devem ser configuradas exclusivamente no arquivo `.env` (não ver
 - `NEXT_PUBLIC_ADMIN_PASSWORD`
 
 ## 4. Guia de Sincronização (Resolução de Erros de Segurança)
-Se o GitHub bloquear o seu envio (Erro GH013), siga estes passos no terminal para limpar o histórico:
+Se o GitHub bloquear o seu envio (Erro GH013), siga estes passos no terminal para limpar o histórico do último commit:
 
 1. **Atualize a URL com seu Token atual**:
    ```bash
@@ -40,6 +40,6 @@ Se o GitHub bloquear o seu envio (Erro GH013), siga estes passos no terminal par
 
 ## 6. Funcionalidades Principais
 - **Agenda**: Visualização em calendário e agendamento rápido.
-- **Menu de Agendamentos**: Lista completa e filtrável organizada por dia.
+- **Menu de Agendamentos**: Lista completa e filtrável organizada por dia com foco em dispositivos móveis.
 - **Financeiro**: Controle de entradas e saídas com faturamento automático.
-- **Backup & Importação**: Ferramentas para segurança e migração de dados.
+- **Backup & Importação**: Ferramentas para segurança e migração de dados via JSON e CSV.
