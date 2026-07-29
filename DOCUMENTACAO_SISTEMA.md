@@ -18,18 +18,18 @@ As credenciais devem ser configuradas exclusivamente no arquivo `.env` (não ver
 - `NEXT_PUBLIC_ADMIN_PASSWORD`
 
 ## 4. Guia de Sincronização (Resolução de Erros de Segurança)
-Se o GitHub bloquear o seu envio (Erro GH013), siga estes passos no terminal para limpar o histórico do último commit:
+Se o GitHub bloquear o seu envio (Erro GH013), siga estes passos no terminal:
 
-1. **Atualize a URL com seu Token atual**:
+1. **Atualize a URL com seu NOVO Token**:
    ```bash
-   git remote set-url origin https://<SEU_TOKEN_AQUI>@github.com/matheus2701/studio.git
+   git remote set-url origin https://<SEU_NOVO_TOKEN_AQUI>@github.com/matheus2701/studio.git
    ```
 
-2. **Limpe o commit bloqueado**:
+2. **Limpe o commit bloqueado e envie**:
    ```bash
    git add .
    git commit --amend --no-edit
-   git push origin master --force
+   git push origin master
    ```
 
 ## 5. Estrutura de Arquivos
@@ -40,6 +40,6 @@ Se o GitHub bloquear o seu envio (Erro GH013), siga estes passos no terminal par
 
 ## 6. Funcionalidades Principais
 - **Agenda**: Visualização em calendário e agendamento rápido.
-- **Menu de Agendamentos**: Lista completa e filtrável organizada por dia com foco em dispositivos móveis.
-- **Financeiro**: Controle de entradas e saídas com faturamento automático.
-- **Backup & Importação**: Ferramentas para segurança e migração de dados via JSON e CSV.
+- **Menu de Agendamentos**: Lista completa organizada por dia, otimizada para celulares.
+- **Financeiro**: Controle de entradas/saídas e saldo mensal.
+- **Backup & Importação**: Ferramentas para segurança de dados.
