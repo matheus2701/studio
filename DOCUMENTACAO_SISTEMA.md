@@ -11,38 +11,35 @@ Sistema de agendamento para estúdios de beleza com controle financeiro, gestão
 - Tailwind CSS / ShadCN (UI)
 
 ## 3. Configuração de Ambiente
-Certifique-se de configurar as seguintes variáveis no arquivo `.env`:
+As credenciais devem ser configuradas exclusivamente no arquivo `.env` (não versionado):
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `NEXT_PUBLIC_ADMIN_USERNAME`
 - `NEXT_PUBLIC_ADMIN_PASSWORD`
 
-## 4. Guia de Sincronização GitHub (Resolução de Erros)
+## 4. Guia de Sincronização (Resolução de Erros de Segurança)
+Se o GitHub bloquear o seu envio (Erro GH013), siga estes passos no terminal para limpar o histórico:
 
-O GitHub bloqueia o envio de códigos que contenham senhas ou tokens (Erro GH013). Se o seu envio foi bloqueado, siga estes passos no terminal:
+1. **Atualize a URL com seu Token atual**:
+   ```bash
+   git remote set-url origin https://<SEU_TOKEN_AQUI>@github.com/matheus2701/studio.git
+   ```
 
-### Passo 1: Atualizar a URL do Repositório
-Use o comando abaixo substituindo pelo seu **novo token** gerado no GitHub:
-```bash
-git remote set-url origin https://<SEU_NOVO_TOKEN_AQUI>@github.com/matheus2701/studio.git
-```
-
-### Passo 2: Limpar o Histórico Bloqueado
-O comando `amend` limpa o rastro de tokens antigos do último commit:
-```bash
-git add .
-git commit --amend --no-edit
-git push origin master
-```
+2. **Limpe o commit bloqueado**:
+   ```bash
+   git add .
+   git commit --amend --no-edit
+   git push origin master --force
+   ```
 
 ## 5. Estrutura de Arquivos
-- `/src/app`: Rotas e páginas (Agendamentos, Backup, Importação, etc.)
-- `/src/components`: Componentes de interface e formulários
-- `/src/contexts`: Gerenciamento de estado
-- `/src/ai`: Fluxos de Inteligência Artificial
+- `/src/app`: Rotas e páginas (Agendamentos, Financeiro, Dashboard, etc.)
+- `/src/components`: Componentes de interface e formulários.
+- `/src/contexts`: Gerenciamento de estado (Auth, Appointments, Customers).
+- `/src/ai`: Fluxos de Inteligência Artificial.
 
 ## 6. Funcionalidades Principais
 - **Agenda**: Visualização em calendário e agendamento rápido.
-- **Menu de Agendamentos**: Lista completa e filtrável otimizada para mobile.
+- **Menu de Agendamentos**: Lista completa e filtrável organizada por dia.
 - **Financeiro**: Controle de entradas e saídas com faturamento automático.
-- **Backup & Importação**: Central de exportação e importação de clientes.
+- **Backup & Importação**: Ferramentas para segurança e migração de dados.
