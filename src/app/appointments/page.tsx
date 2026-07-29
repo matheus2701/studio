@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -49,9 +49,13 @@ export default function AppointmentsListPage() {
   const { appointments, updateAppointmentStatus, deleteAppointment, isLoading } = useAppointments();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const filteredAndGroupedAppointments = useMemo(() => {
-    // 1. Filtrar os dados
     const filtered = appointments.filter(app => {
       const matchesSearch = 
         app.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -62,14 +66,12 @@ export default function AppointmentsListPage() {
       return matchesSearch && matchesStatus;
     });
 
-    // 2. Ordenar por data e hora (os mais recentes primeiro ou conforme preferência)
     const sorted = [...filtered].sort((a, b) => {
       const dateTimeA = new Date(`${a.date}T${a.time}`).getTime();
       const dateTimeB = new Date(`${b.date}T${b.time}`).getTime();
       return dateTimeB - dateTimeA;
     });
 
-    // 3. Agrupar por dia
     const groups: Record<string, Appointment[]> = {};
     sorted.forEach(app => {
       if (!groups[app.date]) {
@@ -82,6 +84,7 @@ export default function AppointmentsListPage() {
   }, [appointments, searchTerm, statusFilter]);
 
   const getDateLabel = (dateStr: string) => {
+    if (!mounted) return dateStr;
     const date = parseISO(dateStr);
     if (isToday(date)) return "Hoje";
     if (isTomorrow(date)) return "Amanhã";
@@ -89,6 +92,8 @@ export default function AppointmentsListPage() {
     
     return format(date, "EEEE, dd 'de' MMMM", { locale: ptBR });
   };
+
+  if (!mounted) return null;
 
   return (
     <div className="space-y-6 pb-20 sm:pb-0">

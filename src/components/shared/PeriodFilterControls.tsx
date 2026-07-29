@@ -1,12 +1,14 @@
 
 "use client";
 
+import { useState, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { format, getYear, getMonth, setYear, setMonth as setDateFnsMonth } from 'date-fns';
+import { format, setMonth as setDateFnsMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarDays, Loader2, Repeat } from 'lucide-react';
-import { DEFAULT_YEARS_FOR_FILTER as defaultYearsConst, DEFAULT_MONTHS_FOR_FILTER as defaultMonthsConst } from '@/lib/constants'; // Importe as constantes centralizadas
+import { DEFAULT_YEARS_FOR_FILTER as defaultYearsConst, DEFAULT_MONTHS_FOR_FILTER as defaultMonthsConst } from '@/lib/constants';
+import { cn } from "@/lib/utils";
 
 interface PeriodFilterControlsProps {
   selectedYear: number;
@@ -29,12 +31,25 @@ export function PeriodFilterControls({
   onMonthChange,
   onRefreshData,
   isLoading = false,
-  years = defaultYearsConst, // Use as constantes importadas como padrão
-  months = defaultMonthsConst, // Use as constantes importadas como padrão
+  years = defaultYearsConst,
+  months = defaultMonthsConst,
   containerClassName = "flex flex-col sm:flex-row gap-2 items-center p-4 border rounded-lg bg-muted/30",
   selectTriggerClassName = "w-full sm:w-auto text-sm h-9",
   buttonClassName = "w-full sm:w-auto"
 }: PeriodFilterControlsProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return (
+    <div className={containerClassName}>
+      <div className="h-9 w-full sm:w-[120px] bg-muted animate-pulse rounded-md" />
+      <div className="h-9 w-full sm:w-[150px] bg-muted animate-pulse rounded-md" />
+    </div>
+  );
+
   return (
     <div className={containerClassName}>
       <div className="flex w-full sm:w-auto gap-2 items-center">
@@ -67,7 +82,7 @@ export function PeriodFilterControls({
           <SelectContent>
             {months.map(monthIdx => (
               <SelectItem key={monthIdx} value={monthIdx.toString()} className="text-sm">
-                {format(setDateFnsMonth(new Date(), monthIdx), 'MMMM', { locale: ptBR })}
+                {format(setDateFnsMonth(new Date(2024, 0, 1), monthIdx), 'MMMM', { locale: ptBR })}
               </SelectItem>
             ))}
           </SelectContent>
@@ -82,8 +97,4 @@ export function PeriodFilterControls({
       {isLoading && !onRefreshData && <Loader2 className="h-5 w-5 animate-spin text-primary" title="Carregando..." />}
     </div>
   );
-}
-
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
 }

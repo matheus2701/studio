@@ -1,0 +1,21 @@
+
+{
+  "placeholders": [
+    {
+      "id": "hero-studio",
+      "url": "https://picsum.photos/seed/studio1/1200/600",
+      "width": 1200,
+      "height": 600,
+      "alt": "Ambiente do Valery Studio",
+      "hint": "beauty studio"
+    },
+    {
+      "id": "procedure-placeholder",
+      "url": "https://picsum.photos/seed/procedure1/600/400",
+      "width": 600,
+      "height": 400,
+      "alt": "Procedimento estético",
+      "hint": "skincare treatment"
+    }
+  ]
+}
