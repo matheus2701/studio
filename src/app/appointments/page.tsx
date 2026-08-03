@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppointments } from '@/contexts/AppointmentsContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,9 +17,10 @@ import {
   Phone, 
   Calendar as CalendarIcon,
   Clock,
-  RotateCcw
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
-import { format, parseISO, isToday, isTomorrow, isYesterday } from 'date-fns';
+import { format, parseISO, isToday, isTomorrow, isYesterday, getMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Appointment, AppointmentStatus } from '@/lib/types';
@@ -32,6 +33,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls';
+import { DEFAULT_YEARS_FOR_FILTER, DEFAULT_MONTHS_FOR_FILTER, CURRENT_YEAR } from '@/lib/constants';
 
 const statusTranslations: Record<AppointmentStatus, string> = {
   CONFIRMED: "Confirmado",
@@ -46,17 +49,34 @@ const statusColors: Record<AppointmentStatus, string> = {
 };
 
 export default function AppointmentsListPage() {
-  const { appointments, updateAppointmentStatus, deleteAppointment, isLoading } = useAppointments();
+  const { getAppointmentsByMonth, updateAppointmentStatus, deleteAppointment } = useAppointments();
+  
+  const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
+  const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()));
+  const [monthlyAppointments, setMonthlyAppointments] = useState<Appointment[]>([]);
+  const [isFetching, setIsFetching] = useState(false);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [mounted, setMounted] = useState(false);
 
+  const fetchAppointments = useCallback(async () => {
+    setIsFetching(true);
+    try {
+      const data = await getAppointmentsByMonth(selectedYear, selectedMonth);
+      setMonthlyAppointments(data);
+    } finally {
+      setIsFetching(false);
+    }
+  }, [getAppointmentsByMonth, selectedYear, selectedMonth]);
+
   useEffect(() => {
     setMounted(true);
-  }, []);
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   const filteredAndGroupedAppointments = useMemo(() => {
-    const filtered = appointments.filter(app => {
+    const filtered = monthlyAppointments.filter(app => {
       const matchesSearch = 
         app.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.selectedProcedures.some(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -66,10 +86,11 @@ export default function AppointmentsListPage() {
       return matchesSearch && matchesStatus;
     });
 
+    // Ordem Cronológica Crescente (Mais próximos primeiro no mês)
     const sorted = [...filtered].sort((a, b) => {
       const dateTimeA = new Date(`${a.date}T${a.time}`).getTime();
       const dateTimeB = new Date(`${b.date}T${b.time}`).getTime();
-      return dateTimeB - dateTimeA;
+      return dateTimeA - dateTimeB;
     });
 
     const groups: Record<string, Appointment[]> = {};
@@ -81,7 +102,7 @@ export default function AppointmentsListPage() {
     });
 
     return groups;
-  }, [appointments, searchTerm, statusFilter]);
+  }, [monthlyAppointments, searchTerm, statusFilter]);
 
   const getDateLabel = (dateStr: string) => {
     if (!mounted) return dateStr;
@@ -103,40 +124,53 @@ export default function AppointmentsListPage() {
             <CalendarClock className="h-6 w-6 text-primary" />
             Agenda de Atendimentos
           </h1>
-          <p className="text-muted-foreground text-sm">Gerencie seu fluxo de trabalho diário.</p>
+          <p className="text-muted-foreground text-sm">Gerencie seu fluxo de trabalho por período.</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por cliente ou serviço..."
-              className="pl-9 h-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        <div className="flex flex-col gap-4">
+          <PeriodFilterControls
+            selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
+            onYearChange={setSelectedYear}
+            onMonthChange={setSelectedMonth}
+            onRefreshData={fetchAppointments}
+            isLoading={isFetching}
+            years={DEFAULT_YEARS_FOR_FILTER}
+            months={DEFAULT_MONTHS_FOR_FILTER}
+          />
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por cliente ou serviço..."
+                className="pl-9 h-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full sm:w-auto">
+              <TabsList className="grid grid-cols-4 w-full h-10">
+                <TabsTrigger value="ALL" className="text-xs">Todos</TabsTrigger>
+                <TabsTrigger value="CONFIRMED" className="text-xs">Pend.</TabsTrigger>
+                <TabsTrigger value="ATTENDED" className="text-xs">Realiz.</TabsTrigger>
+                <TabsTrigger value="CANCELLED" className="text-xs">Canc.</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
-          <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full sm:w-auto">
-            <TabsList className="grid grid-cols-4 w-full h-10">
-              <TabsTrigger value="ALL" className="text-xs">Todos</TabsTrigger>
-              <TabsTrigger value="CONFIRMED" className="text-xs">Pend.</TabsTrigger>
-              <TabsTrigger value="ATTENDED" className="text-xs">Realiz.</TabsTrigger>
-              <TabsTrigger value="CANCELLED" className="text-xs">Canc.</TabsTrigger>
-            </TabsList>
-          </Tabs>
         </div>
       </div>
 
-      <ScrollArea className="h-[calc(100vh-280px)] pr-4">
-        {isLoading ? (
+      <ScrollArea className="h-[calc(100vh-380px)] pr-4">
+        {isFetching ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mb-4" />
-            Carregando agenda...
+            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+            Carregando agenda do período...
           </div>
         ) : Object.keys(filteredAndGroupedAppointments).length === 0 ? (
           <div className="text-center py-20 text-muted-foreground border border-dashed rounded-lg bg-muted/10">
             <CalendarClock className="h-12 w-12 mx-auto mb-4 opacity-20" />
-            <p>Nenhum agendamento para este filtro.</p>
+            <p>Nenhum agendamento encontrado para este período.</p>
           </div>
         ) : (
           <div className="space-y-8">
@@ -147,7 +181,7 @@ export default function AppointmentsListPage() {
                     <CalendarIcon className="h-4 w-4" />
                     {getDateLabel(date)}
                     <span className="ml-auto text-[10px] font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                      {dayAppointments.length} registro(s)
+                      {dayAppointments.length} agendamento(s)
                     </span>
                   </h3>
                 </div>

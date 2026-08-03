@@ -40,6 +40,6 @@ Se o GitHub bloquear o seu envio (Erro GH013), siga estes passos no terminal:
 
 ## 6. Funcionalidades Principais
 - **Agenda**: Visualização em calendário e agendamento rápido.
-- **Menu de Agendamentos**: Lista completa organizada por dia, otimizada para celulares.
+- **Menu de Agendamentos**: Lista organizada por período, otimizada para performance e celulares.
 - **Financeiro**: Controle de entradas/saídas e saldo mensal.
 - **Backup & Importação**: Ferramentas para segurança de dados.
