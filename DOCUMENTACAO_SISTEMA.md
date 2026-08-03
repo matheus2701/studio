@@ -20,12 +20,12 @@ As credenciais devem ser configuradas exclusivamente no arquivo `.env` (não ver
 ## 4. Guia de Sincronização (Resolução de Erros de Segurança)
 Se o GitHub bloquear o seu envio por segredo exposto (Erro GH013), siga estes passos no terminal:
 
-1. **Atualize a URL com seu NOVO Token**:
+1. **Gere um novo Token no GitHub** (Settings > Developer Settings > Personal Access Tokens > Tokens Classic).
+2. **Atualize a URL com seu NOVO Token**:
    ```bash
    git remote set-url origin https://<SEU_NOVO_TOKEN_AQUI>@github.com/matheus2701/studio.git
    ```
-
-2. **Limpe o histórico do último commit e envie**:
+3. **Limpe o histórico do último commit e envie**:
    ```bash
    git add .
    git commit --amend --no-edit
@@ -40,7 +40,7 @@ Se o GitHub bloquear o seu envio por segredo exposto (Erro GH013), siga estes pa
 
 ## 6. Funcionalidades Principais
 - **Agenda**: Visualização em calendário e agendamento rápido.
-- **Menu de Agendamentos**: Lista organizada por dia, otimizada para celulares.
+- **Menu de Agendamentos**: Lista organizada por semanas e dias, otimizada para celulares e baixo consumo de memória.
 - **Financeiro**: Controle de entradas/saídas, saldo mensal e exportação de relatórios consolidados (CSV).
 - **Dashboard**: Gráficos de produtividade e métricas mensais.
-- **Backup & Importação**: Ferramentas para segurança e migração de dados.
+- **Backup & Importação**: Ferramentas para segurança e migração de dados de clientes.

@@ -18,9 +18,10 @@ import {
   Calendar as CalendarIcon,
   Clock,
   RotateCcw,
-  Loader2
+  Loader2,
+  Filter
 } from 'lucide-react';
-import { format, parseISO, isToday, isTomorrow, isYesterday, getMonth } from 'date-fns';
+import { format, parseISO, isToday, isTomorrow, isYesterday, getMonth, startOfWeek, endOfWeek, eachWeekOfInterval, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Appointment, AppointmentStatus } from '@/lib/types';
@@ -35,6 +36,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls';
 import { DEFAULT_YEARS_FOR_FILTER, DEFAULT_MONTHS_FOR_FILTER, CURRENT_YEAR } from '@/lib/constants';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const statusTranslations: Record<AppointmentStatus, string> = {
   CONFIRMED: "Confirmado",
@@ -53,6 +55,7 @@ export default function AppointmentsListPage() {
   
   const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
   const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()));
+  const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
   const [monthlyAppointments, setMonthlyAppointments] = useState<Appointment[]>([]);
   const [isFetching, setIsFetching] = useState(false);
   
@@ -75,18 +78,43 @@ export default function AppointmentsListPage() {
     fetchAppointments();
   }, [fetchAppointments]);
 
+  // Calcula as semanas do mês selecionado para o filtro
+  const weeksOfMonth = useMemo(() => {
+    const start = startOfMonth(new Date(selectedYear, selectedMonth));
+    const end = endOfMonth(new Date(selectedYear, selectedMonth));
+    const weeks = eachWeekOfInterval({ start, end }, { locale: ptBR });
+    
+    return weeks.map((weekStart, index) => ({
+      id: index.toString(),
+      label: `Semana ${index + 1} (${format(weekStart, 'dd/MM')} - ${format(endOfWeek(weekStart), 'dd/MM')})`,
+      start: weekStart,
+      end: endOfWeek(weekStart)
+    }));
+  }, [selectedYear, selectedMonth]);
+
   const filteredAndGroupedAppointments = useMemo(() => {
     const filtered = monthlyAppointments.filter(app => {
+      const appDate = parseISO(app.date);
+      
+      // Filtro de Busca
       const matchesSearch = 
         app.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.selectedProcedures.some(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
       
+      // Filtro de Status
       const matchesStatus = statusFilter === 'ALL' || app.status === statusFilter;
       
-      return matchesSearch && matchesStatus;
+      // Filtro de Semana
+      let matchesWeek = true;
+      if (selectedWeek !== "ALL") {
+        const week = weeksOfMonth[parseInt(selectedWeek)];
+        matchesWeek = isWithinInterval(appDate, { start: week.start, end: week.end });
+      }
+      
+      return matchesSearch && matchesStatus && matchesWeek;
     });
 
-    // Ordem Cronológica Crescente (Mais próximos primeiro no mês)
+    // Ordem Cronológica
     const sorted = [...filtered].sort((a, b) => {
       const dateTimeA = new Date(`${a.date}T${a.time}`).getTime();
       const dateTimeB = new Date(`${b.date}T${b.time}`).getTime();
@@ -102,7 +130,7 @@ export default function AppointmentsListPage() {
     });
 
     return groups;
-  }, [monthlyAppointments, searchTerm, statusFilter]);
+  }, [monthlyAppointments, searchTerm, statusFilter, selectedWeek, weeksOfMonth]);
 
   const getDateLabel = (dateStr: string) => {
     if (!mounted) return dateStr;
@@ -119,12 +147,17 @@ export default function AppointmentsListPage() {
   return (
     <div className="space-y-6 pb-20 sm:pb-0">
       <div className="flex flex-col gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <CalendarClock className="h-6 w-6 text-primary" />
-            Agenda de Atendimentos
-          </h1>
-          <p className="text-muted-foreground text-sm">Gerencie seu fluxo de trabalho por período.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <CalendarClock className="h-6 w-6 text-primary" />
+              Agenda de Atendimentos
+            </h1>
+            <p className="text-muted-foreground text-sm">Gerencie seu fluxo de trabalho segmentado.</p>
+          </div>
+          <Badge variant="secondary" className="hidden sm:flex">
+            {monthlyAppointments.length} Registros no Mês
+          </Badge>
         </div>
 
         <div className="flex flex-col gap-4">
@@ -132,57 +165,82 @@ export default function AppointmentsListPage() {
             selectedYear={selectedYear}
             selectedMonth={selectedMonth}
             onYearChange={setSelectedYear}
-            onMonthChange={setSelectedMonth}
+            onMonthChange={(m) => {
+              setSelectedMonth(m);
+              setSelectedWeek("ALL"); // Reseta a semana ao mudar o mês
+            }}
             onRefreshData={fetchAppointments}
             isLoading={isFetching}
             years={DEFAULT_YEARS_FOR_FILTER}
             months={DEFAULT_MONTHS_FOR_FILTER}
           />
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+            <div className="md:col-span-5 relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Buscar por cliente ou serviço..."
+                placeholder="Buscar cliente ou serviço..."
                 className="pl-9 h-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full sm:w-auto">
-              <TabsList className="grid grid-cols-4 w-full h-10">
-                <TabsTrigger value="ALL" className="text-xs">Todos</TabsTrigger>
-                <TabsTrigger value="CONFIRMED" className="text-xs">Pend.</TabsTrigger>
-                <TabsTrigger value="ATTENDED" className="text-xs">Realiz.</TabsTrigger>
-                <TabsTrigger value="CANCELLED" className="text-xs">Canc.</TabsTrigger>
-              </TabsList>
-            </Tabs>
+
+            <div className="md:col-span-4">
+              <Select value={selectedWeek} onValueChange={setSelectedWeek}>
+                <SelectTrigger className="h-10">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Todas as Semanas" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Mês Inteiro</SelectItem>
+                  {weeksOfMonth.map((week) => (
+                    <SelectItem key={week.id} value={week.id}>
+                      {week.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="md:col-span-3">
+              <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full">
+                <TabsList className="grid grid-cols-4 w-full h-10">
+                  <TabsTrigger value="ALL" className="text-[10px] px-1">Tudo</TabsTrigger>
+                  <TabsTrigger value="CONFIRMED" className="text-[10px] px-1">Pend.</TabsTrigger>
+                  <TabsTrigger value="ATTENDED" className="text-[10px] px-1">Ok</TabsTrigger>
+                  <TabsTrigger value="CANCELLED" className="text-[10px] px-1">X</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
         </div>
       </div>
 
-      <ScrollArea className="h-[calc(100vh-380px)] pr-4">
+      <ScrollArea className="h-[calc(100vh-420px)] pr-4">
         {isFetching ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-            Carregando agenda do período...
+            Otimizando visão da agenda...
           </div>
         ) : Object.keys(filteredAndGroupedAppointments).length === 0 ? (
           <div className="text-center py-20 text-muted-foreground border border-dashed rounded-lg bg-muted/10">
             <CalendarClock className="h-12 w-12 mx-auto mb-4 opacity-20" />
-            <p>Nenhum agendamento encontrado para este período.</p>
+            <p>Nenhum agendamento encontrado para este filtro.</p>
           </div>
         ) : (
           <div className="space-y-8">
             {Object.entries(filteredAndGroupedAppointments).map(([date, dayAppointments]) => (
               <div key={date} className="space-y-3">
-                <div className="sticky top-0 z-10 bg-background/95 backdrop-blur py-2">
+                <div className="sticky top-0 z-10 bg-background/95 backdrop-blur py-2 border-b">
                   <h3 className="text-sm font-bold text-primary flex items-center gap-2 uppercase tracking-wider">
                     <CalendarIcon className="h-4 w-4" />
                     {getDateLabel(date)}
-                    <span className="ml-auto text-[10px] font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                      {dayAppointments.length} agendamento(s)
-                    </span>
+                    <Badge variant="outline" className="ml-auto font-normal bg-muted">
+                      {dayAppointments.length}
+                    </Badge>
                   </h3>
                 </div>
 
@@ -223,7 +281,7 @@ export default function AppointmentsListPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-52">
-                                <DropdownMenuLabel>Gerenciar Status</DropdownMenuLabel>
+                                <DropdownMenuLabel>Ações Rápidas</DropdownMenuLabel>
                                 <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'ATTENDED')}>
                                   <CheckCircle2 className="mr-2 h-4 w-4 text-status-attended" /> Marcar como Realizado
                                 </DropdownMenuItem>
@@ -231,7 +289,7 @@ export default function AppointmentsListPage() {
                                   <RotateCcw className="mr-2 h-4 w-4 text-status-confirmed" /> Reabrir / Pendente
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CANCELLED')}>
-                                  <XCircle className="mr-2 h-4 w-4 text-status-cancelled" /> Cancelar Atendimento
+                                  <XCircle className="mr-2 h-4 w-4 text-status-cancelled" /> Cancelar
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => deleteAppointment(app.id)} className="text-destructive focus:bg-destructive/10">
