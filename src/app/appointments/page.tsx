@@ -46,7 +46,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger } from "@/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DEFAULT_YEARS_FOR_FILTER, DEFAULT_MONTHS_FOR_FILTER, CURRENT_YEAR } from '@/lib/constants';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRouter } from 'next/navigation';
@@ -116,7 +116,16 @@ export default function AppointmentsListPage() {
       const matchesSearch = 
         app.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.selectedProcedures.some(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchesStatus = statusFilter === 'ALL' || app.status === statusFilter;
+      
+      // Mapeamento lógico dos filtros para os status do banco
+      let matchesStatus = true;
+      if (statusFilter !== 'ALL') {
+        if (statusFilter === 'PENDENTES') matchesStatus = app.status === 'CONFIRMED';
+        else if (statusFilter === 'CONFIRMADOS') matchesStatus = app.status === 'CONFIRMED' && app.sinalPago === true;
+        else if (statusFilter === 'REALIZADOS') matchesStatus = app.status === 'ATTENDED';
+        else if (statusFilter === 'CANCELADOS') matchesStatus = app.status === 'CANCELLED';
+      }
+
       let matchesWeek = true;
       if (selectedWeek !== "ALL") {
         const week = weeksOfMonth[parseInt(selectedWeek)];
@@ -173,9 +182,8 @@ export default function AppointmentsListPage() {
         </Badge>
       </div>
 
-      {/* Controles Principais (Filtro Período e Busca) */}
+      {/* Controles Principais */}
       <div className="grid gap-2 bg-muted/30 p-2 rounded-xl border">
-        {/* Linha 1: Período e Refresh */}
         <div className="flex gap-2 items-center">
           <div className="flex-1 grid grid-cols-2 gap-1.5">
             <Select value={selectedYear.toString()} onValueChange={(val) => {
@@ -220,7 +228,6 @@ export default function AppointmentsListPage() {
           </Button>
         </div>
 
-        {/* Linha 2: Busca e Botão de Filtros Adicionais */}
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -242,7 +249,7 @@ export default function AppointmentsListPage() {
           </Button>
         </div>
 
-        {/* Área de Filtros Adicionais (Recolhível) */}
+        {/* Área de Filtros Adicionais */}
         {showExtraFilters && (
           <div className="grid gap-2 pt-1 animate-in slide-in-from-top-2 duration-200">
             <div className="grid grid-cols-1 gap-2">
@@ -260,13 +267,17 @@ export default function AppointmentsListPage() {
                 </SelectContent>
               </Select>
 
+              {/* Status Tabs com Rolagem Horizontal */}
               <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full">
-                <TabsList className="grid grid-cols-4 w-full h-8 bg-background p-0.5 border">
-                  <TabsTrigger value="ALL" className="text-[10px] px-1 h-7">Tudo</TabsTrigger>
-                  <TabsTrigger value="CONFIRMED" className="text-[10px] px-1 h-7">Pend.</TabsTrigger>
-                  <TabsTrigger value="ATTENDED" className="text-[10px] px-1 h-7">Ok</TabsTrigger>
-                  <TabsTrigger value="CANCELLED" className="text-[10px] px-1 h-7">X</TabsTrigger>
-                </TabsList>
+                <ScrollArea className="w-full" orientation="horizontal">
+                  <TabsList className="inline-flex w-max min-w-full h-9 bg-background p-0.5 border justify-start">
+                    <TabsTrigger value="ALL" className="text-[10px] px-3 h-7 flex-shrink-0">Todos</TabsTrigger>
+                    <TabsTrigger value="PENDENTES" className="text-[10px] px-3 h-7 flex-shrink-0 text-status-confirmed">Pendentes</TabsTrigger>
+                    <TabsTrigger value="CONFIRMADOS" className="text-[10px] px-3 h-7 flex-shrink-0 text-status-reopen">Confirmados</TabsTrigger>
+                    <TabsTrigger value="REALIZADOS" className="text-[10px] px-3 h-7 flex-shrink-0 text-status-attended">Realizados</TabsTrigger>
+                    <TabsTrigger value="CANCELADOS" className="text-[10px] px-3 h-7 flex-shrink-0 text-status-cancelled">Cancelados</TabsTrigger>
+                  </TabsList>
+                </ScrollArea>
               </Tabs>
             </div>
             {statusFilter !== 'ALL' || selectedWeek !== 'ALL' ? (
@@ -321,6 +332,7 @@ export default function AppointmentsListPage() {
                               <span className="font-bold text-base text-foreground">{app.time}</span>
                               <Badge variant="outline" className={`text-[8px] h-3.5 px-1 uppercase tracking-tighter ${statusColors[app.status]}`}>
                                 {statusTranslations[app.status]}
+                                {app.sinalPago && <span className="ml-1 text-[7px] text-emerald-600 font-bold">(PAGO)</span>}
                               </Badge>
                             </div>
                             <h4 className="font-bold text-sm text-foreground truncate">{app.customerName}</h4>
@@ -413,17 +425,17 @@ export default function AppointmentsListPage() {
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Status</p>
+                  <p className="text-muted-foreground text-[10px] uppercase font-bold">Status</p>
                   <Badge variant="outline" className={statusColors[selectedAppForDetail.status]}>
                     {statusTranslations[selectedAppForDetail.status]}
                   </Badge>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Data e Hora</p>
+                  <p className="text-muted-foreground text-[10px] uppercase font-bold">Data e Hora</p>
                   <p className="font-semibold">{format(parseISO(selectedAppForDetail.date), 'dd/MM/yyyy')} às {selectedAppForDetail.time}</p>
                 </div>
                 <div className="col-span-2 border-t pt-2">
-                  <p className="text-muted-foreground">Cliente</p>
+                  <p className="text-muted-foreground text-[10px] uppercase font-bold">Cliente</p>
                   <p className="font-bold text-base">{selectedAppForDetail.customerName}</p>
                   {selectedAppForDetail.customerPhone && (
                     <p className="text-sm flex items-center gap-1 mt-1">
@@ -432,7 +444,7 @@ export default function AppointmentsListPage() {
                   )}
                 </div>
                 <div className="col-span-2 border-t pt-2">
-                  <p className="text-muted-foreground mb-2">Procedimentos Selecionados</p>
+                  <p className="text-muted-foreground text-[10px] uppercase font-bold mb-2">Procedimentos Selecionados</p>
                   <div className="space-y-1">
                     {selectedAppForDetail.selectedProcedures.map((p, idx) => (
                       <div key={idx} className="flex justify-between items-center text-xs bg-muted p-2 rounded">
@@ -444,11 +456,14 @@ export default function AppointmentsListPage() {
                 </div>
                 <div className="col-span-2 border-t pt-2 flex justify-between items-center font-bold">
                   <span>Valor Total</span>
-                  <span className="text-primary text-lg">R$ {selectedAppForDetail.totalPrice.toFixed(2)}</span>
+                  <div className="text-right">
+                    <span className="text-primary text-lg">R$ {selectedAppForDetail.totalPrice.toFixed(2)}</span>
+                    {selectedAppForDetail.sinalPago && <p className="text-[10px] text-emerald-600">SINAL PAGO (25%)</p>}
+                  </div>
                 </div>
                 {selectedAppForDetail.notes && (
                   <div className="col-span-2 border-t pt-2">
-                    <p className="text-muted-foreground">Observações</p>
+                    <p className="text-muted-foreground text-[10px] uppercase font-bold">Observações</p>
                     <p className="text-xs italic bg-amber-50 p-2 rounded border border-amber-100 mt-1">
                       {selectedAppForDetail.notes}
                     </p>
