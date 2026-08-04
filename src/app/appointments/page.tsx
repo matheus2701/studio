@@ -27,7 +27,7 @@ import {
   ChevronUp,
   RefreshCw
 } from 'lucide-react';
-import { format, parseISO, isToday, isTomorrow, isYesterday, getMonth, startOfWeek, endOfWeek, eachWeekOfInterval, startOfMonth, endOfMonth, isWithinInterval, setYear, setMonth as setDateFnsMonth } from 'date-fns';
+import { format, parseISO, isToday, isTomorrow, isYesterday, getMonth, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek, isWithinInterval, setMonth as setDateFnsMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Appointment, AppointmentStatus } from '@/lib/types';
@@ -53,7 +53,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 const statusTranslations: Record<AppointmentStatus, string> = {
-  CONFIRMED: "Confirmado",
+  CONFIRMED: "Pendente",
   ATTENDED: "Realizado",
   CANCELLED: "Cancelado",
 };
@@ -79,7 +79,6 @@ export default function AppointmentsListPage() {
   const [showExtraFilters, setShowExtraFilters] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Detalhes do Agendamento
   const [selectedAppForDetail, setSelectedAppForDetail] = useState<Appointment | null>(null);
 
   const fetchAppointments = useCallback(async () => {
@@ -117,7 +116,6 @@ export default function AppointmentsListPage() {
         app.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.selectedProcedures.some(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
       
-      // Mapeamento lógico dos filtros para os status do banco
       let matchesStatus = true;
       if (statusFilter !== 'ALL') {
         if (statusFilter === 'PENDENTES') matchesStatus = app.status === 'CONFIRMED';
@@ -168,7 +166,6 @@ export default function AppointmentsListPage() {
 
   return (
     <div className="space-y-4 pb-20 sm:pb-0">
-      {/* Header Compacto */}
       <div className="flex items-center justify-between px-1">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
@@ -182,7 +179,6 @@ export default function AppointmentsListPage() {
         </Badge>
       </div>
 
-      {/* Controles Principais */}
       <div className="grid gap-2 bg-muted/30 p-2 rounded-xl border">
         <div className="flex gap-2 items-center">
           <div className="flex-1 grid grid-cols-2 gap-1.5">
@@ -249,7 +245,6 @@ export default function AppointmentsListPage() {
           </Button>
         </div>
 
-        {/* Área de Filtros Adicionais */}
         {showExtraFilters && (
           <div className="grid gap-2 pt-1 animate-in slide-in-from-top-2 duration-200">
             <div className="grid grid-cols-1 gap-2">
@@ -267,7 +262,6 @@ export default function AppointmentsListPage() {
                 </SelectContent>
               </Select>
 
-              {/* Status Tabs com Rolagem Horizontal */}
               <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full">
                 <ScrollArea className="w-full" orientation="horizontal">
                   <TabsList className="inline-flex w-max min-w-full h-9 bg-background p-0.5 border justify-start">
@@ -280,19 +274,6 @@ export default function AppointmentsListPage() {
                 </ScrollArea>
               </Tabs>
             </div>
-            {statusFilter !== 'ALL' || selectedWeek !== 'ALL' ? (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => {
-                  setStatusFilter('ALL');
-                  setSelectedWeek('ALL');
-                }}
-                className="h-6 text-[10px] text-muted-foreground"
-              >
-                Limpar Filtros Rápidos
-              </Button>
-            ) : null}
           </div>
         )}
       </div>
@@ -361,37 +342,29 @@ export default function AppointmentsListPage() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-56">
                                 <DropdownMenuLabel>Gerenciar Agendamento</DropdownMenuLabel>
-                                
                                 <DropdownMenuItem onClick={() => setSelectedAppForDetail(app)}>
                                   <Eye className="mr-2 h-4 w-4" /> Ver Detalhes
                                 </DropdownMenuItem>
-
                                 <DropdownMenuItem onClick={() => handleEditRedirect(app.id)}>
                                   <Edit className="mr-2 h-4 w-4" /> Editar / Reagendar
                                 </DropdownMenuItem>
-
                                 <DropdownMenuSeparator />
-
                                 {app.status !== 'ATTENDED' && (
                                   <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'ATTENDED')}>
                                     <CheckCircle2 className="mr-2 h-4 w-4 text-status-attended" /> Marcar como Realizado
                                   </DropdownMenuItem>
                                 )}
-
                                 {app.status !== 'CONFIRMED' && (
                                   <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CONFIRMED')}>
                                     <RotateCcw className="mr-2 h-4 w-4 text-status-confirmed" /> Reabrir Agendamento
                                   </DropdownMenuItem>
                                 )}
-
                                 {app.status !== 'CANCELLED' && (
                                   <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CANCELLED')}>
                                     <XCircle className="mr-2 h-4 w-4 text-status-cancelled" /> Cancelar Atendimento
                                   </DropdownMenuItem>
                                 )}
-
                                 <DropdownMenuSeparator />
-                                
                                 <DropdownMenuItem onClick={() => deleteAppointment(app.id)} className="text-destructive focus:bg-destructive/10">
                                   <Trash2 className="mr-2 h-4 w-4" /> Excluir Registro
                                 </DropdownMenuItem>
@@ -409,7 +382,6 @@ export default function AppointmentsListPage() {
         )}
       </ScrollArea>
 
-      {/* Dialog de Detalhes */}
       <Dialog open={!!selectedAppForDetail} onOpenChange={() => setSelectedAppForDetail(null)}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -437,18 +409,13 @@ export default function AppointmentsListPage() {
                 <div className="col-span-2 border-t pt-2">
                   <p className="text-muted-foreground text-[10px] uppercase font-bold">Cliente</p>
                   <p className="font-bold text-base">{selectedAppForDetail.customerName}</p>
-                  {selectedAppForDetail.customerPhone && (
-                    <p className="text-sm flex items-center gap-1 mt-1">
-                      <Phone className="h-3 w-3" /> {selectedAppForDetail.customerPhone}
-                    </p>
-                  )}
                 </div>
                 <div className="col-span-2 border-t pt-2">
                   <p className="text-muted-foreground text-[10px] uppercase font-bold mb-2">Procedimentos Selecionados</p>
                   <div className="space-y-1">
                     {selectedAppForDetail.selectedProcedures.map((p, idx) => (
                       <div key={idx} className="flex justify-between items-center text-xs bg-muted p-2 rounded">
-                        <span>{p.name} ({p.duration} min)</span>
+                        <span>{p.name}</span>
                         <span className="font-bold">R$ {p.price.toFixed(2)}</span>
                       </div>
                     ))}
@@ -456,19 +423,8 @@ export default function AppointmentsListPage() {
                 </div>
                 <div className="col-span-2 border-t pt-2 flex justify-between items-center font-bold">
                   <span>Valor Total</span>
-                  <div className="text-right">
-                    <span className="text-primary text-lg">R$ {selectedAppForDetail.totalPrice.toFixed(2)}</span>
-                    {selectedAppForDetail.sinalPago && <p className="text-[10px] text-emerald-600">SINAL PAGO (25%)</p>}
-                  </div>
+                  <span className="text-primary text-lg">R$ {selectedAppForDetail.totalPrice.toFixed(2)}</span>
                 </div>
-                {selectedAppForDetail.notes && (
-                  <div className="col-span-2 border-t pt-2">
-                    <p className="text-muted-foreground text-[10px] uppercase font-bold">Observações</p>
-                    <p className="text-xs italic bg-amber-50 p-2 rounded border border-amber-100 mt-1">
-                      {selectedAppForDetail.notes}
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
           )}
