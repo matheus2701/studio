@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppointments } from '@/contexts/AppointmentsContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,10 @@ import {
   Clock,
   RotateCcw,
   Loader2,
-  Filter
+  Filter,
+  Edit,
+  Eye,
+  Info
 } from 'lucide-react';
 import { format, parseISO, isToday, isTomorrow, isYesterday, getMonth, startOfWeek, endOfWeek, eachWeekOfInterval, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -33,10 +36,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/tabs";
 import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls';
 import { DEFAULT_YEARS_FOR_FILTER, DEFAULT_MONTHS_FOR_FILTER, CURRENT_YEAR } from '@/lib/constants';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useRouter } from 'next/navigation';
 
 const statusTranslations: Record<AppointmentStatus, string> = {
   CONFIRMED: "Confirmado",
@@ -51,6 +62,7 @@ const statusColors: Record<AppointmentStatus, string> = {
 };
 
 export default function AppointmentsListPage() {
+  const router = useRouter();
   const { getAppointmentsByMonth, updateAppointmentStatus, deleteAppointment } = useAppointments();
   
   const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
@@ -62,6 +74,9 @@ export default function AppointmentsListPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [mounted, setMounted] = useState(false);
+
+  // Detalhes do Agendamento
+  const [selectedAppForDetail, setSelectedAppForDetail] = useState<Appointment | null>(null);
 
   const fetchAppointments = useCallback(async () => {
     setIsFetching(true);
@@ -78,7 +93,6 @@ export default function AppointmentsListPage() {
     fetchAppointments();
   }, [fetchAppointments]);
 
-  // Calcula as semanas do mês selecionado para o filtro
   const weeksOfMonth = useMemo(() => {
     const start = startOfMonth(new Date(selectedYear, selectedMonth));
     const end = endOfMonth(new Date(selectedYear, selectedMonth));
@@ -95,26 +109,18 @@ export default function AppointmentsListPage() {
   const filteredAndGroupedAppointments = useMemo(() => {
     const filtered = monthlyAppointments.filter(app => {
       const appDate = parseISO(app.date);
-      
-      // Filtro de Busca
       const matchesSearch = 
         app.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.selectedProcedures.some(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      // Filtro de Status
       const matchesStatus = statusFilter === 'ALL' || app.status === statusFilter;
-      
-      // Filtro de Semana
       let matchesWeek = true;
       if (selectedWeek !== "ALL") {
         const week = weeksOfMonth[parseInt(selectedWeek)];
         matchesWeek = isWithinInterval(appDate, { start: week.start, end: week.end });
       }
-      
       return matchesSearch && matchesStatus && matchesWeek;
     });
 
-    // Ordem Cronológica
     const sorted = [...filtered].sort((a, b) => {
       const dateTimeA = new Date(`${a.date}T${a.time}`).getTime();
       const dateTimeB = new Date(`${b.date}T${b.time}`).getTime();
@@ -138,8 +144,11 @@ export default function AppointmentsListPage() {
     if (isToday(date)) return "Hoje";
     if (isTomorrow(date)) return "Amanhã";
     if (isYesterday(date)) return "Ontem";
-    
     return format(date, "EEEE, dd 'de' MMMM", { locale: ptBR });
+  };
+
+  const handleEditRedirect = (appId: string) => {
+    router.push(`/?edit=${appId}`);
   };
 
   if (!mounted) return null;
@@ -167,7 +176,7 @@ export default function AppointmentsListPage() {
             onYearChange={setSelectedYear}
             onMonthChange={(m) => {
               setSelectedMonth(m);
-              setSelectedWeek("ALL"); // Reseta a semana ao mudar o mês
+              setSelectedWeek("ALL");
             }}
             onRefreshData={fetchAppointments}
             isLoading={isFetching}
@@ -223,12 +232,12 @@ export default function AppointmentsListPage() {
         {isFetching ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-            Otimizando visão da agenda...
+            Sincronizando agendamentos...
           </div>
         ) : Object.keys(filteredAndGroupedAppointments).length === 0 ? (
           <div className="text-center py-20 text-muted-foreground border border-dashed rounded-lg bg-muted/10">
             <CalendarClock className="h-12 w-12 mx-auto mb-4 opacity-20" />
-            <p>Nenhum agendamento encontrado para este filtro.</p>
+            <p>Nenhum agendamento encontrado para este período.</p>
           </div>
         ) : (
           <div className="space-y-8">
@@ -249,7 +258,7 @@ export default function AppointmentsListPage() {
                     <Card key={app.id} className="overflow-hidden border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="space-y-1 flex-1 min-w-0">
+                          <div className="space-y-1 flex-1 min-w-0" onClick={() => setSelectedAppForDetail(app)}>
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-lg text-foreground">{app.time}</span>
                               <Badge variant="outline" className={`text-[9px] h-4 uppercase tracking-tighter ${statusColors[app.status]}`}>
@@ -280,20 +289,41 @@ export default function AppointmentsListPage() {
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-52">
-                                <DropdownMenuLabel>Ações Rápidas</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'ATTENDED')}>
-                                  <CheckCircle2 className="mr-2 h-4 w-4 text-status-attended" /> Marcar como Realizado
+                              <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuLabel>Gerenciar Agendamento</DropdownMenuLabel>
+                                
+                                <DropdownMenuItem onClick={() => setSelectedAppForDetail(app)}>
+                                  <Eye className="mr-2 h-4 w-4" /> Ver Detalhes
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CONFIRMED')}>
-                                  <RotateCcw className="mr-2 h-4 w-4 text-status-confirmed" /> Reabrir / Pendente
+
+                                <DropdownMenuItem onClick={() => handleEditRedirect(app.id)}>
+                                  <Edit className="mr-2 h-4 w-4" /> Editar / Reagendar
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CANCELLED')}>
-                                  <XCircle className="mr-2 h-4 w-4 text-status-cancelled" /> Cancelar
-                                </DropdownMenuItem>
+
                                 <DropdownMenuSeparator />
+
+                                {app.status !== 'ATTENDED' && (
+                                  <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'ATTENDED')}>
+                                    <CheckCircle2 className="mr-2 h-4 w-4 text-status-attended" /> Marcar como Realizado
+                                  </DropdownMenuItem>
+                                )}
+
+                                {app.status !== 'CONFIRMED' && (
+                                  <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CONFIRMED')}>
+                                    <RotateCcw className="mr-2 h-4 w-4 text-status-confirmed" /> Reabrir Agendamento
+                                  </DropdownMenuItem>
+                                )}
+
+                                {app.status !== 'CANCELLED' && (
+                                  <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CANCELLED')}>
+                                    <XCircle className="mr-2 h-4 w-4 text-status-cancelled" /> Cancelar Atendimento
+                                  </DropdownMenuItem>
+                                )}
+
+                                <DropdownMenuSeparator />
+                                
                                 <DropdownMenuItem onClick={() => deleteAppointment(app.id)} className="text-destructive focus:bg-destructive/10">
-                                  <Trash2 className="mr-2 h-4 w-4" /> Excluir permanentemente
+                                  <Trash2 className="mr-2 h-4 w-4" /> Excluir Registro
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -308,6 +338,81 @@ export default function AppointmentsListPage() {
           </div>
         )}
       </ScrollArea>
+
+      {/* Dialog de Detalhes */}
+      <Dialog open={!!selectedAppForDetail} onOpenChange={() => setSelectedAppForDetail(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Info className="h-5 w-5 text-primary" />
+              Detalhes do Atendimento
+            </DialogTitle>
+            <DialogDescription>
+              Informações completas sobre o agendamento selecionado.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedAppForDetail && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Status</p>
+                  <Badge variant="outline" className={statusColors[selectedAppForDetail.status]}>
+                    {statusTranslations[selectedAppForDetail.status]}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Data e Hora</p>
+                  <p className="font-semibold">{format(parseISO(selectedAppForDetail.date), 'dd/MM/yyyy')} às {selectedAppForDetail.time}</p>
+                </div>
+                <div className="col-span-2 border-t pt-2">
+                  <p className="text-muted-foreground">Cliente</p>
+                  <p className="font-bold text-base">{selectedAppForDetail.customerName}</p>
+                  {selectedAppForDetail.customerPhone && (
+                    <p className="text-sm flex items-center gap-1 mt-1">
+                      <Phone className="h-3 w-3" /> {selectedAppForDetail.customerPhone}
+                    </p>
+                  )}
+                </div>
+                <div className="col-span-2 border-t pt-2">
+                  <p className="text-muted-foreground mb-2">Procedimentos Selecionados</p>
+                  <div className="space-y-1">
+                    {selectedAppForDetail.selectedProcedures.map((p, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-xs bg-muted p-2 rounded">
+                        <span>{p.name} ({p.duration} min)</span>
+                        <span className="font-bold">R$ {p.price.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="col-span-2 border-t pt-2 flex justify-between items-center font-bold">
+                  <span>Valor Total</span>
+                  <span className="text-primary text-lg">R$ {selectedAppForDetail.totalPrice.toFixed(2)}</span>
+                </div>
+                {selectedAppForDetail.notes && (
+                  <div className="col-span-2 border-t pt-2">
+                    <p className="text-muted-foreground">Observações</p>
+                    <p className="text-xs italic bg-amber-50 p-2 rounded border border-amber-100 mt-1">
+                      {selectedAppForDetail.notes}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setSelectedAppForDetail(null)}>Fechar</Button>
+            {selectedAppForDetail && (
+              <Button className="flex-1" onClick={() => {
+                const id = selectedAppForDetail.id;
+                setSelectedAppForDetail(null);
+                handleEditRedirect(id);
+              }}>
+                Editar
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

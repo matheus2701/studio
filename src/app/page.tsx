@@ -7,7 +7,7 @@ import { BookingForm } from '@/components/forms/BookingForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { Appointment, Procedure } from '@/lib/types';
-import { format, addMinutes, isEqual, startOfDay, set } from 'date-fns';
+import { format, addMinutes, isEqual, startOfDay, set, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarCheck2, Loader2, CheckCircle2, ListTodo, PlusCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const WORK_DAY_START_HOUR = 6;
 const WORK_DAY_END_HOUR = 23;
@@ -33,6 +33,9 @@ const SLOT_INTERVAL_MINUTES = 30;
 
 export default function BookingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('edit');
+
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
@@ -49,6 +52,19 @@ export default function BookingPage() {
   const { toast } = useToast();
 
   const isLoadingPageData = isLoadingAppointmentsContext || isLoadingProcedures;
+
+  // Gerencia o modo de edição via URL
+  useEffect(() => {
+    if (editId && appointments.length > 0 && !appointmentToEdit) {
+      const app = appointments.find(a => a.id === editId);
+      if (app) {
+        setAppointmentToEdit(app);
+        setSelectedDate(parseISO(app.date));
+        setSelectedProcedureIds(app.selectedProcedures.map(p => p.id));
+        setSelectedTime(app.time);
+      }
+    }
+  }, [editId, appointments, appointmentToEdit]);
 
   const selectedProceduresDetail = useMemo(() => {
     if (isLoadingProcedures || !procedures || procedures.length === 0) return [];
@@ -87,6 +103,8 @@ export default function BookingPage() {
     setSelectedTime(undefined);
     setAppointmentToEdit(null);
     setShowSuccessDialog(false);
+    // Limpa a URL se estiver em modo edit
+    if (editId) router.push('/');
   };
 
   const handleGoToSchedule = () => {
@@ -162,6 +180,7 @@ export default function BookingPage() {
     setAppointmentToEdit(null);
     setSelectedProcedureIds([]);
     setSelectedTime(undefined);
+    if (editId) router.push('/');
   }
 
   if (isLoadingPageData) {
