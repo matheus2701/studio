@@ -8,6 +8,7 @@ import { AppointmentsProvider } from '@/contexts/AppointmentsContext';
 import { CustomersProvider } from '@/contexts/CustomersContext';
 import { FinancialEntriesProvider } from '@/contexts/FinancialEntriesContext'; // Import FinancialEntriesProvider
 import { ProtectedLayout } from '@/components/layout/ProtectedLayout';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -45,6 +46,7 @@ export default function RootLayout({
             </AppointmentsProvider>
           </ProceduresProvider>
         </AuthProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
