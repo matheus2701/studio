@@ -7,6 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { 
   Search, 
   CalendarClock, 
@@ -25,9 +27,28 @@ import {
   Info,
   ChevronDown,
   ChevronUp,
-  RefreshCw
+  RefreshCw,
+  CalendarDays,
+  ArrowRight
 } from 'lucide-react';
-import { format, parseISO, isToday, isTomorrow, isYesterday, getMonth, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek, isWithinInterval, setMonth as setDateFnsMonth } from 'date-fns';
+import { 
+  format, 
+  parseISO, 
+  isToday, 
+  isTomorrow, 
+  isYesterday, 
+  getMonth, 
+  startOfMonth, 
+  endOfMonth, 
+  eachWeekOfInterval, 
+  endOfWeek, 
+  isWithinInterval, 
+  setMonth as setDateFnsMonth,
+  isBefore,
+  startOfDay,
+  addDays,
+  getYear
+} from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Appointment, AppointmentStatus } from '@/lib/types';
@@ -64,6 +85,8 @@ const statusColors: Record<AppointmentStatus, string> = {
   CANCELLED: "text-status-cancelled border-status-cancelled bg-status-cancelled/10",
 };
 
+type QuickFilter = 'ALL' | 'TODAY' | 'TOMORROW' | 'WEEK';
+
 export default function AppointmentsListPage() {
   const router = useRouter();
   const { getAppointmentsByMonth, updateAppointmentStatus, deleteAppointment } = useAppointments();
@@ -76,6 +99,8 @@ export default function AppointmentsListPage() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>('ALL');
+  const [showPast, setShowPast] = useState(false);
   const [showExtraFilters, setShowExtraFilters] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -110,8 +135,13 @@ export default function AppointmentsListPage() {
   }, [selectedYear, selectedMonth]);
 
   const filteredAndGroupedAppointments = useMemo(() => {
+    const today = startOfDay(new Date());
+    const isCurrentMonth = selectedYear === CURRENT_YEAR && selectedMonth === getMonth(new Date());
+
     const filtered = monthlyAppointments.filter(app => {
       const appDate = parseISO(app.date);
+      const appDayStart = startOfDay(appDate);
+      
       const matchesSearch = 
         app.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.selectedProcedures.some(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -129,7 +159,25 @@ export default function AppointmentsListPage() {
         const week = weeksOfMonth[parseInt(selectedWeek)];
         matchesWeek = isWithinInterval(appDate, { start: week.start, end: week.end });
       }
-      return matchesSearch && matchesStatus && matchesWeek;
+
+      // Filtro de tempo (Passados vs Futuros)
+      let matchesTimeRange = true;
+      if (!showPast && isCurrentMonth && quickFilter === 'ALL') {
+        matchesTimeRange = !isBefore(appDayStart, today);
+      }
+
+      // Filtros rápidos
+      let matchesQuickFilter = true;
+      if (quickFilter === 'TODAY') {
+        matchesQuickFilter = isToday(appDate);
+      } else if (quickFilter === 'TOMORROW') {
+        matchesQuickFilter = isTomorrow(appDate);
+      } else if (quickFilter === 'WEEK') {
+        const nextWeek = addDays(today, 7);
+        matchesQuickFilter = isWithinInterval(appDayStart, { start: today, end: nextWeek });
+      }
+
+      return matchesSearch && matchesStatus && matchesWeek && matchesTimeRange && matchesQuickFilter;
     });
 
     const sorted = [...filtered].sort((a, b) => {
@@ -147,7 +195,7 @@ export default function AppointmentsListPage() {
     });
 
     return groups;
-  }, [monthlyAppointments, searchTerm, statusFilter, selectedWeek, weeksOfMonth]);
+  }, [monthlyAppointments, searchTerm, statusFilter, selectedWeek, weeksOfMonth, showPast, quickFilter, selectedYear, selectedMonth]);
 
   const getDateLabel = (dateStr: string) => {
     if (!mounted) return dateStr;
@@ -156,6 +204,14 @@ export default function AppointmentsListPage() {
     if (isTomorrow(date)) return "Amanhã";
     if (isYesterday(date)) return "Ontem";
     return format(date, "EEEE, dd 'de' MMMM", { locale: ptBR });
+  };
+
+  const handleGoToToday = () => {
+    setSelectedYear(getYear(new Date()));
+    setSelectedMonth(getMonth(new Date()));
+    setQuickFilter('ALL');
+    setShowPast(false);
+    setSelectedWeek("ALL");
   };
 
   const handleEditRedirect = (appId: string) => {
@@ -174,9 +230,14 @@ export default function AppointmentsListPage() {
           </h1>
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Controle de atendimentos</p>
         </div>
-        <Badge variant="secondary" className="text-[10px] px-2 h-5">
-          {monthlyAppointments.length} no mês
-        </Badge>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="h-7 text-[10px] px-2 gap-1" onClick={handleGoToToday}>
+            <CalendarDays className="h-3 w-3" /> Hoje
+          </Button>
+          <Badge variant="secondary" className="text-[10px] px-2 h-7">
+            {monthlyAppointments.length} no mês
+          </Badge>
+        </div>
       </div>
 
       <div className="grid gap-2 bg-muted/30 p-2 rounded-xl border">
@@ -246,8 +307,40 @@ export default function AppointmentsListPage() {
         </div>
 
         {showExtraFilters && (
-          <div className="grid gap-2 pt-1 animate-in slide-in-from-top-2 duration-200">
-            <div className="grid grid-cols-1 gap-2">
+          <div className="grid gap-3 pt-1 animate-in slide-in-from-top-2 duration-200">
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                variant={quickFilter === 'TODAY' ? 'default' : 'outline'} 
+                size="sm" 
+                className="h-7 text-[10px] flex-1"
+                onClick={() => setQuickFilter(quickFilter === 'TODAY' ? 'ALL' : 'TODAY')}
+              >
+                Hoje
+              </Button>
+              <Button 
+                variant={quickFilter === 'TOMORROW' ? 'default' : 'outline'} 
+                size="sm" 
+                className="h-7 text-[10px] flex-1"
+                onClick={() => setQuickFilter(quickFilter === 'TOMORROW' ? 'ALL' : 'TOMORROW')}
+              >
+                Amanhã
+              </Button>
+              <Button 
+                variant={quickFilter === 'WEEK' ? 'default' : 'outline'} 
+                size="sm" 
+                className="h-7 text-[10px] flex-1"
+                onClick={() => setQuickFilter(quickFilter === 'WEEK' ? 'ALL' : 'WEEK')}
+              >
+                7 Dias
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between px-1 py-1 bg-background/50 rounded-lg">
+              <Label htmlFor="show-past" className="text-[10px] font-bold uppercase cursor-pointer">Mostrar Passados</Label>
+              <Switch id="show-past" checked={showPast} onCheckedChange={setShowPast} />
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 border-t pt-2">
               <Select value={selectedWeek} onValueChange={setSelectedWeek}>
                 <SelectTrigger className="h-8 text-xs bg-background border-dashed">
                   <SelectValue placeholder="Todas as Semanas" />
@@ -287,97 +380,112 @@ export default function AppointmentsListPage() {
         ) : Object.keys(filteredAndGroupedAppointments).length === 0 ? (
           <div className="text-center py-20 text-muted-foreground border border-dashed rounded-lg bg-muted/10">
             <CalendarClock className="h-12 w-12 mx-auto mb-4 opacity-20" />
-            <p className="text-sm">Nenhum registro encontrado.</p>
+            <p className="text-sm">Nenhum registro encontrado para estes filtros.</p>
+            {(!showPast && quickFilter === 'ALL') && (
+              <Button variant="link" onClick={() => setShowPast(true)} className="text-xs mt-2">
+                Ver agendamentos passados do mês
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-6">
-            {Object.entries(filteredAndGroupedAppointments).map(([date, dayAppointments]) => (
-              <div key={date} className="space-y-2">
-                <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm py-1 border-b">
-                  <h3 className="text-[10px] font-bold text-primary flex items-center gap-1.5 uppercase tracking-widest">
-                    <CalendarIcon className="h-3 w-3" />
-                    {getDateLabel(date)}
-                    <span className="ml-auto bg-primary/10 px-1.5 py-0.5 rounded text-[9px]">
-                      {dayAppointments.length}
-                    </span>
-                  </h3>
-                </div>
+            {Object.entries(filteredAndGroupedAppointments).map(([date, dayAppointments]) => {
+              const isDateToday = isToday(parseISO(date));
+              return (
+                <div key={date} className="space-y-2">
+                  <div className={cn(
+                    "sticky top-0 z-10 py-1 border-b transition-colors",
+                    isDateToday ? "bg-primary/5 border-primary/30 -mx-2 px-2 rounded-t-lg" : "bg-background/95 backdrop-blur-sm"
+                  )}>
+                    <h3 className={cn(
+                      "text-[10px] font-bold flex items-center gap-1.5 uppercase tracking-widest",
+                      isDateToday ? "text-primary" : "text-muted-foreground"
+                    )}>
+                      <CalendarIcon className="h-3 w-3" />
+                      {getDateLabel(date)}
+                      {isDateToday && <Badge className="text-[7px] h-3 px-1 ml-1 bg-primary">HOJE</Badge>}
+                      <span className="ml-auto bg-muted px-1.5 py-0.5 rounded text-[9px] text-muted-foreground font-bold">
+                        {dayAppointments.length}
+                      </span>
+                    </h3>
+                  </div>
 
-                <div className="grid gap-2">
-                  {dayAppointments.map((app) => (
-                    <Card key={app.id} className="overflow-hidden border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all">
-                      <CardContent className="p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="space-y-0.5 flex-1 min-w-0" onClick={() => setSelectedAppForDetail(app)}>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-base text-foreground">{app.time}</span>
-                              <Badge variant="outline" className={`text-[8px] h-3.5 px-1 uppercase tracking-tighter ${statusColors[app.status]}`}>
-                                {statusTranslations[app.status]}
-                                {app.sinalPago && <span className="ml-1 text-[7px] text-emerald-600 font-bold">(PAGO)</span>}
-                              </Badge>
-                            </div>
-                            <h4 className="font-bold text-sm text-foreground truncate">{app.customerName}</h4>
-                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
-                              <div className="flex items-center gap-0.5">
-                                <Clock className="h-2.5 w-2.5" /> {app.totalDuration} min
+                  <div className="grid gap-2">
+                    {dayAppointments.map((app) => (
+                      <Card key={app.id} className="overflow-hidden border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all">
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="space-y-0.5 flex-1 min-w-0" onClick={() => setSelectedAppForDetail(app)}>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-base text-foreground">{app.time}</span>
+                                <Badge variant="outline" className={`text-[8px] h-3.5 px-1 uppercase tracking-tighter ${statusColors[app.status]}`}>
+                                  {statusTranslations[app.status]}
+                                  {app.sinalPago && <span className="ml-1 text-[7px] text-emerald-600 font-bold">(PAGO)</span>}
+                                </Badge>
                               </div>
-                              {app.customerPhone && (
+                              <h4 className="font-bold text-sm text-foreground truncate">{app.customerName}</h4>
+                              <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
                                 <div className="flex items-center gap-0.5">
-                                  <Phone className="h-2.5 w-2.5" /> {app.customerPhone}
+                                  <Clock className="h-2.5 w-2.5" /> {app.totalDuration} min
                                 </div>
-                              )}
+                                {app.customerPhone && (
+                                  <div className="flex items-center gap-0.5">
+                                    <Phone className="h-2.5 w-2.5" /> {app.customerPhone}
+                                  </div>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-primary font-semibold mt-0.5 truncate">
+                                {app.selectedProcedures.map(p => p.name).join(' + ')}
+                              </p>
                             </div>
-                            <p className="text-[10px] text-primary font-semibold mt-0.5 truncate">
-                              {app.selectedProcedures.map(p => p.name).join(' + ')}
-                            </p>
-                          </div>
 
-                          <div className="flex flex-col items-end gap-0.5">
-                            <span className="font-bold text-xs text-primary">R$ {app.totalPrice.toFixed(2)}</span>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full">
-                                  <MoreVertical className="h-3.5 w-3.5" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuLabel>Gerenciar Agendamento</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => setSelectedAppForDetail(app)}>
-                                  <Eye className="mr-2 h-4 w-4" /> Ver Detalhes
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleEditRedirect(app.id)}>
-                                  <Edit className="mr-2 h-4 w-4" /> Editar / Reagendar
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {app.status !== 'ATTENDED' && (
-                                  <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'ATTENDED')}>
-                                    <CheckCircle2 className="mr-2 h-4 w-4 text-status-attended" /> Marcar como Realizado
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="font-bold text-xs text-primary">R$ {app.totalPrice.toFixed(2)}</span>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full">
+                                    <MoreVertical className="h-3.5 w-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56">
+                                  <DropdownMenuLabel>Gerenciar Agendamento</DropdownMenuLabel>
+                                  <DropdownMenuItem onClick={() => setSelectedAppForDetail(app)}>
+                                    <Eye className="mr-2 h-4 w-4" /> Ver Detalhes
                                   </DropdownMenuItem>
-                                )}
-                                {app.status !== 'CONFIRMED' && (
-                                  <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CONFIRMED')}>
-                                    <RotateCcw className="mr-2 h-4 w-4 text-status-confirmed" /> Reabrir Agendamento
+                                  <DropdownMenuItem onClick={() => handleEditRedirect(app.id)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Editar / Reagendar
                                   </DropdownMenuItem>
-                                )}
-                                {app.status !== 'CANCELLED' && (
-                                  <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CANCELLED')}>
-                                    <XCircle className="mr-2 h-4 w-4 text-status-cancelled" /> Cancelar Atendimento
+                                  <DropdownMenuSeparator />
+                                  {app.status !== 'ATTENDED' && (
+                                    <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'ATTENDED')}>
+                                      <CheckCircle2 className="mr-2 h-4 w-4 text-status-attended" /> Marcar como Realizado
+                                    </DropdownMenuItem>
+                                  )}
+                                  {app.status !== 'CONFIRMED' && (
+                                    <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CONFIRMED')}>
+                                      <RotateCcw className="mr-2 h-4 w-4 text-status-confirmed" /> Reabrir Agendamento
+                                    </DropdownMenuItem>
+                                  )}
+                                  {app.status !== 'CANCELLED' && (
+                                    <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CANCELLED')}>
+                                      <XCircle className="mr-2 h-4 w-4 text-status-cancelled" /> Cancelar Atendimento
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => deleteAppointment(app.id)} className="text-destructive focus:bg-destructive/10">
+                                    <Trash2 className="mr-2 h-4 w-4" /> Excluir Registro
                                   </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => deleteAppointment(app.id)} className="text-destructive focus:bg-destructive/10">
-                                  <Trash2 className="mr-2 h-4 w-4" /> Excluir Registro
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </ScrollArea>
