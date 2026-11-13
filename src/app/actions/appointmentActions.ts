@@ -1,12 +1,37 @@
-
 'use server';
 
 import type { Appointment, AppointmentStatus } from '@/lib/types';
 import { supabase } from '@/lib/supabaseClient';
-import { format } from 'date-fns';
+import { format, addMinutes, parseISO } from 'date-fns';
 import { formatSupabaseErrorMessage, sanitizeAppointment } from '@/lib/actionUtils';
 
 const CONNECTION_ERROR = "Não foi possível conectar ao servidor. Verifique sua internet.";
+
+/**
+ * Verifica se existe sobreposição de horário com agendamentos existentes.
+ */
+async function checkScheduleConflict(date: string, time: string, duration: number, excludeId?: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('id, date, time, totalDuration, status')
+    .eq('date', date)
+    .in('status', ['CONFIRMED', 'ATTENDED']);
+
+  if (error || !data) return false;
+
+  const newStart = parseISO(`${date}T${time}`);
+  const newEnd = addMinutes(newStart, duration);
+
+  return data.some(app => {
+    if (excludeId && app.id === excludeId) return false;
+    
+    const appStart = parseISO(`${app.date}T${app.time}`);
+    const appEnd = addMinutes(appStart, app.totalDuration);
+    
+    // Lógica de sobreposição: (InícioA < FimB) && (FimA > InícioB)
+    return newStart < appEnd && newEnd > appStart;
+  });
+}
 
 export async function getAppointments(): Promise<Appointment[]> {
   try {
@@ -39,14 +64,25 @@ export async function getAllAppointmentsData(): Promise<Appointment[]> {
 }
 
 export async function addAppointmentData(appointmentData: Omit<Appointment, 'id' | 'status'>): Promise<Appointment | null> {
-  const newAppointmentPayload = {
-    ...appointmentData,
-    id: Date.now().toString(), 
-    status: 'CONFIRMED',      
-    sinalPago: appointmentData.sinalPago || false,
-  };
-
   try {
+    // Validação de conflito no servidor
+    const hasConflict = await checkScheduleConflict(
+      appointmentData.date, 
+      appointmentData.time, 
+      appointmentData.totalDuration
+    );
+
+    if (hasConflict) {
+      throw new Error("Este horário já foi preenchido por outro agendamento. Por favor, escolha outro.");
+    }
+
+    const newAppointmentPayload = {
+      ...appointmentData,
+      id: Date.now().toString(), 
+      status: 'CONFIRMED',      
+      sinalPago: appointmentData.sinalPago || false,
+    };
+
     const { data, error } = await supabase
       .from('appointments')
       .insert(newAppointmentPayload)
@@ -62,6 +98,18 @@ export async function addAppointmentData(appointmentData: Omit<Appointment, 'id'
 
 export async function updateAppointmentData(updatedAppointment: Appointment): Promise<Appointment | null> {
   try {
+    // Validação de conflito no servidor ao editar/reagendar
+    const hasConflict = await checkScheduleConflict(
+      updatedAppointment.date, 
+      updatedAppointment.time, 
+      updatedAppointment.totalDuration,
+      updatedAppointment.id
+    );
+
+    if (hasConflict) {
+      throw new Error("O novo horário selecionado conflita com outro agendamento existente.");
+    }
+
     const { data, error } = await supabase
       .from('appointments')
       .update({ ...updatedAppointment, sinalPago: updatedAppointment.sinalPago || false })

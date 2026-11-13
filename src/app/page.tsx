@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -7,7 +6,7 @@ import { BookingForm } from '@/components/forms/BookingForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { Appointment, Procedure } from '@/lib/types';
-import { format, addMinutes, isEqual, startOfDay, set, parseISO } from 'date-fns';
+import { format, addMinutes, startOfDay, set, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarCheck2, Loader2, CheckCircle2, ListTodo, PlusCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -82,15 +81,11 @@ export default function BookingPage() {
     } else {
       savedAppointment = await addAppointment(newAppointmentData);
     }
+    
     if (savedAppointment) {
       setShowSuccessDialog(true);
-    } else {
-      toast({
-        title: "Erro no Agendamento",
-        description: "Não foi possível salvar os dados. Verifique sua conexão.",
-        variant: "destructive",
-      });
     }
+    // O erro agora é tratado diretamente pelo context/action com toast
     return savedAppointment;
   };
 
@@ -119,24 +114,31 @@ export default function BookingPage() {
     if (!selectedDate || selectedProceduresDetail.length === 0 || isLoadingAppointmentsContext || isLoadingProcedures || !procedures) {
       return [];
     }
+    
     const slots: string[] = [];
     const currentTotalDuration = totalSelectedProceduresDuration;
     if (currentTotalDuration === 0) return [];
+
+    const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
     const dayStart = set(selectedDate, { hours: WORK_DAY_START_HOUR, minutes: 0, seconds: 0, milliseconds: 0 });
     const dayEnd = set(selectedDate, { hours: WORK_DAY_END_HOUR, minutes: 0, seconds: 0, milliseconds: 0 });
+
     const existingAppointmentsOnDate = appointments.filter(app => {
-        const isSameDay = isEqual(startOfDay(new Date(app.date + 'T00:00:00')), startOfDay(selectedDate));
+        // Uso de comparação de string para evitar problemas de fuso horário
+        const isSameDay = app.date === selectedDateStr;
         const isRelevantStatus = app.status === 'CONFIRMED' || app.status === 'ATTENDED';
         if (appointmentToEdit && app.id === appointmentToEdit.id) return false;
         return isSameDay && isRelevantStatus;
     }).map(app => {
-      const appStart = new Date(`${app.date}T${app.time}`);
+      const appStart = parseISO(`${app.date}T${app.time}`);
       return { start: appStart, end: addMinutes(appStart, app.totalDuration) };
     });
+
     let currentTime = new Date(dayStart);
     while (addMinutes(currentTime, currentTotalDuration) <= dayEnd) {
       const potentialSlotStart = new Date(currentTime);
       const potentialSlotEnd = addMinutes(potentialSlotStart, currentTotalDuration);
+      
       let isOverlapping = false;
       for (const existingApp of existingAppointmentsOnDate) {
         if (potentialSlotStart < existingApp.end && potentialSlotEnd > existingApp.start) {
@@ -144,7 +146,11 @@ export default function BookingPage() {
           break;
         }
       }
-      if (!isOverlapping) slots.push(format(potentialSlotStart, 'HH:mm'));
+
+      if (!isOverlapping) {
+        slots.push(format(potentialSlotStart, 'HH:mm'));
+      }
+      
       currentTime = addMinutes(currentTime, SLOT_INTERVAL_MINUTES);
     }
     return slots;
