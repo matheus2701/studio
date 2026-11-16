@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format, getYear, getMonth, setYear, setMonth as setDateFnsMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Loader2, Download } from 'lucide-react';
+import { DollarSign, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Loader2, Download, ClipboardList } from 'lucide-react';
 import type { Appointment, ManualFinancialEntry } from '@/lib/types';
 import { ManualFinancialEntryForm } from '@/components/forms/ManualFinancialEntryForm';
 import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls';
@@ -82,7 +82,6 @@ export default function FinancialOverviewPage() {
       .sort((a, b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime());
   }, [monthlyAppointments]);
 
-  // Cálculos blindados com Money utility
   const totalAttendedAppointmentsValue = useMemo(() => {
     return Money.sum(...attendedAppointments.map(app => app.totalPrice));
   }, [attendedAppointments]);
@@ -107,11 +106,12 @@ export default function FinancialOverviewPage() {
   };
 
   const convertFinancialDataToCSV = (appointments: Appointment[], entries: ManualFinancialEntry[]) => {
-    const header = ['Data', 'Descricao', 'Valor Entrada (R$)', 'Valor Saida (R$)', 'Tipo/Origem'];
+    const header = ['Data', 'Descricao', 'Procedimentos', 'Valor Entrada (R$)', 'Valor Saida (R$)', 'Tipo/Origem'];
 
     const appointmentRows = appointments.filter(app => app.status === 'ATTENDED').map(app => ({
         date: app.date,
-        description: `${app.customerName} - ${app.selectedProcedures.map(p => p.name).join(' + ')}`,
+        description: app.customerName,
+        procedures: app.selectedProcedures.map(p => p.name).join(' + '),
         income: app.totalPrice,
         expense: 0,
         origin: 'Receita de Atendimento',
@@ -120,6 +120,7 @@ export default function FinancialOverviewPage() {
     const entryRows = entries.map(entry => ({
         date: entry.date,
         description: entry.description,
+        procedures: '-',
         income: entry.type === 'income' ? entry.amount : 0,
         expense: entry.type === 'expense' ? entry.amount : 0,
         origin: entry.type === 'income' ? 'Entrada Manual' : 'Saida/Despesa Manual',
@@ -132,6 +133,7 @@ export default function FinancialOverviewPage() {
     const csvRows = allRows.map(row => [
         `"${format(parseISO(row.date), 'dd/MM/yyyy')}"`,
         `"${row.description.replace(/"/g, '""')}"`,
+        `"${row.procedures.replace(/"/g, '""')}"`,
         row.income.toFixed(2),
         row.expense.toFixed(2),
         `"${row.origin}"`,
@@ -325,7 +327,7 @@ export default function FinancialOverviewPage() {
                 <Card className="shadow-sm">
                   <CardHeader className="pb-3 border-b">
                     <CardTitle className="text-base font-bold flex items-center gap-2">
-                      <Package className="h-4 w-4 text-primary" />
+                      <ClipboardList className="h-4 w-4 text-primary" />
                       Histórico de Atendimentos ({attendedAppointments.length})
                     </CardTitle>
                   </CardHeader>
@@ -338,7 +340,7 @@ export default function FinancialOverviewPage() {
                           <TableHeader className="sticky top-0 bg-background z-10">
                             <TableRow>
                               <TableHead className="text-[10px] uppercase font-bold">Data</TableHead>
-                              <TableHead className="text-[10px] uppercase font-bold">Cliente</TableHead>
+                              <TableHead className="text-[10px] uppercase font-bold">Cliente / Procedimentos</TableHead>
                               <TableHead className="text-[10px] uppercase font-bold text-right">Preço</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -346,7 +348,14 @@ export default function FinancialOverviewPage() {
                             {attendedAppointments.map((app) => (
                               <TableRow key={app.id}>
                                 <TableCell className="text-xs py-2">{format(parseISO(app.date), 'dd/MM/yy')}</TableCell>
-                                <TableCell className="text-xs py-2 font-medium truncate max-w-[120px]">{app.customerName}</TableCell>
+                                <TableCell className="text-xs py-2 font-medium truncate max-w-[180px]">
+                                  <div className="flex flex-col">
+                                    <span className="font-bold">{app.customerName}</span>
+                                    <span className="text-[9px] text-muted-foreground italic truncate">
+                                      {app.selectedProcedures.map(p => p.name).join(', ')}
+                                    </span>
+                                  </div>
+                                </TableCell>
                                 <TableCell className="text-xs py-2 text-right font-bold">{Money.format(app.totalPrice)}</TableCell>
                               </TableRow>
                             ))}
