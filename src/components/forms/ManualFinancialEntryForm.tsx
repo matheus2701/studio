@@ -29,16 +29,16 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import type { FinancialEntryType } from "@/lib/types";
-import { useFinancialEntries } from "@/contexts/FinancialEntriesContext"; // Import context
+import { useFinancialEntries } from "@/contexts/FinancialEntriesContext";
 import { useToast } from "@/hooks/use-toast";
+import { Money } from "@/lib/financeUtils";
 
 const manualFinancialEntrySchema = z.object({
   type: z.enum(["income", "expense"], {
     required_error: "Tipo é obrigatório.",
   }),
   description: z.string().min(2, "Descrição deve ter pelo menos 2 caracteres."),
-  amount: z.coerce.number().positive("Valor deve ser um número positivo."),
+  amount: z.coerce.number().positive("Valor deve ser um número positivo e maior que zero."),
   date: z.date({
     required_error: "Data é obrigatória.",
   }),
@@ -47,7 +47,7 @@ const manualFinancialEntrySchema = z.object({
 type ManualFinancialEntryFormValues = z.infer<typeof manualFinancialEntrySchema>;
 
 interface ManualFinancialEntryFormProps {
-  onFormSubmit: () => void; // Callback para fechar o diálogo
+  onFormSubmit: () => void;
 }
 
 export function ManualFinancialEntryForm({ onFormSubmit }: ManualFinancialEntryFormProps) {
@@ -65,21 +65,17 @@ export function ManualFinancialEntryForm({ onFormSubmit }: ManualFinancialEntryF
   });
 
   async function onSubmit(data: ManualFinancialEntryFormValues) {
+    // Sanitização final antes do envio
     const entryData = {
       ...data,
-      date: format(data.date, "yyyy-MM-dd"), // Formata a data para string
+      amount: Money.sanitize(data.amount),
+      date: format(data.date, "yyyy-MM-dd"),
     };
+
     const result = await addFinancialEntry(entryData);
     if (result) {
-      // Toast já é tratado no context
-      onFormSubmit(); // Fecha o diálogo
-      form.reset(); // Reseta o formulário
-    } else {
-      toast({
-        title: "Erro ao Salvar Transação",
-        description: "Não foi possível registrar a transação manual.",
-        variant: "destructive",
-      });
+      onFormSubmit();
+      form.reset();
     }
   }
 
@@ -131,6 +127,7 @@ export function ManualFinancialEntryForm({ onFormSubmit }: ManualFinancialEntryF
               <FormControl>
                 <Input type="number" step="0.01" placeholder="Ex: 150.00" {...field} />
               </FormControl>
+              <FormDescription>Use ponto para decimais (ex: 120.50)</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -174,18 +171,12 @@ export function ManualFinancialEntryForm({ onFormSubmit }: ManualFinancialEntryF
                   />
                 </PopoverContent>
               </Popover>
-              <FormDescription>
-                Data em que a transação ocorreu.
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => {
-            onFormSubmit();
-            form.reset();
-          }}>
+          <Button type="button" variant="outline" onClick={() => onFormSubmit()}>
             Cancelar
           </Button>
           <Button type="submit">Adicionar Transação</Button>

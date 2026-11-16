@@ -1,6 +1,7 @@
 
 import type { PostgrestError } from '@supabase/supabase-js';
-import type { Appointment, AppointmentStatus, Customer, ManualFinancialEntry, Procedure, Tag } from '@/lib/types';
+import type { Appointment, Customer, ManualFinancialEntry, Procedure, Tag } from '@/lib/types';
+import { Money } from './financeUtils';
 
 /**
  * Formats a detailed Supabase error message.
@@ -17,13 +18,13 @@ export function formatSupabaseErrorMessage(error: PostgrestError, operationDesc:
 }
 
 /**
- * Sanitizes an appointment object.
+ * Sanitizes an appointment object using Money utility for precision.
  */
 export function sanitizeAppointment(app: any): Appointment {
   return {
     id: String(app.id || Date.now().toString()),
     selectedProcedures: Array.isArray(app.selectedProcedures) ? app.selectedProcedures.map(sanitizeProcedure) : [],
-    totalPrice: Number(app.totalPrice || 0),
+    totalPrice: Money.sanitize(app.totalPrice),
     totalDuration: Number(app.totalDuration || 0),
     customerName: String(app.customerName || 'N/A'),
     customerPhone: app.customerPhone ? String(app.customerPhone) : undefined,
@@ -59,29 +60,29 @@ export function sanitizeTag(tag: any): Tag {
 }
 
 /**
- * Sanitizes a procedure object.
+ * Sanitizes a procedure object using Money utility for precision.
  */
 export function sanitizeProcedure(procedure: any): Procedure {
   return {
     id: String(procedure.id || Date.now().toString()),
     name: String(procedure.name || 'N/A'),
     duration: Number(procedure.duration || 0),
-    price: Number(procedure.price || 0),
+    price: Money.sanitize(procedure.price),
     description: String(procedure.description || ''),
     isPromo: typeof procedure.isPromo === 'boolean' ? procedure.isPromo : false,
-    promoPrice: (typeof procedure.isPromo === 'boolean' && procedure.isPromo && typeof procedure.promoPrice === 'number') ? Number(procedure.promoPrice) : undefined,
+    promoPrice: procedure.isPromo ? Money.sanitize(procedure.promoPrice) : undefined,
   };
 }
 
 /**
- * Sanitizes a manual financial entry object.
+ * Sanitizes a manual financial entry object using Money utility for precision.
  */
 export function sanitizeFinancialEntry(entry: any): ManualFinancialEntry {
   return {
     id: String(entry.id || Date.now().toString()),
     type: ['income', 'expense'].includes(entry.type) ? entry.type : 'income',
     description: String(entry.description || ''),
-    amount: Number(entry.amount || 0),
+    amount: Money.sanitize(entry.amount),
     date: String(entry.date || new Date().toISOString().split('T')[0]),
     created_at: entry.created_at ? String(entry.created_at) : undefined,
   };

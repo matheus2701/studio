@@ -32,7 +32,7 @@ import { getAllFinancialEntriesData, getFinancialEntriesByMonthData } from '@/ap
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-
+import { Money } from '@/lib/financeUtils';
 
 const financialEntryTypeTranslations: Record<ManualFinancialEntry['type'], string> = {
   income: "Entrada",
@@ -59,13 +59,11 @@ export default function FinancialOverviewPage() {
   const [isFetchingPageData, setIsFetchingPageData] = useState(false);
   const [isAddEntryDialogOpen, setIsAddEntryDialogOpen] = useState(false);
 
-  // Export states
   const [isExporting, setIsExporting] = useState(false);
   const [exportYear, setExportYear] = useState<number>(CURRENT_YEAR);
   const [exportMonth, setExportMonth] = useState<number>(getMonth(new Date()));
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const { toast } = useToast();
-
 
   const fetchDataForSelectedPeriod = useCallback(async () => {
     setIsFetchingPageData(true);
@@ -79,30 +77,27 @@ export default function FinancialOverviewPage() {
     fetchDataForSelectedPeriod();
   }, [fetchDataForSelectedPeriod]);
 
-
   const attendedAppointments = useMemo(() => {
     return monthlyAppointments.filter(app => app.status === 'ATTENDED')
       .sort((a, b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime());
   }, [monthlyAppointments]);
 
+  // Cálculos blindados com Money utility
   const totalAttendedAppointmentsValue = useMemo(() => {
-    return attendedAppointments.reduce((sum, app) => sum + app.totalPrice, 0);
+    return Money.sum(...attendedAppointments.map(app => app.totalPrice));
   }, [attendedAppointments]);
 
   const totalManualIncome = useMemo(() => {
-    return financialEntries
-      .filter(entry => entry.type === 'income')
-      .reduce((sum, entry) => sum + entry.amount, 0);
+    return Money.sum(...financialEntries.filter(e => e.type === 'income').map(e => e.amount));
   }, [financialEntries]);
 
   const totalManualExpenses = useMemo(() => {
-    return financialEntries
-      .filter(entry => entry.type === 'expense')
-      .reduce((sum, entry) => sum + entry.amount, 0);
+    return Money.sum(...financialEntries.filter(e => e.type === 'expense').map(e => e.amount));
   }, [financialEntries]);
 
   const netMonthlyBalance = useMemo(() => {
-    return totalAttendedAppointmentsValue + totalManualIncome - totalManualExpenses;
+    const totalIncome = Money.sum(totalAttendedAppointmentsValue, totalManualIncome);
+    return Money.subtract(totalIncome, totalManualExpenses);
   }, [totalAttendedAppointmentsValue, totalManualIncome, totalManualExpenses]);
 
   const displayIsLoading = isLoadingAppointmentsContext || isLoadingEntriesContext || isFetchingPageData;
@@ -185,31 +180,6 @@ export default function FinancialOverviewPage() {
         setIsExporting(false);
         setIsExportDialogOpen(false);
     }
-  };
-
-  const handleExportAll = async () => {
-      setIsExporting(true);
-      toast({ title: "Processando...", description: "Buscando histórico financeiro completo." });
-      try {
-          const allAppointments = await getAllAppointmentsData();
-          const allEntries = await getAllFinancialEntriesData();
-
-          if (allAppointments.filter(a => a.status === 'ATTENDED').length === 0 && allEntries.length === 0) {
-              toast({ title: "Sem dados", description: "O histórico financeiro está vazio.", variant: "destructive" });
-              return;
-          }
-          
-          const csvData = convertFinancialDataToCSV(allAppointments, allEntries);
-          const fileName = `relatorio_financeiro_completo_${format(new Date(), 'yyyy-MM-dd')}.csv`;
-          downloadCSV(csvData, fileName);
-
-          toast({ title: "Histórico Exportado!", description: "Relatório completo gerado com sucesso." });
-      } catch (error: any) {
-          console.error("Failed to export all financial data", error);
-          toast({ title: "Erro na Exportação", description: "Não foi possível consolidar os dados históricos.", variant: "destructive" });
-      } finally {
-          setIsExporting(false);
-      }
   };
 
   return (
@@ -328,25 +298,25 @@ export default function FinancialOverviewPage() {
                     <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1 font-semibold uppercase">
                       <Package className="h-3 w-3"/> Atendimentos
                     </p>
-                    <p className="font-bold text-xl">R$ {totalAttendedAppointmentsValue.toFixed(2)}</p>
+                    <p className="font-bold text-xl">{Money.format(totalAttendedAppointmentsValue)}</p>
                   </div>
                   <div className="p-4 bg-background border rounded-lg shadow-sm">
                     <p className="text-xs text-emerald-600 mb-1 flex items-center gap-1 font-semibold uppercase">
                       <TrendingUp className="h-3 w-3"/> Entradas Manuais
                     </p>
-                    <p className="font-bold text-xl text-emerald-600">R$ {totalManualIncome.toFixed(2)}</p>
+                    <p className="font-bold text-xl text-emerald-600">{Money.format(totalManualIncome)}</p>
                   </div>
                    <div className="p-4 bg-background border rounded-lg shadow-sm">
                     <p className="text-xs text-rose-600 mb-1 flex items-center gap-1 font-semibold uppercase">
                       <TrendingDown className="h-3 w-3"/> Saídas/Custos
                     </p>
-                    <p className="font-bold text-xl text-rose-600">R$ {totalManualExpenses.toFixed(2)}</p>
+                    <p className="font-bold text-xl text-rose-600">{Money.format(totalManualExpenses)}</p>
                   </div>
                   <div className="p-4 bg-primary text-primary-foreground border rounded-lg shadow-lg">
                     <p className="text-xs mb-1 flex items-center gap-1 font-bold uppercase opacity-90">
                       <DollarSign className="h-3 w-3"/> Saldo Líquido
                     </p>
-                    <p className="font-bold text-2xl">R$ {netMonthlyBalance.toFixed(2)}</p>
+                    <p className="font-bold text-2xl">{Money.format(netMonthlyBalance)}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -369,7 +339,7 @@ export default function FinancialOverviewPage() {
                             <TableRow>
                               <TableHead className="text-[10px] uppercase font-bold">Data</TableHead>
                               <TableHead className="text-[10px] uppercase font-bold">Cliente</TableHead>
-                              <TableHead className="text-[10px] uppercase font-bold text-right">Preço (R$)</TableHead>
+                              <TableHead className="text-[10px] uppercase font-bold text-right">Preço</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -377,7 +347,7 @@ export default function FinancialOverviewPage() {
                               <TableRow key={app.id}>
                                 <TableCell className="text-xs py-2">{format(parseISO(app.date), 'dd/MM/yy')}</TableCell>
                                 <TableCell className="text-xs py-2 font-medium truncate max-w-[120px]">{app.customerName}</TableCell>
-                                <TableCell className="text-xs py-2 text-right font-bold">R$ {app.totalPrice.toFixed(2)}</TableCell>
+                                <TableCell className="text-xs py-2 text-right font-bold">{Money.format(app.totalPrice)}</TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -421,7 +391,7 @@ export default function FinancialOverviewPage() {
                                   </div>
                                 </TableCell>
                                 <TableCell className={`text-xs py-2 text-right font-bold ${financialEntryTypeColors[entry.type]}`}>
-                                  {entry.type === 'income' ? '+' : '-'} R$ {entry.amount.toFixed(2)}
+                                  {entry.type === 'income' ? '+' : '-'} {Money.format(entry.amount)}
                                 </TableCell>
                                 <TableCell className="py-2">
                                   <AlertDialog>
@@ -434,7 +404,7 @@ export default function FinancialOverviewPage() {
                                       <AlertDialogHeader>
                                         <AlertDialogTitle>Remover Transação</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                          Deseja excluir "{entry.description}" (R$ {entry.amount.toFixed(2)})? Esta ação impactará seu saldo mensal.
+                                          Deseja excluir "{entry.description}" ({Money.format(entry.amount)})? Esta ação impactará seu saldo mensal.
                                         </AlertDialogDescription>
                                       </AlertDialogHeader>
                                       <AlertDialogFooter>
