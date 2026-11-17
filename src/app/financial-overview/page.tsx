@@ -6,7 +6,7 @@ import { useAppointments } from '@/contexts/AppointmentsContext';
 import { useFinancialEntries } from '@/contexts/FinancialEntriesContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -22,13 +22,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format, getYear, getMonth, setYear, setMonth as setDateFnsMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Loader2, Download, ClipboardList } from 'lucide-react';
+import { DollarSign, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Loader2, Download, ClipboardList, Info } from 'lucide-react';
 import type { Appointment, ManualFinancialEntry } from '@/lib/types';
 import { ManualFinancialEntryForm } from '@/components/forms/ManualFinancialEntryForm';
 import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls';
 import { DEFAULT_YEARS_FOR_FILTER, DEFAULT_MONTHS_FOR_FILTER, CURRENT_YEAR } from '@/lib/constants';
-import { getAllAppointmentsData } from '@/app/actions/appointmentActions';
-import { getAllFinancialEntriesData, getFinancialEntriesByMonthData } from '@/app/actions/financialEntryActions';
+import { getFinancialEntriesByMonthData } from '@/app/actions/financialEntryActions';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -106,7 +105,7 @@ export default function FinancialOverviewPage() {
   };
 
   const convertFinancialDataToCSV = (appointments: Appointment[], entries: ManualFinancialEntry[]) => {
-    const header = ['Data', 'Descricao', 'Procedimentos', 'Valor Entrada (R$)', 'Valor Saida (R$)', 'Tipo/Origem'];
+    const header = ['Data', 'Cliente/Descrição', 'Detalhamento dos Procedimentos', 'Valor Entrada (R$)', 'Valor Saída (R$)', 'Tipo/Origem'];
 
     const appointmentRows = appointments.filter(app => app.status === 'ATTENDED').map(app => ({
         date: app.date,
@@ -123,7 +122,7 @@ export default function FinancialOverviewPage() {
         procedures: '-',
         income: entry.type === 'income' ? entry.amount : 0,
         expense: entry.type === 'expense' ? entry.amount : 0,
-        origin: entry.type === 'income' ? 'Entrada Manual' : 'Saida/Despesa Manual',
+        origin: entry.type === 'income' ? 'Entrada Manual' : 'Saída/Despesa Manual',
     }));
 
     const allRows = [...appointmentRows, ...entryRows].sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
@@ -323,44 +322,44 @@ export default function FinancialOverviewPage() {
                 </CardContent>
               </Card>
 
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6">
                 <Card className="shadow-sm">
                   <CardHeader className="pb-3 border-b">
                     <CardTitle className="text-base font-bold flex items-center gap-2">
                       <ClipboardList className="h-4 w-4 text-primary" />
-                      Histórico de Atendimentos ({attendedAppointments.length})
+                      Histórico de Receitas por Atendimento ({attendedAppointments.length})
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-4">
                     {attendedAppointments.length === 0 ? (
                       <p className="text-muted-foreground text-sm text-center py-8">Nenhuma receita de atendimento no período.</p>
                     ) : (
-                      <ScrollArea className="h-[350px]">
+                      <ScrollArea className="h-[400px] w-full rounded-md border">
                         <Table>
-                          <TableHeader className="sticky top-0 bg-background z-10">
+                          <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
                             <TableRow>
-                              <TableHead className="text-[10px] uppercase font-bold">Data</TableHead>
-                              <TableHead className="text-[10px] uppercase font-bold">Cliente / Procedimentos</TableHead>
-                              <TableHead className="text-[10px] uppercase font-bold text-right">Preço</TableHead>
+                              <TableHead className="text-[10px] uppercase font-bold w-[100px]">Data</TableHead>
+                              <TableHead className="text-[10px] uppercase font-bold w-[180px]">Cliente</TableHead>
+                              <TableHead className="text-[10px] uppercase font-bold">Detalhamento dos Procedimentos</TableHead>
+                              <TableHead className="text-[10px] uppercase font-bold text-right w-[120px]">Valor (R$)</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {attendedAppointments.map((app) => (
-                              <TableRow key={app.id}>
-                                <TableCell className="text-xs py-2">{format(parseISO(app.date), 'dd/MM/yy')}</TableCell>
-                                <TableCell className="text-xs py-2 font-medium truncate max-w-[180px]">
-                                  <div className="flex flex-col">
-                                    <span className="font-bold">{app.customerName}</span>
-                                    <span className="text-[9px] text-muted-foreground italic truncate">
-                                      {app.selectedProcedures.map(p => p.name).join(', ')}
-                                    </span>
-                                  </div>
+                              <TableRow key={app.id} className="hover:bg-muted/30">
+                                <TableCell className="text-xs py-3">{format(parseISO(app.date), 'dd/MM/yyyy')}</TableCell>
+                                <TableCell className="text-xs py-3 font-bold">{app.customerName}</TableCell>
+                                <TableCell className="text-[11px] py-3 text-muted-foreground italic">
+                                  {app.selectedProcedures.map(p => p.name).join(' + ')}
                                 </TableCell>
-                                <TableCell className="text-xs py-2 text-right font-bold">{Money.format(app.totalPrice)}</TableCell>
+                                <TableCell className="text-xs py-3 text-right font-bold text-emerald-600">
+                                  {Money.format(app.totalPrice)}
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
                         </Table>
+                        <ScrollBar orientation="horizontal" />
                       </ScrollArea>
                     )}
                   </CardContent>
@@ -377,36 +376,36 @@ export default function FinancialOverviewPage() {
                     {financialEntries.length === 0 ? (
                       <p className="text-muted-foreground text-sm text-center py-8">Nenhuma transação manual registrada.</p>
                     ) : (
-                      <ScrollArea className="h-[350px]">
+                      <ScrollArea className="h-[350px] w-full rounded-md border">
                         <Table>
-                          <TableHeader className="sticky top-0 bg-background z-10">
+                          <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
                             <TableRow>
-                              <TableHead className="text-[10px] uppercase font-bold">Data</TableHead>
+                              <TableHead className="text-[10px] uppercase font-bold w-[100px]">Data</TableHead>
                               <TableHead className="text-[10px] uppercase font-bold">Descrição</TableHead>
-                              <TableHead className="text-[10px] uppercase font-bold text-right">Valor</TableHead>
-                              <TableHead className="text-center w-10"></TableHead>
+                              <TableHead className="text-[10px] uppercase font-bold text-right w-[150px]">Valor</TableHead>
+                              <TableHead className="text-center w-[80px]">Ações</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {financialEntries.sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()).map((entry) => (
-                              <TableRow key={entry.id}>
-                                <TableCell className="text-xs py-2">{format(parseISO(entry.date), 'dd/MM/yy')}</TableCell>
-                                <TableCell className="text-xs py-2">
+                              <TableRow key={entry.id} className="hover:bg-muted/30">
+                                <TableCell className="text-xs py-3">{format(parseISO(entry.date), 'dd/MM/yyyy')}</TableCell>
+                                <TableCell className="text-xs py-3">
                                   <div className="flex flex-col">
-                                    <span className="font-medium truncate max-w-[100px]">{entry.description}</span>
-                                    <span className={`text-[10px] ${financialEntryTypeColors[entry.type]}`}>
+                                    <span className="font-medium">{entry.description}</span>
+                                    <span className={`text-[9px] uppercase font-bold ${financialEntryTypeColors[entry.type]}`}>
                                       {financialEntryTypeTranslations[entry.type]}
                                     </span>
                                   </div>
                                 </TableCell>
-                                <TableCell className={`text-xs py-2 text-right font-bold ${financialEntryTypeColors[entry.type]}`}>
+                                <TableCell className={`text-xs py-3 text-right font-bold ${financialEntryTypeColors[entry.type]}`}>
                                   {entry.type === 'income' ? '+' : '-'} {Money.format(entry.amount)}
                                 </TableCell>
-                                <TableCell className="py-2">
+                                <TableCell className="py-3 text-center">
                                   <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10">
-                                        <Trash2 className="h-3.5 w-3.5" />
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10">
+                                        <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
@@ -432,6 +431,7 @@ export default function FinancialOverviewPage() {
                             ))}
                           </TableBody>
                         </Table>
+                        <ScrollBar orientation="horizontal" />
                       </ScrollArea>
                     )}
                   </CardContent>
