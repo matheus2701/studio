@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from '@/components/ui/badge';
 import { format, getYear, getMonth, setYear, setMonth as setDateFnsMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DollarSign, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Loader2, Download, ClipboardList, Info } from 'lucide-react';
@@ -32,6 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Money } from '@/lib/financeUtils';
+import { cn } from '@/lib/utils';
 
 const financialEntryTypeTranslations: Record<ManualFinancialEntry['type'], string> = {
   income: "Entrada",
@@ -294,7 +296,7 @@ export default function FinancialOverviewPage() {
                     Fluxo de Caixa: {format(setDateFnsMonth(setYear(new Date(), selectedYear), selectedMonth), 'MMMM \'de\' yyyy', { locale: ptBR })}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <CardContent className="grid gap-3 grid-cols-2 lg:grid-cols-4">
                   <div className="p-4 bg-background border rounded-lg shadow-sm">
                     <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1 font-semibold uppercase">
                       <Package className="h-3 w-3"/> Atendimentos
@@ -313,7 +315,7 @@ export default function FinancialOverviewPage() {
                     </p>
                     <p className="font-bold text-xl text-rose-600">{Money.format(totalManualExpenses)}</p>
                   </div>
-                  <div className="p-4 bg-primary text-primary-foreground border rounded-lg shadow-lg">
+                  <div className="p-4 bg-primary text-primary-foreground border rounded-lg shadow-lg col-span-2 lg:col-span-1">
                     <p className="text-xs mb-1 flex items-center gap-1 font-bold uppercase opacity-90">
                       <DollarSign className="h-3 w-3"/> Saldo Líquido
                     </p>
@@ -334,33 +336,60 @@ export default function FinancialOverviewPage() {
                     {attendedAppointments.length === 0 ? (
                       <p className="text-muted-foreground text-sm text-center py-8">Nenhuma receita de atendimento no período.</p>
                     ) : (
-                      <ScrollArea className="h-[400px] w-full rounded-md border">
-                        <Table>
-                          <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
-                            <TableRow>
-                              <TableHead className="text-[10px] uppercase font-bold w-[100px]">Data</TableHead>
-                              <TableHead className="text-[10px] uppercase font-bold w-[180px]">Cliente</TableHead>
-                              <TableHead className="text-[10px] uppercase font-bold">Detalhamento dos Procedimentos</TableHead>
-                              <TableHead className="text-[10px] uppercase font-bold text-right w-[120px]">Valor (R$)</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {attendedAppointments.map((app) => (
-                              <TableRow key={app.id} className="hover:bg-muted/30">
-                                <TableCell className="text-xs py-3">{format(parseISO(app.date), 'dd/MM/yyyy')}</TableCell>
-                                <TableCell className="text-xs py-3 font-bold">{app.customerName}</TableCell>
-                                <TableCell className="text-[11px] py-3 text-muted-foreground italic">
-                                  {app.selectedProcedures.map(p => p.name).join(' + ')}
-                                </TableCell>
-                                <TableCell className="text-xs py-3 text-right font-bold text-emerald-600">
+                      <>
+                        {/* Desktop View */}
+                        <div className="hidden md:block">
+                          <ScrollArea className="h-[400px] w-full rounded-md border">
+                            <Table>
+                              <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
+                                <TableRow>
+                                  <TableHead className="text-[10px] uppercase font-bold w-[100px]">Data</TableHead>
+                                  <TableHead className="text-[10px] uppercase font-bold w-[180px]">Cliente</TableHead>
+                                  <TableHead className="text-[10px] uppercase font-bold">Detalhamento dos Procedimentos</TableHead>
+                                  <TableHead className="text-[10px] uppercase font-bold text-right w-[120px]">Valor (R$)</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {attendedAppointments.map((app) => (
+                                  <TableRow key={app.id} className="hover:bg-muted/30">
+                                    <TableCell className="text-xs py-3">{format(parseISO(app.date), 'dd/MM/yyyy')}</TableCell>
+                                    <TableCell className="text-xs py-3 font-bold">{app.customerName}</TableCell>
+                                    <TableCell className="text-[11px] py-3 text-muted-foreground italic">
+                                      {app.selectedProcedures.map(p => p.name).join(' + ')}
+                                    </TableCell>
+                                    <TableCell className="text-xs py-3 text-right font-bold text-emerald-600">
+                                      {Money.format(app.totalPrice)}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                            <ScrollBar orientation="horizontal" />
+                          </ScrollArea>
+                        </div>
+
+                        {/* Mobile View */}
+                        <div className="md:hidden space-y-3">
+                          {attendedAppointments.map((app) => (
+                            <div key={app.id} className="p-3 border rounded-lg bg-background shadow-sm space-y-2">
+                              <div className="flex justify-between items-start gap-2">
+                                <span className="font-bold text-sm text-foreground">{app.customerName}</span>
+                                <span className="text-emerald-600 font-semibold whitespace-nowrap text-sm">
                                   {Money.format(app.totalPrice)}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                        <ScrollBar orientation="horizontal" />
-                      </ScrollArea>
+                                </span>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[10px] font-medium text-muted-foreground uppercase bg-muted w-fit px-1.5 py-0.5 rounded">
+                                  {format(parseISO(app.date), 'dd/MM/yyyy')}
+                                </span>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                  {app.selectedProcedures.map(p => p.name).join(' + ')}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
                     )}
                   </CardContent>
                 </Card>
@@ -376,63 +405,125 @@ export default function FinancialOverviewPage() {
                     {financialEntries.length === 0 ? (
                       <p className="text-muted-foreground text-sm text-center py-8">Nenhuma transação manual registrada.</p>
                     ) : (
-                      <ScrollArea className="h-[350px] w-full rounded-md border">
-                        <Table>
-                          <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
-                            <TableRow>
-                              <TableHead className="text-[10px] uppercase font-bold w-[100px]">Data</TableHead>
-                              <TableHead className="text-[10px] uppercase font-bold">Descrição</TableHead>
-                              <TableHead className="text-[10px] uppercase font-bold text-right w-[150px]">Valor</TableHead>
-                              <TableHead className="text-center w-[80px]">Ações</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {financialEntries.sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()).map((entry) => (
-                              <TableRow key={entry.id} className="hover:bg-muted/30">
-                                <TableCell className="text-xs py-3">{format(parseISO(entry.date), 'dd/MM/yyyy')}</TableCell>
-                                <TableCell className="text-xs py-3">
-                                  <div className="flex flex-col">
-                                    <span className="font-medium">{entry.description}</span>
-                                    <span className={`text-[9px] uppercase font-bold ${financialEntryTypeColors[entry.type]}`}>
-                                      {financialEntryTypeTranslations[entry.type]}
-                                    </span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className={`text-xs py-3 text-right font-bold ${financialEntryTypeColors[entry.type]}`}>
+                      <>
+                        {/* Desktop View */}
+                        <div className="hidden md:block">
+                          <ScrollArea className="h-[350px] w-full rounded-md border">
+                            <Table>
+                              <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
+                                <TableRow>
+                                  <TableHead className="text-[10px] uppercase font-bold w-[100px]">Data</TableHead>
+                                  <TableHead className="text-[10px] uppercase font-bold">Descrição</TableHead>
+                                  <TableHead className="text-[10px] uppercase font-bold text-right w-[150px]">Valor</TableHead>
+                                  <TableHead className="text-center w-[80px]">Ações</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {financialEntries.sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()).map((entry) => (
+                                  <TableRow key={entry.id} className="hover:bg-muted/30">
+                                    <TableCell className="text-xs py-3">{format(parseISO(entry.date), 'dd/MM/yyyy')}</TableCell>
+                                    <TableCell className="text-xs py-3">
+                                      <div className="flex flex-col">
+                                        <span className="font-medium">{entry.description}</span>
+                                        <span className={`text-[9px] uppercase font-bold ${financialEntryTypeColors[entry.type]}`}>
+                                          {financialEntryTypeTranslations[entry.type]}
+                                        </span>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className={`text-xs py-3 text-right font-bold ${financialEntryTypeColors[entry.type]}`}>
+                                      {entry.type === 'income' ? '+' : '-'} {Money.format(entry.amount)}
+                                    </TableCell>
+                                    <TableCell className="py-3 text-center">
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10">
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Remover Transação</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Deseja excluir "{entry.description}" ({Money.format(entry.amount)})? Esta ação impactará seu saldo mensal.
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction
+                                              className="bg-destructive hover:bg-destructive/90"
+                                              onClick={() => deleteFinancialEntry(entry.id)}
+                                            >
+                                              Excluir
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                            <ScrollBar orientation="horizontal" />
+                          </ScrollArea>
+                        </div>
+
+                        {/* Mobile View */}
+                        <div className="md:hidden space-y-3">
+                          {financialEntries.sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()).map((entry) => (
+                            <div key={entry.id} className="p-3 border rounded-lg bg-background shadow-sm flex justify-between items-center gap-4">
+                              <div className="space-y-1.5">
+                                <p className="font-bold text-sm text-foreground">{entry.description}</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {format(parseISO(entry.date), 'dd/MM/yyyy')}
+                                  </span>
+                                  <Badge 
+                                    variant="outline" 
+                                    className={cn(
+                                      "text-[9px] h-4 px-1.5 font-bold uppercase",
+                                      entry.type === 'income' ? "text-emerald-600 border-emerald-200 bg-emerald-50" : "text-rose-600 border-rose-200 bg-rose-50"
+                                    )}
+                                  >
+                                    {entry.type === 'income' ? "Entrada" : "Saída"}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={cn(
+                                  "font-bold text-sm whitespace-nowrap",
+                                  entry.type === 'income' ? "text-emerald-600" : "text-rose-600"
+                                )}>
                                   {entry.type === 'income' ? '+' : '-'} {Money.format(entry.amount)}
-                                </TableCell>
-                                <TableCell className="py-3 text-center">
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10">
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Remover Transação</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Deseja excluir "{entry.description}" ({Money.format(entry.amount)})? Esta ação impactará seu saldo mensal.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          className="bg-destructive hover:bg-destructive/90"
-                                          onClick={() => deleteFinancialEntry(entry.id)}
-                                        >
-                                          Excluir
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                        <ScrollBar orientation="horizontal" />
-                      </ScrollArea>
+                                </span>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive p-2">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Remover Transação</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Deseja excluir "{entry.description}"?
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className="bg-destructive hover:bg-destructive/90"
+                                        onClick={() => deleteFinancialEntry(entry.id)}
+                                      >
+                                        Excluir
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
                     )}
                   </CardContent>
                 </Card>
