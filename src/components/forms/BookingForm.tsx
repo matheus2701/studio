@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,6 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardTitle } from "@/components/ui/card";
 import { useEffect } from "react";
 import { useCustomers } from "@/contexts/CustomersContext";
+import { Loader2 } from "lucide-react";
 
 const bookingFormSchema = z.object({
   customerName: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
@@ -93,10 +93,6 @@ export function BookingForm({
           phone: data.customerPhone,
           tags: [],
         });
-        toast({
-          title: "Novo Cliente Criado",
-          description: `${customerNameTrimmed} foi salvo na sua lista de clientes.`,
-        });
       } catch (error) {
         console.error("Falha ao criar cliente automaticamente:", error);
       }
@@ -119,9 +115,9 @@ export function BookingForm({
       : null;
 
     await onFormSubmit(appointmentDataPayload, finalAppointmentData || undefined);
-    
-    // Integração com Google Agenda desativada temporariamente para estabilidade
   }
+
+  const { isSubmitting } = form.formState;
 
   return (
     <Form {...form}>
@@ -148,7 +144,7 @@ export function BookingForm({
             <FormItem>
               <FormLabel>Nome Completo do Cliente</FormLabel>
               <FormControl>
-                <Input placeholder="Nome do cliente" {...field} />
+                <Input placeholder="Nome do cliente" {...field} disabled={isSubmitting} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -161,7 +157,7 @@ export function BookingForm({
             <FormItem>
               <FormLabel>Telefone/Whatsapp (Opcional)</FormLabel>
               <FormControl>
-                <Input type="tel" placeholder="(XX) XXXXX-XXXX" {...field} />
+                <Input type="tel" placeholder="(XX) XXXXX-XXXX" {...field} disabled={isSubmitting} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -174,7 +170,7 @@ export function BookingForm({
             <FormItem>
               <FormLabel>Observações (Opcional)</FormLabel>
               <FormControl>
-                <Textarea placeholder="Alguma observação para o profissional?" {...field} rows={3}/>
+                <Textarea placeholder="Alguma observação para o profissional?" {...field} rows={3} disabled={isSubmitting} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -189,6 +185,7 @@ export function BookingForm({
                 <Checkbox
                   checked={field.value}
                   onCheckedChange={field.onChange}
+                  disabled={isSubmitting}
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
@@ -199,8 +196,15 @@ export function BookingForm({
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={selectedProcedures.length === 0}>
-          {appointmentToEdit ? "Salvar Alterações" : "Confirmar Agendamento"}
+        <Button type="submit" className="w-full" disabled={selectedProcedures.length === 0 || isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processando...
+            </>
+          ) : (
+            appointmentToEdit ? "Salvar Alterações" : "Confirmar Agendamento"
+          )}
         </Button>
       </form>
     </Form>

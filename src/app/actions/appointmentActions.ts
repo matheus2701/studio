@@ -63,9 +63,11 @@ export async function getAllAppointmentsData(): Promise<Appointment[]> {
   }
 }
 
-export async function addAppointmentData(appointmentData: Omit<Appointment, 'id' | 'status'>): Promise<Appointment | null> {
+/**
+ * Retorna um objeto padronizado para evitar o mascaramento de erros do Next.js em produção.
+ */
+export async function addAppointmentData(appointmentData: Omit<Appointment, 'id' | 'status'>): Promise<{ success: boolean; data?: Appointment; error?: string }> {
   try {
-    // Validação de conflito no servidor
     const hasConflict = await checkScheduleConflict(
       appointmentData.date, 
       appointmentData.time, 
@@ -73,7 +75,7 @@ export async function addAppointmentData(appointmentData: Omit<Appointment, 'id'
     );
 
     if (hasConflict) {
-      throw new Error("Este horário já foi preenchido por outro agendamento. Por favor, escolha outro.");
+      return { success: false, error: "Este horário já foi preenchido. Por favor, escolha outro." };
     }
 
     const newAppointmentPayload = {
@@ -89,16 +91,20 @@ export async function addAppointmentData(appointmentData: Omit<Appointment, 'id'
       .select()
       .single();
 
-    if (error) throw new Error(formatSupabaseErrorMessage(error, 'adicionar agendamento'));
-    return data ? sanitizeAppointment(data) : null;
+    if (error) return { success: false, error: formatSupabaseErrorMessage(error, 'adicionar agendamento') };
+    
+    return { 
+      success: true, 
+      data: data ? sanitizeAppointment(data) : undefined 
+    };
   } catch (e: any) {
-    throw new Error(e.message || CONNECTION_ERROR);
+    console.error('[Actions] addAppointmentData Critical Error:', e);
+    return { success: false, error: e.message || CONNECTION_ERROR };
   }
 }
 
-export async function updateAppointmentData(updatedAppointment: Appointment): Promise<Appointment | null> {
+export async function updateAppointmentData(updatedAppointment: Appointment): Promise<{ success: boolean; data?: Appointment; error?: string }> {
   try {
-    // Validação de conflito no servidor ao editar/reagendar
     const hasConflict = await checkScheduleConflict(
       updatedAppointment.date, 
       updatedAppointment.time, 
@@ -107,7 +113,7 @@ export async function updateAppointmentData(updatedAppointment: Appointment): Pr
     );
 
     if (hasConflict) {
-      throw new Error("O novo horário selecionado conflita com outro agendamento existente.");
+      return { success: false, error: "O novo horário selecionado conflita com outro agendamento." };
     }
 
     const { data, error } = await supabase
@@ -117,10 +123,15 @@ export async function updateAppointmentData(updatedAppointment: Appointment): Pr
       .select()
       .single();
 
-    if (error) throw new Error(formatSupabaseErrorMessage(error, 'atualizar agendamento'));
-    return data ? sanitizeAppointment(data) : null;
+    if (error) return { success: false, error: formatSupabaseErrorMessage(error, 'atualizar agendamento') };
+    
+    return { 
+      success: true, 
+      data: data ? sanitizeAppointment(data) : undefined 
+    };
   } catch (e: any) {
-    throw new Error(e.message || CONNECTION_ERROR);
+    console.error('[Actions] updateAppointmentData Critical Error:', e);
+    return { success: false, error: e.message || CONNECTION_ERROR };
   }
 }
 
