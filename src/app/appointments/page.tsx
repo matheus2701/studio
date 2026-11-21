@@ -29,7 +29,6 @@ import {
   ChevronUp,
   RefreshCw,
   CalendarDays,
-  ArrowRight
 } from 'lucide-react';
 import { 
   format, 
@@ -89,7 +88,11 @@ type QuickFilter = 'ALL' | 'TODAY' | 'TOMORROW' | 'WEEK';
 
 export default function AppointmentsListPage() {
   const router = useRouter();
-  const { getAppointmentsByMonth, updateAppointmentStatus, deleteAppointment } = useAppointments();
+  const { 
+    getAppointmentsByMonth, 
+    updateAppointmentStatus: updateStatusContext, 
+    deleteAppointment: deleteContext 
+  } = useAppointments();
   
   const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
   const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()));
@@ -120,6 +123,19 @@ export default function AppointmentsListPage() {
     setMounted(true);
     fetchAppointments();
   }, [fetchAppointments]);
+
+  // Handlers para atualização em tempo real
+  const handleUpdateStatus = async (id: string, newStatus: AppointmentStatus) => {
+    const updated = await updateStatusContext(id, newStatus);
+    if (updated) {
+      setMonthlyAppointments(prev => prev.map(app => app.id === id ? updated : app));
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteContext(id);
+    setMonthlyAppointments(prev => prev.filter(app => app.id !== id));
+  };
 
   const weeksOfMonth = useMemo(() => {
     const start = startOfMonth(new Date(selectedYear, selectedMonth));
@@ -160,13 +176,11 @@ export default function AppointmentsListPage() {
         matchesWeek = isWithinInterval(appDate, { start: week.start, end: week.end });
       }
 
-      // Filtro de tempo (Passados vs Futuros)
       let matchesTimeRange = true;
       if (!showPast && isCurrentMonth && quickFilter === 'ALL') {
         matchesTimeRange = !isBefore(appDayStart, today);
       }
 
-      // Filtros rápidos
       let matchesQuickFilter = true;
       if (quickFilter === 'TODAY') {
         matchesQuickFilter = isToday(appDate);
@@ -381,11 +395,6 @@ export default function AppointmentsListPage() {
           <div className="text-center py-20 text-muted-foreground border border-dashed rounded-lg bg-muted/10">
             <CalendarClock className="h-12 w-12 mx-auto mb-4 opacity-20" />
             <p className="text-sm">Nenhum registro encontrado para estes filtros.</p>
-            {(!showPast && quickFilter === 'ALL') && (
-              <Button variant="link" onClick={() => setShowPast(true)} className="text-xs mt-2">
-                Ver agendamentos passados do mês
-              </Button>
-            )}
           </div>
         ) : (
           <div className="space-y-6">
@@ -457,22 +466,22 @@ export default function AppointmentsListPage() {
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   {app.status !== 'ATTENDED' && (
-                                    <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'ATTENDED')}>
+                                    <DropdownMenuItem onClick={() => handleUpdateStatus(app.id, 'ATTENDED')}>
                                       <CheckCircle2 className="mr-2 h-4 w-4 text-status-attended" /> Marcar como Realizado
                                     </DropdownMenuItem>
                                   )}
                                   {app.status !== 'CONFIRMED' && (
-                                    <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CONFIRMED')}>
+                                    <DropdownMenuItem onClick={() => handleUpdateStatus(app.id, 'CONFIRMED')}>
                                       <RotateCcw className="mr-2 h-4 w-4 text-status-confirmed" /> Reabrir Agendamento
                                     </DropdownMenuItem>
                                   )}
                                   {app.status !== 'CANCELLED' && (
-                                    <DropdownMenuItem onClick={() => updateAppointmentStatus(app.id, 'CANCELLED')}>
+                                    <DropdownMenuItem onClick={() => handleUpdateStatus(app.id, 'CANCELLED')}>
                                       <XCircle className="mr-2 h-4 w-4 text-status-cancelled" /> Cancelar Atendimento
                                     </DropdownMenuItem>
                                   )}
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem onClick={() => deleteAppointment(app.id)} className="text-destructive focus:bg-destructive/10">
+                                  <DropdownMenuItem onClick={() => handleDelete(app.id)} className="text-destructive focus:bg-destructive/10">
                                     <Trash2 className="mr-2 h-4 w-4" /> Excluir Registro
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
