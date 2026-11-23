@@ -27,6 +27,22 @@ export async function getFinancialEntriesByMonthData(year: number, month: number
   }
 }
 
+export async function getFinancialEntriesByRange(startDate: string, endDate: string): Promise<ManualFinancialEntry[]> {
+  try {
+    const { data, error } = await supabase
+      .from('financial_entries')
+      .select('*')
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: true });
+
+    if (error) throw new Error(formatSupabaseErrorMessage(error, 'buscar lançamentos financeiros no período'));
+    return (data || []).map(entry => sanitizeFinancialEntry(entry));
+  } catch (e: any) {
+    throw new Error(e.message || CONNECTION_ERROR);
+  }
+}
+
 export async function addFinancialEntryData(entryData: Omit<ManualFinancialEntry, 'id' | 'created_at'>): Promise<ManualFinancialEntry | null> {
   try {
     const { data, error } = await supabase

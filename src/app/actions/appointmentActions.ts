@@ -1,3 +1,4 @@
+
 'use server';
 
 import type { Appointment, AppointmentStatus } from '@/lib/types';
@@ -57,6 +58,23 @@ export async function getAllAppointmentsData(): Promise<Appointment[]> {
       .order('date', { ascending: true });
 
     if (error) throw new Error(formatSupabaseErrorMessage(error, 'buscar histórico de agendamentos'));
+    return (data || []).map(app => sanitizeAppointment(app));
+  } catch (e: any) {
+    throw new Error(e.message || CONNECTION_ERROR);
+  }
+}
+
+export async function getAppointmentsByRange(startDate: string, endDate: string): Promise<Appointment[]> {
+  try {
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: true })
+      .order('time', { ascending: true });
+
+    if (error) throw new Error(formatSupabaseErrorMessage(error, 'buscar agendamentos no período'));
     return (data || []).map(app => sanitizeAppointment(app));
   } catch (e: any) {
     throw new Error(e.message || CONNECTION_ERROR);

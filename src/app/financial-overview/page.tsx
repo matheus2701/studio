@@ -23,17 +23,14 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { format, getYear, getMonth, setYear, setMonth as setDateFnsMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DollarSign, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Loader2, Download, ClipboardList, Info } from 'lucide-react';
+import { DollarSign, Package, PlusCircle, Trash2, TrendingUp, TrendingDown, MinusCircle, Loader2, Download, ClipboardList } from 'lucide-react';
 import type { Appointment, ManualFinancialEntry } from '@/lib/types';
 import { ManualFinancialEntryForm } from '@/components/forms/ManualFinancialEntryForm';
 import { PeriodFilterControls } from '@/components/shared/PeriodFilterControls';
 import { DEFAULT_YEARS_FOR_FILTER, DEFAULT_MONTHS_FOR_FILTER, CURRENT_YEAR } from '@/lib/constants';
-import { getFinancialEntriesByMonthData } from '@/app/actions/financialEntryActions';
-import { useToast } from '@/hooks/use-toast';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { Money } from '@/lib/financeUtils';
 import { cn } from '@/lib/utils';
+import { FinancialExportDialog } from '@/components/FinancialExportDialog';
 
 const financialEntryTypeTranslations: Record<ManualFinancialEntry['type'], string> = {
   income: "Entrada",
@@ -59,12 +56,7 @@ export default function FinancialOverviewPage() {
   const [monthlyAppointments, setMonthlyAppointments] = useState<Appointment[]>([]);
   const [isFetchingPageData, setIsFetchingPageData] = useState(false);
   const [isAddEntryDialogOpen, setIsAddEntryDialogOpen] = useState(false);
-
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportYear, setExportYear] = useState<number>(CURRENT_YEAR);
-  const [exportMonth, setExportMonth] = useState<number>(getMonth(new Date()));
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-  const { toast } = useToast();
 
   const fetchDataForSelectedPeriod = useCallback(async () => {
     setIsFetchingPageData(true);
@@ -106,85 +98,6 @@ export default function FinancialOverviewPage() {
     fetchDataForSelectedPeriod();
   };
 
-  const convertFinancialDataToCSV = (appointments: Appointment[], entries: ManualFinancialEntry[]) => {
-    const header = ['Data', 'Cliente/Descrição', 'Detalhamento dos Procedimentos', 'Valor Entrada (R$)', 'Valor Saída (R$)', 'Tipo/Origem'];
-
-    const appointmentRows = appointments.filter(app => app.status === 'ATTENDED').map(app => ({
-        date: app.date,
-        description: app.customerName,
-        procedures: app.selectedProcedures.map(p => p.name).join(' + '),
-        income: app.totalPrice,
-        expense: 0,
-        origin: 'Receita de Atendimento',
-    }));
-
-    const entryRows = entries.map(entry => ({
-        date: entry.date,
-        description: entry.description,
-        procedures: '-',
-        income: entry.type === 'income' ? entry.amount : 0,
-        expense: entry.type === 'expense' ? entry.amount : 0,
-        origin: entry.type === 'income' ? 'Entrada Manual' : 'Saída/Despesa Manual',
-    }));
-
-    const allRows = [...appointmentRows, ...entryRows].sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
-    
-    if (allRows.length === 0) return '';
-
-    const csvRows = allRows.map(row => [
-        `"${format(parseISO(row.date), 'dd/MM/yyyy')}"`,
-        `"${row.description.replace(/"/g, '""')}"`,
-        `"${row.procedures.replace(/"/g, '""')}"`,
-        row.income.toFixed(2),
-        row.expense.toFixed(2),
-        `"${row.origin}"`,
-    ].join(','));
-    
-    return [header.join(','), ...csvRows].join('\n');
-  };
-
-  const downloadCSV = (csvData: string, filename: string) => {
-    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
-
-  const handleExportMonth = async () => {
-    setIsExporting(true);
-    const periodText = format(setDateFnsMonth(setYear(new Date(), exportYear), exportMonth), "MMMM 'de' yyyy", { locale: ptBR });
-    toast({ title: "Gerando CSV...", description: `Preparando relatório consolidado de ${periodText}.` });
-
-    try {
-        const appointmentsToExport = await getAppointmentsByMonth(exportYear, exportMonth);
-        const entriesToExport = await getFinancialEntriesByMonthData(exportYear, exportMonth);
-
-        if (appointmentsToExport.filter(a => a.status === 'ATTENDED').length === 0 && entriesToExport.length === 0) {
-            toast({ title: "Dados insuficientes", description: `Não há registros financeiros em ${periodText}.`, variant: "destructive" });
-            return;
-        }
-        
-        const csvData = convertFinancialDataToCSV(appointmentsToExport, entriesToExport);
-        const fileName = `relatorio_financeiro_${exportYear}_${String(exportMonth + 1).padStart(2, '0')}.csv`;
-        downloadCSV(csvData, fileName);
-
-        toast({ title: "Relatório Exportado!", description: `Arquivo salvo com sucesso para ${periodText}.` });
-    } catch (error: any) {
-        console.error("Failed to export monthly financial data", error);
-        toast({ title: "Erro na Exportação", description: "Ocorreu uma falha ao gerar o arquivo CSV.", variant: "destructive" });
-    } finally {
-        setIsExporting(false);
-        setIsExportDialogOpen(false);
-    }
-  };
-
   return (
     <div className="space-y-8">
       <Card>
@@ -195,7 +108,7 @@ export default function FinancialOverviewPage() {
               Gestão Financeira
             </CardTitle>
             <CardDescription>
-              Acompanhe seu faturamento consolidado e exporte relatórios para contabilidade.
+              Acompanhe seu faturamento consolidado e exporte relatórios profissionais.
             </CardDescription>
           </div>
            <div className="flex flex-col sm:flex-row gap-2 items-center w-full sm:w-auto">
@@ -217,58 +130,9 @@ export default function FinancialOverviewPage() {
                 }} />
               </DialogContent>
             </Dialog>
-            <AlertDialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-auto shadow-sm">
-                  <Download className="mr-2 h-4 w-4" /> Exportar Relatório...
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Exportar Dados Financeiros</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Selecione o período para gerar um arquivo CSV com todas as receitas e despesas.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="export-year" className="text-right">Ano</Label>
-                    <Select value={exportYear.toString()} onValueChange={(value) => setExportYear(parseInt(value))}>
-                      <SelectTrigger id="export-year" className="col-span-3">
-                        <SelectValue placeholder="Ano" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DEFAULT_YEARS_FOR_FILTER.map(year => (
-                          <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="export-month" className="text-right">Mês</Label>
-                     <Select value={exportMonth.toString()} onValueChange={(value) => setExportMonth(parseInt(value))}>
-                      <SelectTrigger id="export-month" className="col-span-3">
-                        <SelectValue placeholder="Mês" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DEFAULT_MONTHS_FOR_FILTER.map(monthIdx => (
-                          <SelectItem key={monthIdx} value={monthIdx.toString()}>
-                            {format(setDateFnsMonth(new Date(), monthIdx), 'MMMM', { locale: ptBR })}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Voltar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleExportMonth} disabled={isExporting} className="bg-primary hover:bg-primary/90">
-                     {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                     Gerar Relatório
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Button variant="outline" className="w-full sm:w-auto shadow-sm" onClick={() => setIsExportDialogOpen(true)}>
+              <Download className="mr-2 h-4 w-4" /> Exportar Relatório...
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -337,7 +201,6 @@ export default function FinancialOverviewPage() {
                       <p className="text-muted-foreground text-sm text-center py-8">Nenhuma receita de atendimento no período.</p>
                     ) : (
                       <>
-                        {/* Desktop View */}
                         <div className="hidden md:block">
                           <ScrollArea className="h-[400px] w-full rounded-md border">
                             <Table>
@@ -368,7 +231,6 @@ export default function FinancialOverviewPage() {
                           </ScrollArea>
                         </div>
 
-                        {/* Mobile View */}
                         <div className="md:hidden space-y-3">
                           {attendedAppointments.map((app) => (
                             <div key={app.id} className="p-3 border rounded-lg bg-background shadow-sm space-y-2">
@@ -406,7 +268,6 @@ export default function FinancialOverviewPage() {
                       <p className="text-muted-foreground text-sm text-center py-8">Nenhuma transação manual registrada.</p>
                     ) : (
                       <>
-                        {/* Desktop View */}
                         <div className="hidden md:block">
                           <ScrollArea className="h-[350px] w-full rounded-md border">
                             <Table>
@@ -467,7 +328,6 @@ export default function FinancialOverviewPage() {
                           </ScrollArea>
                         </div>
 
-                        {/* Mobile View */}
                         <div className="md:hidden space-y-3">
                           {financialEntries.sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()).map((entry) => (
                             <div key={entry.id} className="p-3 border rounded-lg bg-background shadow-sm flex justify-between items-center gap-4">
@@ -532,6 +392,8 @@ export default function FinancialOverviewPage() {
           )}
         </CardContent>
       </Card>
+      
+      <FinancialExportDialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen} />
     </div>
   );
 }
