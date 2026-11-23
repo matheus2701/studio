@@ -141,7 +141,7 @@ export function FinancialExportDialog({ open, onOpenChange }: FinancialExportDia
       const fileName = `financeiro_${periodLabel}`;
 
       if (formatType === 'CSV') {
-        exportCSV(filteredRows, fileName);
+        exportCSV(filteredRows, summary, fileName);
       } else if (formatType === 'EXCEL') {
         exportExcel(filteredRows, summary, fileName);
       } else {
@@ -157,19 +157,31 @@ export function FinancialExportDialog({ open, onOpenChange }: FinancialExportDia
     }
   };
 
-  const exportCSV = (rows: any[], fileName: string) => {
+  const exportCSV = (rows: any[], summary: any, fileName: string) => {
     const header = ['Data', 'Cliente/Descrição', 'Detalhamento', 'Entrada (R$)', 'Saída (R$)', 'Tipo', 'Categoria'];
+    const dataContent = rows.map(row => [
+      format(parseISO(row.date), 'dd/MM/yyyy'),
+      `"${row.description.replace(/"/g, '""')}"`,
+      `"${row.details.replace(/"/g, '""')}"`,
+      row.income.toFixed(2).replace('.', ','),
+      row.expense.toFixed(2).replace('.', ','),
+      `"${row.type}"`,
+      `"${row.category}"`
+    ].join(';'));
+
+    const summaryContent = [
+      '',
+      'RESUMO FINANCEIRO',
+      `Total Receitas;;;${summary.totalIncome.toFixed(2).replace('.', ',')}`,
+      `Total Despesas;;;;${summary.totalExpense.toFixed(2).replace('.', ',')}`,
+      `Saldo Líquido;;;${summary.netBalance.toFixed(2).replace('.', ',')}`,
+      `Total Movimentações;;;${summary.totalCount}`
+    ];
+
     const csvContent = [
       header.join(';'),
-      ...rows.map(row => [
-        format(parseISO(row.date), 'dd/MM/yyyy'),
-        `"${row.description.replace(/"/g, '""')}"`,
-        `"${row.details.replace(/"/g, '""')}"`,
-        row.income.toFixed(2).replace('.', ','),
-        row.expense.toFixed(2).replace('.', ','),
-        `"${row.type}"`,
-        `"${row.category}"`
-      ].join(';'))
+      ...dataContent,
+      ...summaryContent
     ].join('\n');
 
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -182,24 +194,15 @@ export function FinancialExportDialog({ open, onOpenChange }: FinancialExportDia
   const exportExcel = (rows: any[], summary: any, fileName: string) => {
     const wb = XLSX.utils.book_new();
     
-    // Aba Resumo
-    const resumoData = [
-      ['RELATÓRIO FINANCEIRO - AGENDA VALERY STUDIO'],
-      [''],
-      ['Indicador', 'Valor'],
-      ['Total de Receitas', summary.totalIncome],
-      ['Total de Despesas', summary.totalExpense],
-      ['Saldo Líquido', summary.netBalance],
-      [''],
-      ['Qtd. Receitas', summary.countIncome],
-      ['Qtd. Despesas', summary.countExpense],
-      ['Total de Movimentações', summary.totalCount],
-    ];
-    const wsResumo = XLSX.utils.aoa_to_sheet(resumoData);
-    XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
-
-    // Aba Movimentações
+    // Aba Movimentações (Agora como a primeira aba e com resumo no topo)
     const movimentacoesData = [
+      ['RESUMO DO PERÍODO'],
+      ['Total Receitas', summary.totalIncome],
+      ['Total Despesas', summary.totalExpense],
+      ['Saldo Líquido', summary.netBalance],
+      ['Movimentações', summary.totalCount],
+      [''],
+      ['DETALHAMENTO'],
       ['Data', 'Cliente/Descrição', 'Detalhamento', 'Entrada (R$)', 'Saída (R$)', 'Tipo', 'Categoria'],
       ...rows.map(r => [
         format(parseISO(r.date), 'dd/MM/yyyy'),
@@ -217,7 +220,24 @@ export function FinancialExportDialog({ open, onOpenChange }: FinancialExportDia
     const wscols = [{wch:12}, {wch:30}, {wch:40}, {wch:15}, {wch:15}, {wch:25}, {wch:15}];
     wsMov['!cols'] = wscols;
 
-    XLSX.utils.book_append_sheet(wb, wsMov, "Movimentações");
+    XLSX.utils.book_append_sheet(wb, wsMov, "Relatório Financeiro");
+
+    // Aba Resumo (Mantida como extra)
+    const resumoData = [
+      ['RELATÓRIO FINANCEIRO - AGENDA VALERY STUDIO'],
+      [''],
+      ['Indicador', 'Valor'],
+      ['Total de Receitas', summary.totalIncome],
+      ['Total de Despesas', summary.totalExpense],
+      ['Saldo Líquido', summary.netBalance],
+      [''],
+      ['Qtd. Receitas', summary.countIncome],
+      ['Qtd. Despesas', summary.countExpense],
+      ['Total de Movimentações', summary.totalCount],
+    ];
+    const wsResumo = XLSX.utils.aoa_to_sheet(resumoData);
+    XLSX.utils.book_append_sheet(wb, wsResumo, "Dashboard de Resumo");
+
     XLSX.writeFile(wb, `${fileName}.xlsx`);
   };
 
